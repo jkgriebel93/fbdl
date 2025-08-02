@@ -52,6 +52,7 @@ abbreviation_map = {
                     "RAM": "Los Angeles (N)",
                     "RAI": "Los Angeles Raiders",
                     "PHO": "Phoenix",
+                    # CFL
                     "MON": "Montreal",
                     "MTL": "Montreal",
                     "HAM": "Hamilton",
@@ -62,8 +63,14 @@ abbreviation_map = {
                     "OTT": "Ottawa",
                     "WPG": "Winnipeg",
                     "EDM": "Edmonton",
-
-                    # "Wk": "Week" # Example: to make "Wk01" into "Week 01"
+                    # UFL
+                    "DC": "Washington DC",
+                    "ARL": "Arlington",
+                    "SA": "San Antonio",
+                    "BHM": "Birmingham",
+                    "BHAM": "Birminghame",
+                    "MICH": "Michigan",
+                    "MEM": "Memphis"
                 }
 
 

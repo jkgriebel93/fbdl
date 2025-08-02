@@ -29,3 +29,4 @@ def nfl_show(episode_names_file, cookies, show_dir):
     nfl.download_episodes()
 
 cli.add_command(nfl_show)
+cli.add_command(update_metadata)
