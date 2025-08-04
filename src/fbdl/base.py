@@ -1,5 +1,3 @@
-import os
-
 from pathlib import Path
 
 from mutagen.mp4 import MP4
