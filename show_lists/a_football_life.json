@@ -1,0 +1,21 @@
+{
+  "seasons":
+  [
+    ["bill-belichick-part-1-x6394", "bill-belichick-part-2", "reggie-white-jerome-brown", "kurt-warner", "walter-payton", "ed-sabol", "mike-ditka", "tom-landry", "al-davis"],
+    ["tim-tebow", "ray-lewis", "tom-coughlin", "cleveland-95", "fearsome-foursome", "steve-mcnair", "eddie-debartolo", "chris-spielman", "jimmy-johnson", "john-riggins", "barry-sanders", "marcus-allen", "the-immaculate-reception"],
+    ["ladanian-tomlinson", "don-shula", "darrelle-revis", "derrick-thomas", "steve-sabol", "matt-millen", "michael-strahan", "pat-summerall", "warren-sapp", "cris-carter", "the-forward-pass", "steve-gleason", "great-wall-of-dallas", "houston-93", "marty-schottenheimer", "vince-lombardi-part-1", "vince-lombardi-part-2", "tiki-ronde-barber", "bill-parcells", "jerry-smith", "jerry-rice"],
+    ["mean-joe-greene", "brandon-marshall", "sean-taylor", "warren-moon", "eric-dickerson", "terrell-davis", "ricky-williams", "earl-campbell", "72-dolphins-a-perfect-backfield", "roger-staubach", "keenan-mccardell-and-jimmy-smith", "the-2006-rose-bowl", "joe-namath-part-1", "joe-namath-part-2"],
+    ["christian-okoye", "dexter-manley", "jerome-bettis", "terrell-owens", "alan-page", "steve-largent", "dick-vermeil", "paul-brown", "mike-singletary", "charles-haley", "bruce-arians", "marshall-faulk", "ken-stabler"],
+    ["brett-favre", "curtis-martin", "rodney-harrison", "chad-johnson", "steve-young", "pat-tillman-x3989", "michael-vick-x3591", "jim-brown", "steve-smith", "chuck-noll", "troy-aikman", "charles-woodson", "kevin-greene"],
+    ["dan-marino", "emmitt-smith", "john-madden", "wes-welker", "sam-mills", "jim-kelly", "larry-fitzgerald", "eddie-george", "joe-gibbs", "jerry-jones", "aeneas-williams", "john-randle"],
+    ["carson-palmer-x3229", "lawrence-taylor", "tony-romo", "willie-mcginest", "brian-dawkins-x9863", "dwight-clark", "bill-cowher", "mike-holmgren", "cris-collinsworth", "doug-williams", "thurman-thomas"],
+    ["terry-bradshaw", "tony-gonzalez", "ronnie-lott", "bruce-smith"],
+    ["nick-saban", "james-harrison", "calvin-johnson", "drew-pearson", "john-lynch"],
+    ["joe-theismann", "rod-woodson", "franco-harris", "1972-miami-dolphins"]
+  ],
+  "errors": [
+    "ladanian-tomlinson", "derrick-thomas", "matt-millen",
+    "sean-taylor", "marshall-faulk", "john-madden", "larry-fitzgerald",
+    "lawrence-taylor", "willie-mcginest", "bill-cowher", "mike-holmgren", "cris-collinsworth"
+  ]
+}

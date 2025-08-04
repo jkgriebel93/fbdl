@@ -16,7 +16,8 @@ class NFLShowDownloader:
         self.show_directory.mkdir(parents=True, exist_ok=True)
 
         with open(episode_list_path, "r") as infile:
-            self.episodes = json.load(infile)
+            data = json.load(infile)
+            self.episodes = data["seasons"]
 
         self.base_yt_ops = {
             "cookiefile": self.cookie_file_path,
@@ -44,16 +45,10 @@ class NFLShowDownloader:
             "progress_hooks": [lambda d: print(f"Downloading {d['filename']}")
                                 if d['status'] == 'downloading' else None]
         }
-        self.completed = ["christian-okoye", "dexter-manley", "jerome-bettis",
-                          "terrell-owens", "alan-page", "steve-largent",
-                          "dick-vermeil", "paul-brown", "mike-singletary",
-                          "charles-haley", "bruce-arians", "dan-marino", "emmitt-smith", "jim-kelly", "sam-mills",
-                          "wes-welker", "carson-palmer-x3229", "tony-romo", "dwight-clark", "brian-dawkins-x9863",
-                          "nick-saban", "james-harrison"]
-        self.errors = ["ladanian-tomlinson", "derrick-thomas", "matt-millen",
-                       "sean-taylor", "marshall-faulk", "john-madden", "larry-fitzgerald",
-                       "lawrence-taylor", "willie-mcginest", "bill-cowher", "mike-holmgren", "cris-collinsworth"]
-        self.completed_seasons = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.completed = []
+        self.errors = []
+        self.errors = []
+        self.completed_seasons = []
 
     def download_episodes(self):
         print("Downloading episodes")
@@ -71,6 +66,7 @@ class NFLShowDownloader:
 
             with YoutubeDL(full_opts) as ydl:
                 ydl.download(completed_urls)
+                self.completed_seasons.append(idx + 1)
 
             print(f"Pausing for {self.pause_time} between seasons")
             time.sleep(self.pause_time)
