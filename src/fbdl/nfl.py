@@ -45,7 +45,9 @@ class NFLShowDownloader:
             "progress_hooks": [lambda d: print(f"Downloading {d['filename']}")
                                 if d['status'] == 'downloading' else None]
         }
-        self.completed = []
+        self.completed = ["new-york-giants", "fastest-players", "career-finales", "draft-day-moments",
+                          "playoff-finishes", "greatest-in-season-trades", "playoff-performances",
+                          "free-agent-signings"]
         self.errors = []
         self.errors = []
         self.completed_seasons = []

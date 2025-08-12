@@ -6,7 +6,7 @@ from pathlib import Path
 
 def rename_files(directory: Path, series_name: str, pretend: bool = True):
     # Regular expression to match the xyy-<Episode Name>.mp4 format
-    pattern = r'^(\d{1,2})(\d{2})-(.+)\.mp4$'
+    pattern = r'^(\d{1})(\d{2,3})-(.+)\.mp4$'
 
     # Iterate through all subdirectories
     for file_path in directory.rglob('*.mp4'):
