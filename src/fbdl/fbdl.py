@@ -36,7 +36,9 @@ def nfl_show(episode_names_file, cookies, show_dir):
 @click.command()
 @click.argument("series_name")
 @click.option("--pretend", default=False, is_flag=True)
-def rename_series(series_name: str, pretend: bool):
+@click.option("--release-year", type=int)
+@click.option("--replace", default=False, is_flag=True)
+def rename_series(series_name: str, pretend: bool, release_year: int, replace: bool):
     click.echo(f"Renaming episodes for {series_name}")
     base_dir = os.getenv("MEDIA_BASE_DIR")
 
@@ -44,7 +46,16 @@ def rename_series(series_name: str, pretend: bool):
         click.echo("No media base directory set. Set the MEDIA_BASE_DIR environment variable.")
         return
 
-    rename_files(Path(base_dir, series_name), series_name, pretend)
+    # Plex mandates that the release year be included in the
+    # Series directory name, but _not_ in the episode title.
+    if release_year:
+        series_dir = f"{series_name} ({release_year})"
+    else:
+        series_dir = series_name
+
+    series_directory = Path(base_dir, series_dir)
+
+    rename_files(series_directory, series_name, pretend, replace)
 
 
 cli.add_command(nfl_show)
