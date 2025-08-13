@@ -3,7 +3,7 @@ import os
 
 from pathlib import Path
 
-from .base import MetaDataUpdater
+from .base import FileOperationsUtil
 from .nfl import NFLShowDownloader
 from .utils import rename_files
 
@@ -19,7 +19,7 @@ def cli():
 @click.option("--pretend", default=False, is_flag=True)
 @click.option("--verbose", default=False, is_flag=True)
 def update_metadata(directory_path, pretend, verbose):
-    md_updater = MetaDataUpdater(directory_path, pretend, verbose)
+    md_updater = FileOperationsUtil(directory_path, pretend, verbose)
     md_updater.iter_and_update_children()
 
 
@@ -58,6 +58,21 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
     rename_files(series_directory, series_name, pretend, replace)
 
 
+@click.command()
+@click.argument("directory")
+@click.option("--pretend", default=False, is_flag=True)
+@click.option("--update-meta", default=False, is_flag=True)
+@click.option("--delete", default=False, is_flag=True)
+def convert_format(directory, pretend, update_meta, delete):
+    conv_dir = Path(directory)
+    if not conv_dir.is_dir():
+        raise FileNotFoundError(f"Directory {conv_dir} does not exist.")
+
+    fops_util = FileOperationsUtil(conv_dir, pretend)
+    fops_util.convert_formats(delete=delete)
+
+
 cli.add_command(nfl_show)
 cli.add_command(update_metadata)
 cli.add_command(rename_series)
+cli.add_command(convert_format)

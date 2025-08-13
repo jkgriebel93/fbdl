@@ -1,7 +1,8 @@
-import os
+import ffmpeg
 import re
 
 from pathlib import Path
+from typing import List
 
 
 def rename_files(directory: Path, series_name: str, pretend: bool = True, replace: bool = False):

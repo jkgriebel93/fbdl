@@ -1,3 +1,5 @@
+import ffmpeg
+
 from pathlib import Path
 
 from mutagen.mp4 import MP4
@@ -72,8 +74,8 @@ abbreviation_map = {
                 }
 
 
-class MetaDataUpdater:
-    def __init__(self, directory_path: str, pretend: bool = False, verbose: bool = False):
+class FileOperationsUtil:
+    def __init__(self, directory_path: Path, pretend: bool = False, verbose: bool = False):
         self.directory_path = Path(directory_path)
         self.pretend = pretend
         self.verbose = verbose
@@ -115,7 +117,6 @@ class MetaDataUpdater:
 
             audio["\xa9nam"] = new_name  # Tags are often lists in MP4
             audio["\xa9day"] = year
-            audio["\xa9day"] = year
 
             if not self.pretend:
                 print("Saving file.")
@@ -129,3 +130,27 @@ class MetaDataUpdater:
     def iter_and_update_children(self):
         for item in self.directory_path.rglob("*.mp4"):
             self.update_mp4_title_from_filename(item)
+
+    def convert_formats(self,
+                        orig_format: str = "mkv",
+                        new_format: str = "mp4",
+                        delete: bool = False):
+        for mkv_file in self.directory_path.rglob(f"*.{orig_format}"):
+            stream = ffmpeg.input(str(mkv_file))
+            output_path = str(mkv_file.with_suffix(f".{new_format}"))
+            stream = ffmpeg.output(stream,
+                                   output_path,
+                                   vcodec="copy",
+                                   acodec="copy",
+                                   format="mp4")
+            if self.pretend:
+                log_str = f"Would convert {mkv_file} to {output_path}."
+                if delete:
+                    log_str += f"\nWould delete {mkv_file} as well."
+                print(log_str)
+            else:
+                print(f"Converting {mkv_file} to {output_path}")
+                ffmpeg.run(stream)
+                if delete:
+                    print(f"Deleting {mkv_file}.")
+                    mkv_file.unlink()
