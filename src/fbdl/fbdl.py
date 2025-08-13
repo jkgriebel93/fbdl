@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from .base import FileOperationsUtil
-from .nfl import NFLShowDownloader
+from .nfl import NFLShowDownloader, PFRScraper
 from .utils import rename_files
 
 
@@ -72,7 +72,18 @@ def convert_format(directory, pretend, update_meta, delete):
     fops_util.convert_formats(delete=delete)
 
 
+@click.command()
+@click.argument("team")
+@click.argument("season")
+def extract_game_dates(team, season):
+    pfr = PFRScraper()
+    games = pfr.extract_games_for_season(team, season)
+    from pprint import pprint
+    pprint(games, indent=4)
+
+
 cli.add_command(nfl_show)
 cli.add_command(update_metadata)
 cli.add_command(rename_series)
 cli.add_command(convert_format)
+cli.add_command(extract_game_dates)
