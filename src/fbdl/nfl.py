@@ -4,7 +4,8 @@ import time
 
 from pathlib import Path
 from yt_dlp import YoutubeDL
-MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
+
+from .base import MEDIA_BASE_DIR
 
 class NFLShowDownloader:
     def __init__(self, episode_list_path: str, cookie_file_path: str, show_dir: str, pause_time: int = 30):
@@ -45,9 +46,7 @@ class NFLShowDownloader:
             "progress_hooks": [lambda d: print(f"Downloading {d['filename']}")
                                 if d['status'] == 'downloading' else None]
         }
-        self.completed = ["new-york-giants", "fastest-players", "career-finales", "draft-day-moments",
-                          "playoff-finishes", "greatest-in-season-trades", "playoff-performances",
-                          "free-agent-signings"]
+        self.completed = []
         self.errors = []
         self.errors = []
         self.completed_seasons = []

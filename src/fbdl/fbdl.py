@@ -3,7 +3,7 @@ import os
 
 from pathlib import Path
 
-from .base import FileOperationsUtil
+from .base import FileOperationsUtil, BaseDownloader
 from .nfl import NFLShowDownloader
 from .utils import rename_files
 
@@ -12,6 +12,16 @@ from .utils import rename_files
 @click.group()
 def cli():
     pass
+
+
+@click.command()
+@click.argument("input_file", type=click.Path(exists=True))
+@click.argument("output_directory", type=click.Path(exists=True))
+@click.option("--cookie_file", type=click.Path(exists=True))
+def download_list(input_file, output_directory, cookie_file: Path = None):
+    bd = BaseDownloader(cookie_file_path=cookie_file,
+                        destination_dir=output_directory)
+    bd.download_from_file(Path(input_file))
 
 
 @click.command()
@@ -76,3 +86,4 @@ cli.add_command(nfl_show)
 cli.add_command(update_metadata)
 cli.add_command(rename_series)
 cli.add_command(convert_format)
+cli.add_command(download_list)

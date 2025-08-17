@@ -1,10 +1,13 @@
 import ffmpeg
+import os
 
 from pathlib import Path
+from typing import Optional, Union
 
 from mutagen.mp4 import MP4
+from yt_dlp import YoutubeDL
 
-
+MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
 abbreviation_map = {
                     "PIT": "Pittsburgh",
                     "CLE": "Cleveland",
@@ -154,3 +157,56 @@ class FileOperationsUtil:
                 if delete:
                     print(f"Deleting {mkv_file}.")
                     mkv_file.unlink()
+
+
+class BaseDownloader:
+    def __init__(self,
+                 cookie_file_path: Optional[Union[str, Path]],
+                 destination_dir: str,
+                 add_yt_opts: dict = None):
+        self.cookie_file_path = cookie_file_path
+        self.base_yt_opts = {
+            "cookiefile": self.cookie_file_path,
+            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
+            "merge_output_format": "mp4",
+            "concurrent_fragment_downloads": 1,
+            "writethumbnail": True,
+            "embedthumbnail": True,
+            "addmetadata": True,
+            "throttledratelimit": 1000000,
+            "postprocessors": [
+                {
+                    "key": "FFmpegMetadata",
+                    "add_chapters": True,
+                    "add_metadata": True,
+                },
+                {
+                    "key": "EmbedThumbnail",
+                    "already_have_thumbnail": True,
+                }
+            ],
+            "embedsubs": True,
+            "writesubs": True,
+            "subtitleslangs": ["en"],
+            "progress_hooks": [lambda d: print(f"Downloading {d['filename']}")
+                                if d['status'] == 'downloading' else None]
+        }
+        if add_yt_opts:
+            self.base_yt_opts.update(add_yt_opts)
+        self.destination_dir = Path(destination_dir)
+
+    def download_from_file(self,
+                           input_file: Path,
+                           dlp_overrides: dict = None):
+        print(f"Downloading files from {input_file.name}")
+        urls = input_file.read_text().splitlines()
+        output_template = str(self.destination_dir / "%(title)s.%(ext)s")
+        overridden_opts = {
+            **self.base_yt_opts,
+            "outtmpl": output_template,
+        }
+        if dlp_overrides:
+            overridden_opts.update(dlp_overrides)
+
+        with YoutubeDL(overridden_opts) as ydl:
+            ydl.download(urls)
