@@ -5,7 +5,6 @@ from pathlib import Path
 
 from .base import FileOperationsUtil, BaseDownloader
 from .nfl import NFLShowDownloader
-from .utils import rename_files
 
 
 
@@ -65,7 +64,10 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
 
     series_directory = Path(base_dir, series_dir)
 
-    rename_files(series_directory, series_name, pretend, replace)
+    fops = FileOperationsUtil(directory_path=series_directory,
+                              pretend=pretend)
+    fops.rename_files(series_name=series_name,
+                      replace=replace)
 
 
 @click.command()
@@ -80,6 +82,9 @@ def convert_format(directory, pretend, update_meta, delete):
 
     fops_util = FileOperationsUtil(conv_dir, pretend)
     fops_util.convert_formats(delete=delete)
+
+    for converted_file in conv_dir.rglob("*.mp4"):
+        fops_util.update_mp4_title_from_filename(converted_file)
 
 
 cli.add_command(nfl_show)
