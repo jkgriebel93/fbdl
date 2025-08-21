@@ -13,7 +13,7 @@ def cli():
     pass
 
 
-@click.command()
+@cli.command()
 @click.argument("input_file", type=click.Path(exists=True))
 @click.argument("output_directory", type=click.Path(exists=True))
 @click.option("--cookie_file", type=click.Path(exists=True))
@@ -23,7 +23,7 @@ def download_list(input_file, output_directory, cookie_file: Path = None):
     bd.download_from_file(Path(input_file))
 
 
-@click.command()
+@cli.command()
 @click.argument("directory_path", type=click.Path(exists=True))
 @click.option("--pretend", default=False, is_flag=True)
 @click.option("--verbose", default=False, is_flag=True)
@@ -32,7 +32,7 @@ def update_metadata(directory_path, pretend, verbose):
     md_updater.iter_and_update_children()
 
 
-@click.command()
+@cli.command()
 @click.argument("episode_names_file")
 @click.option("--cookies")
 @click.option("--show-dir")
@@ -42,7 +42,7 @@ def nfl_show(episode_names_file, cookies, show_dir):
     nfl.download_episodes()
 
 
-@click.command()
+@cli.command()
 @click.argument("series_name")
 @click.option("--pretend", default=False, is_flag=True)
 @click.option("--release-year", type=int)
@@ -70,7 +70,7 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
                       replace=replace)
 
 
-@click.command()
+@cli.command()
 @click.argument("directory")
 @click.option("--pretend", default=False, is_flag=True)
 @click.option("--update-meta", default=False, is_flag=True)
@@ -85,10 +85,3 @@ def convert_format(directory, pretend, update_meta, delete):
 
     for converted_file in conv_dir.rglob("*.mp4"):
         fops_util.update_mp4_title_from_filename(converted_file)
-
-
-cli.add_command(nfl_show)
-cli.add_command(update_metadata)
-cli.add_command(rename_series)
-cli.add_command(convert_format)
-cli.add_command(download_list)
