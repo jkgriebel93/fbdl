@@ -78,6 +78,77 @@ abbreviation_map = {
                 }
 
 
+def is_playoff_week(week_str: str) -> str:
+    for week_type in ["wc", "div", "conf", "sb"]:
+        if week_type in week_str.lower():
+            match week_type:
+                case "wc":
+                    return "Wild Card"
+                case "div":
+                    return "Divisional"
+                case "conf":
+                    return "Conference Championship"
+                case "sb":
+                    sb_num = week_str.lower().split("sb")[-1]
+                    return f"Super Bowl {sb_num.upper()}"
+                case _:
+                    return ""
+    return ""
+
+
+def get_week_int_as_string(week: str, year: int = None) -> Union[int, str]:
+    if num := is_playoff_week(week):
+        if year < 1978:
+            # Through 1997: 14 week schedule, no bye week, no wildcard
+            if num == "Divisional":
+                num = 15
+            elif num == "Conference Championship":
+                num = 16
+            elif "Super Bowl" in num:
+                num = 17
+
+        elif year < 1990:
+            # 1978 - 1989: 16 week schedule, no bye week, wildcard round
+            if num == "Wild Card":
+                num = 17
+            elif num == "Divisional":
+                num = 18
+            elif num == "Conference Championship":
+                num = 19
+            elif "Super Bowl" in num:
+                num = 20
+        elif year == 1993 or year > 2020:
+            # 1993: 18 week schedule, two bye weeks (16 games), wildcard round
+            # 2021 - Current: 18 week schedule (17 games), wildcard round, results in
+            # Same numbering as 1993
+            if num == "Wild Card":
+                num = 19
+            elif num == "Divisional":
+                num = 20
+            elif num == "Conference Championship":
+                num = 21
+            elif "Super Bowl" in num:
+                num = 22
+        elif year < 2021:
+            # 1990 - 2020 (except 1993): 17 week schedule, one bye week, wildcard round
+            if num == "Wild Card":
+                num = 18
+            elif num == "Divisional":
+                num = 19
+            elif num == "Conference Championship":
+                num = 20
+            elif "Super Bowl" in num:
+                num = 21
+
+        return str(num)
+    num = ""
+    for c in week.lower().replace("wk", ""):
+        if not c.isdigit():
+            break
+        num+= c
+
+    return num
+
 class FileOperationsUtil:
     def __init__(self, directory_path: Path, pretend: bool = False, verbose: bool = False):
         self.directory_path = Path(directory_path)
@@ -195,9 +266,9 @@ class BaseDownloader:
                  cookie_file_path: Optional[Union[str, Path]],
                  destination_dir: str,
                  add_yt_opts: dict = None):
-        self.cookie_file_path = cookie_file_path
+        # self.cookie_file_path = cookie_file_path
         self.base_yt_opts = {
-            "cookiefile": self.cookie_file_path,
+            "cookies-from-browser": cookie_file_path,
             "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
             "merge_output_format": "mp4",
             "concurrent_fragment_downloads": 1,
@@ -205,17 +276,6 @@ class BaseDownloader:
             "embedthumbnail": True,
             "addmetadata": True,
             "throttledratelimit": 1000000,
-            "postprocessors": [
-                {
-                    "key": "FFmpegMetadata",
-                    "add_chapters": True,
-                    "add_metadata": True,
-                },
-                {
-                    "key": "EmbedThumbnail",
-                    "already_have_thumbnail": True,
-                }
-            ],
             "embedsubs": True,
             "writesubs": True,
             "subtitleslangs": ["en"],
@@ -236,6 +296,7 @@ class BaseDownloader:
         }
         if dlp_overrides:
             overridden_opts.update(dlp_overrides)
-
+        from pprint import pprint
+        pprint(overridden_opts, indent=4)
         with YoutubeDL(overridden_opts) as ydl:
             ydl.download(urls)

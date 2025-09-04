@@ -6,7 +6,8 @@ requires-python=">=3.12"
 dependencies = [
     "yt-dlp==2025.7.21",
     "click==8.2.1",
-    "ffmpeg-python==0.2.0"
+    "ffmpeg-python==0.2.0",
+    "pycryptodomex==3.23.0"
 ]
 
 [project.scripts]
