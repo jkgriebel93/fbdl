@@ -144,9 +144,7 @@ class MetaDataCreator:
             nfo_file.touch()
             title = self._create_title_string(game_stem)
 
-            # This will have to be amended if/when we're dealing
-            # with league wide games
-            episode_num = get_week_int_as_string(game_stem.split("_")[1], year)
+            episode_num = game_stem.split("-")[1].split("e")[-1].strip()
 
             aired = self.game_dates[str(year)][episode_num.lstrip("0")]
 
@@ -154,7 +152,7 @@ class MetaDataCreator:
                 f"<episodedetails>\n"
                     f"\t<title>{title}</title>\n"
                     f"\t<season>{year}</season>\n"
-                    f"\t<episode>{episode_num}</episode>\n"
+                    f"\t<episode>{episode_num.lstrip("0")}</episode>\n"
                     f"\t<aired>{aired}</aired>\n"
                 f"</episodedetails>"
             )

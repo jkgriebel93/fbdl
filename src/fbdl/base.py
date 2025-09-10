@@ -88,6 +88,8 @@ def is_playoff_week(week_str: str) -> str:
                     return "Divisional"
                 case "conf":
                     return "Conference Championship"
+                case "uflchamp":
+                    return "UFL Championship"
                 case "sb":
                     sb_num = week_str.lower().split("sb")[-1]
                     return f"Super Bowl {sb_num.upper()}"
@@ -96,49 +98,69 @@ def is_playoff_week(week_str: str) -> str:
     return ""
 
 
-def get_week_int_as_string(week: str, year: int = None) -> Union[int, str]:
-    if num := is_playoff_week(week):
-        if year < 1978:
-            # Through 1997: 14 week schedule, no bye week, no wildcard
-            if num == "Divisional":
-                num = 15
-            elif num == "Conference Championship":
-                num = 16
-            elif "Super Bowl" in num:
-                num = 17
+def convert_nfl_playoff_name_to_int(year: int, week_name: str) -> int:
+    num = None
+    if year < 1978:
+        # Through 1997: 14 week schedule, no bye week, no wildcard
+        if week_name == "Divisional":
+            num = 15
+        elif week_name == "Conference Championship":
+            num = 16
+        elif "Super Bowl" in week_name:
+            num = 17
 
-        elif year < 1990:
-            # 1978 - 1989: 16 week schedule, no bye week, wildcard round
-            if num == "Wild Card":
-                num = 17
-            elif num == "Divisional":
-                num = 18
-            elif num == "Conference Championship":
-                num = 19
-            elif "Super Bowl" in num:
-                num = 20
-        elif year == 1993 or year > 2020:
-            # 1993: 18 week schedule, two bye weeks (16 games), wildcard round
-            # 2021 - Current: 18 week schedule (17 games), wildcard round, results in
-            # Same numbering as 1993
-            if num == "Wild Card":
-                num = 19
-            elif num == "Divisional":
-                num = 20
-            elif num == "Conference Championship":
-                num = 21
-            elif "Super Bowl" in num:
-                num = 22
-        elif year < 2021:
-            # 1990 - 2020 (except 1993): 17 week schedule, one bye week, wildcard round
-            if num == "Wild Card":
-                num = 18
-            elif num == "Divisional":
-                num = 19
-            elif num == "Conference Championship":
-                num = 20
-            elif "Super Bowl" in num:
-                num = 21
+    elif year < 1990:
+        # 1978 - 1989: 16 week schedule, no bye week, wildcard round
+        if week_name == "Wild Card":
+            num = 17
+        elif week_name == "Divisional":
+            num = 18
+        elif week_name == "Conference Championship":
+            num = 19
+        elif "Super Bowl" in week_name:
+            num = 20
+    elif year == 1993 or year > 2020:
+        # 1993: 18 week schedule, two bye weeks (16 games), wildcard round
+        # 2021 - Current: 18 week schedule (17 games), wildcard round, results in
+        # Same numbering as 1993
+        if week_name == "Wild Card":
+            num = 19
+        elif week_name == "Divisional":
+            num = 20
+        elif week_name == "Conference Championship":
+            num = 21
+        elif "Super Bowl" in week_name:
+            num = 22
+    elif year < 2021:
+        # 1990 - 2020 (except 1993): 17 week schedule, one bye week, wildcard round
+        if week_name == "Wild Card":
+            num = 18
+        elif week_name == "Divisional":
+            num = 19
+        elif week_name == "Conference Championship":
+            num = 20
+        elif "Super Bowl" in week_name:
+            num = 21
+    return num
+
+
+def convert_ufl_playoff_name_to_int(year: int, week_name: str) -> int:
+    # As of now, we don't need year because the UFL schedule hasn't changed
+    # But it surely will, and probably soon
+    num = None
+    if week_name == "Conference Championship":
+        num = 11
+    elif week_name == "UFL Championship":
+        num = 12
+    return num
+
+
+def get_week_int_as_string(week: str, year: int = None, is_ufl: bool = False) -> Union[int, str]:
+    if num := is_playoff_week(week):
+        if is_ufl:
+            num = convert_ufl_playoff_name_to_int(year, week_name=num)
+        else:
+            num = convert_nfl_playoff_name_to_int(year, week_name=num)
 
         return str(num)
     num = ""
@@ -300,3 +322,49 @@ class BaseDownloader:
         pprint(overridden_opts, indent=4)
         with YoutubeDL(overridden_opts) as ydl:
             ydl.download(urls)
+
+
+def is_bowl_game(orig_file):
+    bowl_str = ""
+    for named_game in ["SEC Championship ",
+                       "Orange Bowl ",
+                       "CFP Final ",
+                       "Peach Bowl CFP Semi-Final"]:
+        if named_game in orig_file.stem:
+            bowl_str = named_game
+            break
+    return bowl_str
+
+
+def transform_file_name(orig_file):
+    stem = orig_file.stem.replace("UGA", "Georgia").replace("@", "at")
+
+    if bowl_str := is_bowl_game(orig_file):
+        stem = stem.replace(bowl_str, "")
+        bowl_str = bowl_str.strip().replace(" ", "").replace("-Final", "")
+
+    stem_parts = stem.split(" ")
+
+    year = stem_parts[0]
+    game_num = stem_parts[3]
+    date = stem_parts[4]
+
+    try:
+        divider_index = stem_parts.index("at")
+    except ValueError:
+        divider_index = stem_parts.index("vs")
+
+    divider = stem_parts[divider_index]
+
+    team_one = "_".join(stem_parts[5:divider_index])
+    team_two = "_".join(stem_parts[divider_index + 1:])
+
+    prefix = f"NCAA - s{year}e{game_num.zfill(2)}"
+
+    game_str = f"{game_num.zfill(2)}{bowl_str}"
+    new_stem = (f"{prefix} - "
+                f"{year}_Gm{game_str}_"
+                f"{team_one}_{divider}_{team_two}")
+    return new_stem
+
+
