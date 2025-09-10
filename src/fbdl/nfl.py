@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 
 import requests
@@ -7,6 +8,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, Union, List
 from yt_dlp import YoutubeDL
+from yt_dlp.extractor.nfl import NFLBaseIE
+from yt_dlp.cookies import load_cookies, _parse_browser_specification, extract_cookies_from_browser
+from yt_dlp.utils import urlencode_postdata
+from yt_dlp.utils.traversal import traverse_obj
 
 from .base import (
     MEDIA_BASE_DIR,
@@ -17,6 +22,8 @@ from .base import (
     get_week_int_as_string,
     BaseDownloader,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class NFLShowDownloader:
@@ -102,21 +109,84 @@ class NFLShowDownloader:
             time.sleep(self.pause_time)
 
 
-class NFLWeeklyDownloader(BaseDownloader):
+class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
     def __init__(self,
         cookie_file_path: Optional[Union[str, Path]],
-        destination_dir: str,
+        destination_dir: Union[str, Path],
         add_yt_opts: dict = None,
     ):
         super().__init__(cookie_file_path, destination_dir, add_yt_opts)
         self._api_base_url = "https://api.nfl.com/football/v2/"
         self._replay_base_url = "https://www.nfl.com/plus/games/"
-        self.headers = self._construct_headers()
+        # self.headers = self._construct_headers()
+        self._fbdl_get_account_info()
 
-    def _construct_headers(self):
-        return {}
+    def _initialize_cookies(self, browser: str = "firefox"):
+        browser_specification = (browser, self.cookie_file_path)
+        browser_name, profile, keyring, container = _parse_browser_specification(*browser_specification)
+        cookies = extract_cookies_from_browser(browser_name=browser_name,
+                                               profile=profile,
+                                               logger=logger,
+                                               keyring=keyring,
+                                               container=container)
+        return cookies.get_cookies_for_url("https://auth-id.nfl.com/")
+
+    def _fbdl_get_auth_token(self):
+        if self._TOKEN and self._TOKEN_EXPIRY > int(time.time() + 30):
+            return
+
+        token_url = "https://api.nfl.com/identity/v3/token"
+        if self._ACCOUNT_INFO.get("refreshToken"):
+            token_url += "/refresh"
+
+        token_request_data = json.dumps({**self._CLIENT_DATA, **self._ACCOUNT_INFO}, separators=(',', ':')).encode()
+        response = requests.post(token_url,
+                                 headers={"Content-Type": "application/json"},
+                                 data=token_request_data)
+        response.raise_for_status()
+        token = response.json()
+
+        self._TOKEN = token["accessToken"]
+        self._TOKEN_EXPIRY = token["expiresIn"]
+        self._ACCOUNT_INFO["refreshToken"] = token["refreshToken"]
+
+    def _fbdl_get_account_info(self):
+        nfl_cookies = self._initialize_cookies()
+        login_token = traverse_obj(nfl_cookies, (
+            (f'glt_{self._API_KEY}', lambda k, _: k.startswith('glt_')), {lambda x: x.value}), get_all=False)
+        account = requests.post(
+            'https://auth-id.nfl.com/accounts.getAccountInfo',
+            data=urlencode_postdata({
+                'include': 'profile,data',
+                'lang': 'en',
+                'APIKey': self._API_KEY,
+                'sdk': 'js_latest',
+                'login_token': login_token,
+                'authMode': 'cookie',
+                'pageURL': 'https://www.nfl.com/',
+                'sdkBuild': traverse_obj(nfl_cookies, (
+                    'gig_canary_ver', {lambda x: x.value.partition('-')[0]}), default='15170'),
+                'format': 'json',
+            }),
+            headers={'Content-Type': 'application/x-www-form-urlencoded'})
+
+        self._ACCOUNT_INFO = traverse_obj(account, {
+            'signatureTimestamp': 'signatureTimestamp',
+            'uid': 'UID',
+            'uidSignature': 'UIDSignature',
+        })
+
+    @property
+    def _headers(self):
+        self._fbdl_get_auth_token()
+        return {
+            "Authorization": f"Bearer {self._TOKEN}",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
 
     def get_games_for_week(self, season: int, week: int, season_type: str = "REG") -> Dict:
+
         weekly_endpoint = f"{self._api_base_url}experience/weekly-game-details"
         params = {
             "includeReplays": True,
@@ -125,7 +195,7 @@ class NFLWeeklyDownloader(BaseDownloader):
             "type": season_type,
             "week": week
         }
-        response = requests.get(weekly_endpoint, headers=self.headers, params=params)
+        response = requests.get(weekly_endpoint, headers=self._headers, params=params)
         response.raise_for_status()
 
         return response.json()
@@ -171,7 +241,7 @@ class NFLWeeklyDownloader(BaseDownloader):
     def _construct_replay_url(self, game, replay_type):
         return f"{self._replay_base_url}{game['slug']}?mcpid={game['replays'][replay_type]['mcpPlaybackId']}"
 
-    def _construct_file_name(self, game, replay_type, ep_num):
+    def construct_file_name(self, game, replay_type, ep_num):
         away_tm = CITY_TO_ABBR[game["awayTeam"]]
         home_tm = CITY_TO_ABBR[game["homeTeam"]]
         return (f"NFL {replay_type} - "
@@ -181,7 +251,7 @@ class NFLWeeklyDownloader(BaseDownloader):
 
     def download_game(self, game: Dict, replay_type: str, ep_num: int):
         full_replay_url = self._construct_replay_url(game, replay_type)
-        file_name = self._construct_file_name(game, replay_type, ep_num)
+        file_name = self.construct_file_name(game, replay_type, ep_num)
 
 
 

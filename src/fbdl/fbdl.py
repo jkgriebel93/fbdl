@@ -1,4 +1,5 @@
 import click
+import json
 import os
 
 from pathlib import Path
@@ -53,7 +54,8 @@ def nfl_games(season: int, week: int, team: str, replay_type: str):
     click.echo(f"Replay Type: {replay_type}")
 
     replay_url = "https://www.nfl.com/plus/games/cowboys-at-eagles-2025-reg-1?mcpid=2272709"
-    profile_dir = os.getenv("PROFILE_LOCATION")
+    # profile_dir = os.getenv("PROFILE_LOCATION")
+    profile_dir = "/mnt/c/Users/johnk/AppData/Roaming/Mozilla/Firefox/Profiles/b64w90xm.dev-edition-default"
     destination_dir = Path("/mnt/e/FootballGames/NFL Condensed Games (1920)")
     allowed_extractors = ["nfl.com:plus:replay"]
     extractor_args = {"nfl.com:plus:replay": {"type": ["condensed_game"]}}
@@ -68,11 +70,14 @@ def nfl_games(season: int, week: int, team: str, replay_type: str):
                               destination_dir=destination_dir,
                               add_yt_opts=add_opts)
     game = {"awayTeam": "Dallas", "homeTeam": "Philadelphia", "divider": "at", "season": 2025, "week": 1}
-    outtmpl = nwd._construct_file_name(game, "All-22", "001") + ".%(ext)s"
+    outtmpl = nwd.construct_file_name(game, "All-22", "001") + ".%(ext)s"
     nwd.base_yt_opts["outtmpl"] = str(Path(destination_dir, outtmpl))
 
-    with YoutubeDL(nwd.base_yt_opts) as ydl:
-        ydl.download([replay_url])
+    game_data = nwd.get_games_for_week(season=season, week=week)
+    click.echo(json.dumps(game_data, indent=4))
+
+    # with YoutubeDL(nwd.base_yt_opts) as ydl:
+    #     ydl.download([replay_url])
 
 
 

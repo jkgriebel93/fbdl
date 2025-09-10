@@ -301,6 +301,7 @@ class BaseDownloader:
         add_yt_opts: dict = None,
     ):
         # self.cookie_file_path = cookie_file_path
+        self.cookie_file_path = cookie_file_path
         self.base_yt_opts = {
             "cookiesfrombrowser": ("firefox", cookie_file_path),
             "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
