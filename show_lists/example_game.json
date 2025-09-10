@@ -1,0 +1,983 @@
+{
+    "id": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+    "homeTeam": {
+        "id": "10403700-b939-3cbd-3d16-24d4d6742fa2",
+        "currentLogo": "https://static.www.nfl.com/{formatInstructions}/league/api/clubs/logos/PHI",
+        "fullName": "Philadelphia Eagles"
+    },
+    "awayTeam": {
+        "id": "10401200-a308-98ca-ad5f-95df2fefea68",
+        "currentLogo": "https://static.www.nfl.com/{formatInstructions}/league/api/clubs/logos/DAL",
+        "fullName": "Dallas Cowboys"
+    },
+    "category": null,
+    "date": "2025-09-05",
+    "time": "2025-09-05T00:20:00Z",
+    "broadcastInfo": {
+        "homeNetworkChannels": [
+            "NBC",
+            "TELEMUNDO",
+            "UNIVERSO"
+        ],
+        "awayNetworkChannels": [
+            "NBC",
+            "TELEMUNDO",
+            "UNIVERSO"
+        ],
+        "internationalWatchOptions": [
+            {
+                "countryCode": "CA",
+                "broadcasters": [
+                    "CTV",
+                    "DAZN Canada",
+                    "TSN",
+                    "RDS2"
+                ]
+            },
+            {
+                "countryCode": "GB",
+                "broadcasters": [
+                    "NFL Game Pass on DAZN",
+                    "Sky Sports"
+                ]
+            },
+            {
+                "countryCode": "MX",
+                "broadcasters": [
+                    "NFL Game Pass on DAZN",
+                    "ESPN2",
+                    "Channel 9"
+                ]
+            },
+            {
+                "countryCode": "DE",
+                "broadcasters": [
+                    "DAZN Germany (OTT)",
+                    "RTL"
+                ]
+            },
+            {
+                "countryCode": "AU",
+                "broadcasters": [
+                    "NFL Game Pass on DAZN",
+                    "ESPN"
+                ]
+            },
+            {
+                "countryCode": "FR",
+                "broadcasters": [
+                    "NFL Game Pass on DAZN",
+                    "beIN 1"
+                ]
+            },
+            {
+                "countryCode": "BR",
+                "broadcasters": [
+                    "NFL Game Pass on DAZN"
+                ]
+            }
+        ],
+        "streamingNetworks": [
+            {
+                "hostNetwork": "NBC",
+                "networks": [
+                    "NBC"
+                ]
+            },
+            {
+                "hostNetwork": "TELEMUNDO",
+                "networks": [
+                    "TELEMUNDO",
+                    "UNIVERSO"
+                ]
+            }
+        ],
+        "territory": "NATIONAL"
+    },
+    "gameType": "UNSPECIFIED",
+    "international": false,
+    "neutralSite": false,
+    "venue": {
+        "id": "00082769-1a91-621b-0c2d-27234c215dc0",
+        "name": "Lincoln Financial Field",
+        "city": "Philadelphia",
+        "country": "USA"
+    },
+    "season": 2025,
+    "seasonType": "REG",
+    "status": "SCHEDULED",
+    "week": 1,
+    "weekType": "REG",
+    "externalIds": [
+        {
+            "source": "elias",
+            "id": "2025090400"
+        },
+        {
+            "source": "gsis",
+            "id": "59843"
+        },
+        {
+            "source": "slug",
+            "id": "cowboys-at-eagles-2025-reg-1"
+        }
+    ],
+    "ticketUrl": "https://www.ticketmaster.com/event/0200628891581C6A?wt.mc_id=NFL_LEAGUE_SCHEDULE_PAGE_LINKS_PHI_LINK3&utm_source=NFL.com&utm_medium=client&utm_campaign=NFL_LEAGUE&utm_content=SCHEDULE_PAGE_LINKS_PHI_LINK3&campaign=phi-tg-ie-sp-2039075",
+    "ticketVendors": [
+        {
+            "vendorName": "lodgingUrl",
+            "ticketUrl": "https://www.marriott.com/search/findHotels.mi?pageType=advanced&showMore=true&destinationAddress.location=Lincoln+Financial+Field&cid=PMO_GLB0003VDI_GLE00095QS_GLF000HKFL&deviceType=desktop-web&view=list#/1/"
+        },
+        {
+            "vendorName": "oneBoxUrl",
+            "ticketUrl": "https://www.ticketmaster.com/event/0200628891581C6A?wt.mc_id=NFL_LEAGUE_GOOGLE_ONE_BOX_PHI_LINK3&utm_source=NFL.com&utm_medium=client&utm_campaign=NFL_LEAGUE&utm_content=GOOGLE_ONE_BOX_PHI_LINK3&campaign=phi-tg-na-vg-2038131"
+        },
+        {
+            "vendorName": "ticketmaster",
+            "ticketUrl": "https://www.ticketmaster.com/event/0200628891581C6A?wt.mc_id=NFL_LEAGUE_SCHEDULE_PAGE_LINKS_PHI_LINK3&utm_source=NFL.com&utm_medium=client&utm_campaign=NFL_LEAGUE&utm_content=SCHEDULE_PAGE_LINKS_PHI_LINK3&campaign=phi-tg-ie-sp-2039075"
+        }
+    ],
+    "extensions": [],
+    "version": 10,
+    "summary": {
+        "gameId": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+        "offset": 480,
+        "attendance": 69879,
+        "clock": "00:33",
+        "distance": 13,
+        "down": 4,
+        "gameBookUrl": "https://static.www.nfl.com/image/upload/v1757104719/gamecenter/f5908b6d-311e-11f0-b670-ae1250fadad1.pdf",
+        "isGoalToGo": false,
+        "isRedZone": false,
+        "phase": "FINAL",
+        "quarter": "END_OF_GAME",
+        "startTime": "2025-09-05T00:23:01.813Z",
+        "weather": "Rain Temp: 75\u00b0 F, Humidity: 66%, Wind: S 11 mph",
+        "yardLine": "DAL 36",
+        "awayTeam": {
+            "teamId": "10401200-a308-98ca-ad5f-95df2fefea68",
+            "hasPossession": false,
+            "score": {
+                "q1": 7,
+                "q2": 13,
+                "q3": 0,
+                "q4": 0,
+                "ot": 0,
+                "total": 20
+            },
+            "timeouts": {
+                "remaining": 0,
+                "used": 3
+            }
+        },
+        "homeTeam": {
+            "teamId": "10403700-b939-3cbd-3d16-24d4d6742fa2",
+            "hasPossession": true,
+            "score": {
+                "q1": 7,
+                "q2": 14,
+                "q3": 3,
+                "q4": 0,
+                "ot": 0,
+                "total": 24
+            },
+            "timeouts": {
+                "remaining": 2,
+                "used": 1
+            }
+        }
+    },
+    "driveChart": null,
+    "replays": [
+        {
+            "type": "video",
+            "language": null,
+            "advertiserId": null,
+            "author": null,
+            "authorizations": {
+                "nfl_plus_premium": [
+                    {
+                        "NFL_PLUS - REPLAYS": {
+                            "requirements": {
+                                "countryCode": [
+                                    "US"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "nfl_plus_plus": [
+                    {
+                        "NFL_PLUS - REPLAYS": {
+                            "requirements": {
+                                "countryCode": [
+                                    "US"
+                                ]
+                            }
+                        }
+                    }
+                ]
+            },
+            "background": {},
+            "cameraSource": null,
+            "clipType": null,
+            "ctas": [],
+            "ctaLink": null,
+            "ctaText": null,
+            "ctaTarget": null,
+            "description": "La temporada 2025 comienza con los Eagles, campeones vigentes, recibiendo a los Cowboys.",
+            "displayTitle": null,
+            "startDate": null,
+            "endDate": null,
+            "duration": "6810",
+            "episodeNumber": null,
+            "entitlement": null,
+            "expirationDate": null,
+            "externalId": "r2Ya55c6WjCy0rwqnSAn9w",
+            "fantasyLink": null,
+            "hostNetwork": null,
+            "id": null,
+            "ids": {
+                "awayTeamId": "10401200-a308-98ca-ad5f-95df2fefea68",
+                "gameId": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+                "homeTeamId": "10403700-b939-3cbd-3d16-24d4d6742fa2",
+                "playId": null
+            },
+            "images": [],
+            "intendedAudience": null,
+            "introEnd": null,
+            "mcpPlaybackId": "2272906",
+            "mobileLink": null,
+            "mobileTitle": null,
+            "originalAirDate": null,
+            "outroStart": null,
+            "playIds": [],
+            "preRollDisabled": false,
+            "promoAssets": [],
+            "promoLink": null,
+            "promoText": null,
+            "promoTarget": "_self",
+            "lastUpdated": null,
+            "publishDate": "2025-09-05T08:40:00.000Z",
+            "radioStation": null,
+            "seriesTitle": null,
+            "seriesSeason": null,
+            "series": null,
+            "slug": null,
+            "subType": "Full Game - Spanish",
+            "summary": null,
+            "tags": [
+                {
+                    "gameId": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+                    "season": "2025",
+                    "week": "1",
+                    "seasonType": "REG"
+                }
+            ],
+            "thumbnail": {
+                "thumbnailUrl": "https://o300810-mp-lura-live.akamaized.net/1/73/pvw/CBC/DEC/CBCDEC93F6EF6BCF6A95C8BA5EF86C7B_2.jpg?hdntl=st=1715000000~exp=2082787200~acl=/*~hmac=7903d9d310da4e4b7d0867e2098dcbb50dfa5d908bf53dd2c392d70447c347e3"
+            },
+            "title": "F\u00fatbol Americano NFL",
+            "videos": [],
+            "webLink": null
+        },
+        {
+            "type": "video",
+            "language": null,
+            "advertiserId": null,
+            "author": null,
+            "authorizations": {
+                "nfl_plus_premium": [
+                    {
+                        "NFL_PLUS - REPLAYS": {
+                            "requirements": {
+                                "countryCode": [
+                                    "US"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "nfl_plus_plus": [
+                    {
+                        "NFL_PLUS - REPLAYS": {
+                            "requirements": {
+                                "countryCode": [
+                                    "US"
+                                ]
+                            }
+                        }
+                    }
+                ]
+            },
+            "background": {},
+            "cameraSource": null,
+            "clipType": null,
+            "ctas": [],
+            "ctaLink": null,
+            "ctaText": null,
+            "ctaTarget": null,
+            "description": "Dallas Cowboys play the Philadelphia Eagles at Lincoln Financial Field on September 04, 2025",
+            "displayTitle": null,
+            "startDate": null,
+            "endDate": null,
+            "duration": "2238",
+            "episodeNumber": null,
+            "entitlement": null,
+            "expirationDate": "2035-09-03T04:44:41.000Z",
+            "externalId": "XG1IBGKrggrbCOkH529t-A",
+            "fantasyLink": null,
+            "hostNetwork": null,
+            "id": null,
+            "ids": {
+                "awayTeamId": "10401200-a308-98ca-ad5f-95df2fefea68",
+                "gameId": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+                "homeTeamId": "10403700-b939-3cbd-3d16-24d4d6742fa2",
+                "playId": null
+            },
+            "images": [],
+            "intendedAudience": null,
+            "introEnd": null,
+            "mcpPlaybackId": "2272709",
+            "mobileLink": null,
+            "mobileTitle": null,
+            "originalAirDate": "2025-09-05T04:17:49.000Z",
+            "outroStart": null,
+            "playIds": [],
+            "preRollDisabled": false,
+            "promoAssets": [],
+            "promoLink": null,
+            "promoText": null,
+            "promoTarget": "_self",
+            "lastUpdated": null,
+            "publishDate": "2025-09-05T04:39:01.000Z",
+            "radioStation": null,
+            "seriesTitle": null,
+            "seriesSeason": null,
+            "series": null,
+            "slug": null,
+            "subType": "Condensed Game",
+            "summary": null,
+            "tags": [
+                {
+                    "title": "KaVontae Turpin",
+                    "slug": "kavontae-turpin",
+                    "personId": "32005455-5278-5436-f08f-3e4ec71654f2"
+                },
+                {
+                    "title": "Jalen Carter",
+                    "slug": "jalen-carter",
+                    "personId": "32004341-5265-6628-f264-d042e762bc39"
+                },
+                {
+                    "title": "Javonte Williams",
+                    "slug": "javonte-williams",
+                    "personId": "32005749-4c35-1486-bb3e-8b9e35992111"
+                },
+                {
+                    "title": "George Pickens",
+                    "slug": "george-pickens",
+                    "personId": "32005049-4357-6156-653f-e3c2b6d1b9bc"
+                },
+                {
+                    "title": "CeeDee Lamb",
+                    "slug": "ceedee-lamb",
+                    "personId": "32004c41-4d13-8457-fcbe-d37fdbd87233"
+                },
+                {
+                    "title": "Adoree Jackson",
+                    "slug": "adoree-jackson",
+                    "personId": "32004a41-4301-4782-dca8-226b6841f848"
+                },
+                {
+                    "title": "Brandon Aubrey",
+                    "slug": "brandon-aubrey",
+                    "personId": "32004155-4241-5291-a962-44bbbaa0d32a"
+                },
+                {
+                    "title": "Marcus Epps",
+                    "slug": "marcus-epps",
+                    "personId": "32004550-5034-6075-4885-ec1779d064fe"
+                },
+                {
+                    "title": "Dallas Goedert",
+                    "slug": "dallas-goedert",
+                    "personId": "3200474f-4559-5520-b7af-5e002aedafbb"
+                },
+                {
+                    "title": "Saquon Barkley",
+                    "slug": "saquon-barkley",
+                    "personId": "32004241-5219-2674-af43-1519254e563d"
+                },
+                {
+                    "title": "Jalen Hurts",
+                    "slug": "jalen-hurts",
+                    "personId": "32004855-5276-7022-85cf-a74490936f42"
+                },
+                {
+                    "title": "Will Shipley",
+                    "slug": "will-shipley",
+                    "personId": "32005348-4938-6967-5869-f740d03ae02a"
+                },
+                {
+                    "title": "Solomon Thomas",
+                    "slug": "solomon-thomas",
+                    "personId": "32005448-4f38-1630-9012-3ee085da5a84"
+                },
+                {
+                    "title": "Jake Elliott",
+                    "slug": "jake-elliott",
+                    "personId": "3200454c-4c29-6383-45c6-7b06fb12848c"
+                },
+                {
+                    "title": "Marist Liufau",
+                    "slug": "marist-liufau",
+                    "personId": "32004c49-5509-8197-2b25-ee72cdcbe615"
+                },
+                {
+                    "title": "Dak Prescott",
+                    "slug": "dak-prescott",
+                    "personId": "32005052-4528-5723-d1b2-96e92ebc1241"
+                },
+                {
+                    "title": "Tyler Smith",
+                    "slug": "tyler-smith",
+                    "personId": "3200534d-4976-5890-507b-4d662371e33a"
+                },
+                {
+                    "title": "Zack Baun",
+                    "slug": "zack-baun",
+                    "personId": "32004241-5567-7316-c31c-c66079e71b79"
+                },
+                {
+                    "title": "Quinyon Mitchell",
+                    "slug": "quinyon-mitchell",
+                    "personId": "32004d49-5462-6299-bd40-a17d9ef6d8a5"
+                },
+                {
+                    "title": "DeVonta Smith",
+                    "slug": "devonta-smith",
+                    "personId": "3200534d-4920-6016-573c-fcc767bafc4d"
+                },
+                {
+                    "title": "Kylen Granson",
+                    "slug": "kylen-granson",
+                    "personId": "32004752-4136-7521-12e0-76f6488826b0"
+                },
+                {
+                    "title": "Jake Ferguson",
+                    "slug": "jake-ferguson",
+                    "personId": "32004645-5214-6119-2797-33878db83d5a"
+                },
+                {
+                    "title": "Miles Sanders",
+                    "slug": "miles-sanders",
+                    "personId": "32005341-4e15-3567-869d-79c73965b54e"
+                },
+                {
+                    "title": "Nolan Smith",
+                    "slug": "nolan-smith",
+                    "personId": "3200534d-4953-6848-fd4d-2f73557d06ca"
+                },
+                {
+                    "title": "Jahan Dotson",
+                    "slug": "jahan-dotson",
+                    "personId": "3200444f-5428-2798-d9f2-9e8608edcb8a"
+                },
+                {
+                    "title": "Jakorian Bennett",
+                    "slug": "jakorian-bennett",
+                    "personId": "32004245-4e35-1736-3c9a-75895b4e9970"
+                },
+                {
+                    "title": "Jalen Tolbert",
+                    "slug": "jalen-tolbert",
+                    "personId": "3200544f-4c14-8914-de91-cd54d59de2a2"
+                },
+                {
+                    "title": "John Metchie",
+                    "slug": "john-metchie",
+                    "personId": "32004d45-5437-3452-4786-13bd57b6dd0c"
+                },
+                {
+                    "title": "A.J. Dillon",
+                    "slug": "a.j.-dillon",
+                    "personId": "32004449-4c23-7740-624c-afbd67329c54"
+                },
+                {
+                    "title": "Donovan Wilson",
+                    "slug": "donovan-wilson",
+                    "personId": "32005749-4c13-2674-5eb5-45165c270e82"
+                },
+                {
+                    "title": "Marshawn Kneeland",
+                    "slug": "marshawn-kneeland",
+                    "personId": "32004b4e-4542-6541-f4b3-41ddd574e6e9"
+                },
+                {
+                    "title": "Jihaad Campbell",
+                    "slug": "jihaad-campbell",
+                    "personId": "32004341-4d39-5656-852f-27b555516592"
+                },
+                {
+                    "title": "Jordan Davis",
+                    "slug": "jordan-davis",
+                    "personId": "32004441-5648-7265-ac02-99b487d4f3e4"
+                },
+                {
+                    "title": "Reed Blankenship",
+                    "slug": "reed-blankenship",
+                    "personId": "3200424c-4173-5451-f5c6-520ce2fbefa3"
+                },
+                {
+                    "title": "Jack Sanborn",
+                    "slug": "jack-sanborn",
+                    "personId": "32005341-4e04-7762-4775-97edb77192d7"
+                },
+                {
+                    "title": "Philadelphia Eagles",
+                    "slug": "philadelphia-eagles",
+                    "personId": "Team_10403700-b939-3cbd-3d16-24d4d6742fa2"
+                },
+                {
+                    "title": "Dallas Cowboys",
+                    "slug": "dallas-cowboys",
+                    "personId": "Team_10401200-a308-98ca-ad5f-95df2fefea68"
+                },
+                {
+                    "title": "Donovan Ezeiruaku",
+                    "slug": "donovan-ezeiruaku",
+                    "personId": "3200455a-4524-5894-e7c9-c127cd7787ca"
+                },
+                {
+                    "title": "James Houston",
+                    "slug": "james-houston",
+                    "personId": "3200484f-5546-0710-2211-95488cd5c2bb"
+                },
+                {
+                    "title": "Braden Mann",
+                    "slug": "braden-mann",
+                    "personId": "32004d41-4e38-9317-816e-74ec32669a1c"
+                },
+                {
+                    "title": "Jalyx Hunt",
+                    "slug": "jalyx-hunt",
+                    "personId": "32004855-4e24-9742-b212-73017a032b03"
+                },
+                {
+                    "title": "Kenny Clark",
+                    "slug": "kenny-clark",
+                    "personId": "3200434c-4140-9251-2f88-d454b8ae633b"
+                },
+                {
+                    "title": "Cooper DeJean",
+                    "slug": "cooper-dejean",
+                    "personId": "32004445-4a22-6521-966b-4b5a2f95ff19"
+                },
+                {
+                    "title": "Sam Williams",
+                    "slug": "sam-williams",
+                    "personId": "32005749-4c51-5041-55e2-aa34560a7119"
+                },
+                {
+                    "title": "A.J. Brown",
+                    "slug": "a.j.-brown",
+                    "personId": "32004252-4f41-3223-e4c5-1e30dffa87f8"
+                },
+                {
+                    "title": "Eagles",
+                    "slug": "eagles",
+                    "teamId": "10403700-b939-3cbd-3d16-24d4d6742fa2"
+                },
+                {
+                    "title": "Cowboys",
+                    "slug": "cowboys",
+                    "teamId": "10401200-a308-98ca-ad5f-95df2fefea68"
+                },
+                {
+                    "gameId": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+                    "season": "2025",
+                    "week": "1",
+                    "seasonType": "REG"
+                },
+                {
+                    "gameId": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+                    "season": "2025",
+                    "week": "1",
+                    "seasonType": "REG"
+                },
+                {
+                    "gameId": "59843",
+                    "season": "2025",
+                    "week": "1",
+                    "seasonType": "REG"
+                }
+            ],
+            "thumbnail": {
+                "thumbnailUrl": "https://o300810-mp-lura-live.akamaized.net/1/73/pvw/3A2/8B6/3A28B6715F0E176D07948C964046E67E_1.jpg?hdntl=st=1715000000~exp=2082787200~acl=/*~hmac=7903d9d310da4e4b7d0867e2098dcbb50dfa5d908bf53dd2c392d70447c347e3"
+            },
+            "title": "Cowboys @ Eagles",
+            "videos": [],
+            "webLink": null
+        },
+        {
+            "type": "video",
+            "language": null,
+            "advertiserId": null,
+            "author": null,
+            "authorizations": {
+                "nfl_plus_premium": [
+                    {
+                        "NFL_PLUS - REPLAYS": {
+                            "requirements": {
+                                "countryCode": [
+                                    "US"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "nfl_plus_plus": [
+                    {
+                        "NFL_PLUS - REPLAYS": {
+                            "requirements": {
+                                "countryCode": [
+                                    "US"
+                                ]
+                            }
+                        }
+                    }
+                ]
+            },
+            "background": {},
+            "cameraSource": "Combined",
+            "clipType": null,
+            "ctas": [],
+            "ctaLink": null,
+            "ctaText": null,
+            "ctaTarget": null,
+            "description": "See the full game from the sideline and endzone.",
+            "displayTitle": null,
+            "startDate": null,
+            "endDate": null,
+            "duration": "4660",
+            "episodeNumber": null,
+            "entitlement": null,
+            "expirationDate": "2035-09-03T05:52:33.000Z",
+            "externalId": "DIZmdw93Na97iFUqNTHr5g",
+            "fantasyLink": null,
+            "hostNetwork": null,
+            "id": null,
+            "ids": {
+                "awayTeamId": "10401200-a308-98ca-ad5f-95df2fefea68",
+                "gameId": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+                "homeTeamId": "10403700-b939-3cbd-3d16-24d4d6742fa2",
+                "playId": null
+            },
+            "images": [],
+            "intendedAudience": null,
+            "introEnd": null,
+            "mcpPlaybackId": "2272889",
+            "mobileLink": null,
+            "mobileTitle": null,
+            "originalAirDate": "2025-09-04T07:00:00.000Z",
+            "outroStart": null,
+            "playIds": [],
+            "preRollDisabled": false,
+            "promoAssets": [],
+            "promoLink": null,
+            "promoText": null,
+            "promoTarget": "_self",
+            "lastUpdated": null,
+            "publishDate": "2025-09-05T05:52:33.000Z",
+            "radioStation": null,
+            "seriesTitle": null,
+            "seriesSeason": null,
+            "series": null,
+            "slug": null,
+            "subType": "All-22",
+            "summary": null,
+            "tags": [
+                {
+                    "gameId": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+                    "season": "2025",
+                    "week": "1",
+                    "seasonType": "REG"
+                }
+            ],
+            "thumbnail": {
+                "thumbnailUrl": "https://o300810-mp-lura-live.akamaized.net/1/73/pvw/824/1F8/8241F83236F29D227CB0877F019D1DFD_2.jpg?hdntl=st=1715000000~exp=2082787200~acl=/*~hmac=7903d9d310da4e4b7d0867e2098dcbb50dfa5d908bf53dd2c392d70447c347e3"
+            },
+            "title": "Cowboys @ Eagles",
+            "videos": [],
+            "webLink": null
+        },
+        {
+            "type": "video",
+            "language": null,
+            "advertiserId": null,
+            "author": null,
+            "authorizations": {
+                "nfl_plus_premium": [
+                    {
+                        "NFL_PLUS - REPLAYS": {
+                            "requirements": {
+                                "countryCode": [
+                                    "US"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "nfl_plus_plus": [
+                    {
+                        "NFL_PLUS - REPLAYS": {
+                            "requirements": {
+                                "countryCode": [
+                                    "US"
+                                ]
+                            }
+                        }
+                    }
+                ]
+            },
+            "background": {},
+            "cameraSource": null,
+            "clipType": null,
+            "ctas": [],
+            "ctaLink": null,
+            "ctaText": null,
+            "ctaTarget": null,
+            "description": "Dallas Cowboys play the Philadelphia Eagles at Lincoln Financial Field on September 04, 2025",
+            "displayTitle": null,
+            "startDate": null,
+            "endDate": null,
+            "duration": "6837",
+            "episodeNumber": null,
+            "entitlement": null,
+            "expirationDate": null,
+            "externalId": "PE13rPoZJvEx7mI5NeFIbA",
+            "fantasyLink": null,
+            "hostNetwork": null,
+            "id": null,
+            "ids": {
+                "awayTeamId": "10401200-a308-98ca-ad5f-95df2fefea68",
+                "gameId": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+                "homeTeamId": "10403700-b939-3cbd-3d16-24d4d6742fa2",
+                "playId": null
+            },
+            "images": [],
+            "intendedAudience": null,
+            "introEnd": null,
+            "mcpPlaybackId": "2272905",
+            "mobileLink": null,
+            "mobileTitle": null,
+            "originalAirDate": null,
+            "outroStart": null,
+            "playIds": [],
+            "preRollDisabled": false,
+            "promoAssets": [],
+            "promoLink": null,
+            "promoText": null,
+            "promoTarget": "_self",
+            "lastUpdated": null,
+            "publishDate": "2025-09-05T08:39:54.000Z",
+            "radioStation": null,
+            "seriesTitle": null,
+            "seriesSeason": null,
+            "series": null,
+            "slug": null,
+            "subType": "Full Game",
+            "summary": null,
+            "tags": [
+                {
+                    "gameId": "f5908b6d-311e-11f0-b670-ae1250fadad1",
+                    "season": "2025",
+                    "week": "1",
+                    "seasonType": "REG"
+                }
+            ],
+            "thumbnail": {
+                "thumbnailUrl": "https://o300810-mp-lura-live.akamaized.net/1/73/pvw/2FA/ACF/2FAACF3BAFBDCCDE8349C249C95AC297_2.jpg?hdntl=st=1715000000~exp=2082787200~acl=/*~hmac=7903d9d310da4e4b7d0867e2098dcbb50dfa5d908bf53dd2c392d70447c347e3"
+            },
+            "title": "Dallas Cowboys at Philadelphia Eagles",
+            "videos": [],
+            "webLink": null
+        }
+    ],
+    "taggedVideos": null,
+    "awayTeamStandings": {
+        "team": {
+            "id": "10401200-a308-98ca-ad5f-95df2fefea68",
+            "currentLogo": "https://static.www.nfl.com/{formatInstructions}/league/api/clubs/logos/DAL",
+            "fullName": "Dallas Cowboys"
+        },
+        "clinched": {
+            "bye": false,
+            "division": false,
+            "eliminated": false,
+            "homeField": false,
+            "playoff": false,
+            "wildCard": false
+        },
+        "closeGames": {
+            "wins": 0,
+            "losses": 1,
+            "ties": 0
+        },
+        "conference": {
+            "wins": 0,
+            "winPct": 0.0,
+            "losses": 1,
+            "ties": 0,
+            "rank": 16,
+            "points": {
+                "for": 20,
+                "against": 24
+            }
+        },
+        "division": {
+            "wins": 0,
+            "winPct": 0.0,
+            "losses": 1,
+            "ties": 0,
+            "rank": 3,
+            "points": {
+                "for": 20,
+                "against": 24
+            }
+        },
+        "home": {
+            "wins": 0,
+            "winPct": 0.0,
+            "losses": 0,
+            "ties": 0,
+            "points": {
+                "for": 0,
+                "against": 0
+            }
+        },
+        "last5": {
+            "wins": 0,
+            "winPct": 0.0,
+            "losses": 1,
+            "ties": 0,
+            "points": {
+                "for": 20,
+                "against": 24
+            }
+        },
+        "overall": {
+            "games": 1,
+            "wins": 0,
+            "winPct": 0.0,
+            "losses": 1,
+            "ties": 0,
+            "points": {
+                "for": 20,
+                "against": 24
+            },
+            "streak": {
+                "type": "STREAK_TYPE_LOSING",
+                "length": 1
+            }
+        },
+        "road": {
+            "wins": 0,
+            "winPct": 0.0,
+            "losses": 1,
+            "ties": 0,
+            "points": {
+                "for": 20,
+                "against": 24
+            }
+        }
+    },
+    "homeTeamStandings": {
+        "team": {
+            "id": "10403700-b939-3cbd-3d16-24d4d6742fa2",
+            "currentLogo": "https://static.www.nfl.com/{formatInstructions}/league/api/clubs/logos/PHI",
+            "fullName": "Philadelphia Eagles"
+        },
+        "clinched": {
+            "bye": false,
+            "division": false,
+            "eliminated": false,
+            "homeField": false,
+            "playoff": false,
+            "wildCard": false
+        },
+        "closeGames": {
+            "wins": 1,
+            "losses": 0,
+            "ties": 0
+        },
+        "conference": {
+            "wins": 1,
+            "winPct": 1.0,
+            "losses": 0,
+            "ties": 0,
+            "rank": 5,
+            "points": {
+                "for": 24,
+                "against": 20
+            }
+        },
+        "division": {
+            "wins": 1,
+            "winPct": 1.0,
+            "losses": 0,
+            "ties": 0,
+            "rank": 2,
+            "points": {
+                "for": 24,
+                "against": 20
+            }
+        },
+        "home": {
+            "wins": 1,
+            "winPct": 1.0,
+            "losses": 0,
+            "ties": 0,
+            "points": {
+                "for": 24,
+                "against": 20
+            }
+        },
+        "last5": {
+            "wins": 1,
+            "winPct": 1.0,
+            "losses": 0,
+            "ties": 0,
+            "points": {
+                "for": 24,
+                "against": 20
+            }
+        },
+        "overall": {
+            "games": 1,
+            "wins": 1,
+            "winPct": 1.0,
+            "losses": 0,
+            "ties": 0,
+            "points": {
+                "for": 24,
+                "against": 20
+            },
+            "streak": {
+                "type": "STREAK_TYPE_WINNING",
+                "length": 1
+            }
+        },
+        "road": {
+            "wins": 0,
+            "winPct": 0.0,
+            "losses": 0,
+            "ties": 0,
+            "points": {
+                "for": 0,
+                "against": 0
+            }
+        }
+    }
+}

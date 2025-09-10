@@ -1,13 +1,17 @@
 import json
 import time
 
+import requests
+
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional, Union, List
 from yt_dlp import YoutubeDL
 
 from .base import (
     MEDIA_BASE_DIR,
+    DEFAULT_REPLAY_TYPES,
+    CITY_TO_ABBR,
     abbreviation_map,
     is_playoff_week,
     get_week_int_as_string,
@@ -99,7 +103,87 @@ class NFLShowDownloader:
 
 
 class NFLWeeklyDownloader(BaseDownloader):
-    pass
+    def __init__(self,
+        cookie_file_path: Optional[Union[str, Path]],
+        destination_dir: str,
+        add_yt_opts: dict = None,
+    ):
+        super().__init__(cookie_file_path, destination_dir, add_yt_opts)
+        self._api_base_url = "https://api.nfl.com/football/v2/"
+        self._replay_base_url = "https://www.nfl.com/plus/games/"
+        self.headers = self._construct_headers()
+
+    def _construct_headers(self):
+        return {}
+
+    def get_games_for_week(self, season: int, week: int, season_type: str = "REG") -> Dict:
+        weekly_endpoint = f"{self._api_base_url}experience/weekly-game-details"
+        params = {
+            "includeReplays": True,
+            "includeStandings": False,
+            "season": season,
+            "type": season_type,
+            "week": week
+        }
+        response = requests.get(weekly_endpoint, headers=self.headers, params=params)
+        response.raise_for_status()
+
+        return response.json()
+
+    def extract_game_info(self, game: Dict, replay_types: Optional[List] = None) -> Dict:
+        fields = ["season", "week", "weekType", "date"]
+        game_info = {key: value for key, value in game if key in fields}
+        game_info["homeTeam"] = game["homeTeam"]["fullName"]
+        game_info["awayTeam"] = game["awayTeam"]["fullName"]
+        game_info["divider"] = "vs" if game["neutralSite"] else "at"
+
+        for ex_id in game["externalIds"]:
+            if ex_id["source"] == "slug":
+                game_info["slug"] = ex_id["id"]
+
+        if not replay_types:
+            replay_types = DEFAULT_REPLAY_TYPES
+
+        game_info["replays"] = {}
+        for replay in game["replays"]:
+            if subType := replay["subType"] in replay_types:
+                game_info["replays"][subType] = {
+                    "mcpPlaybackId": replay["mcpPlaybackId"],
+                    "thumbnailUrl": replay["thumbnail"]["thumbnailUrl"]
+                }
+
+        return game_info
+
+    def construct_metadata_for_game(self, game: Dict, ep_num: int):
+        divider = "vs" if game["neutralSite"] else "at"
+        title = (f"{game['season']} Week {game['week']} - "
+                 f"{game['awayTeam']} {divider} {game['homeTeam']}")
+
+        return (
+            f"<episodedetails>\n"
+            f"\t<title>{title}</title>\n"
+            f"\t<season>{game['season']}</season>\n"
+            f"\t<episode>{ep_num}</episode>\n"
+            f"\t<aired>{game['date']}</aired>\n"
+            f"</episodedetails>"
+        )
+
+    def _construct_replay_url(self, game, replay_type):
+        return f"{self._replay_base_url}{game['slug']}?mcpid={game['replays'][replay_type]['mcpPlaybackId']}"
+
+    def _construct_file_name(self, game, replay_type, ep_num):
+        away_tm = CITY_TO_ABBR[game["awayTeam"]]
+        home_tm = CITY_TO_ABBR[game["homeTeam"]]
+        return (f"NFL {replay_type} - "
+                       f"s{game['season']}e{ep_num} - "
+                       f"{game['season']}_Wk{str(game['week']).zfill(2)}_"
+                       f"{away_tm}_{game['divider']}_{home_tm}")
+
+    def download_game(self, game: Dict, replay_type: str, ep_num: int):
+        full_replay_url = self._construct_replay_url(game, replay_type)
+        file_name = self._construct_file_name(game, replay_type, ep_num)
+
+
 
 
 @dataclass

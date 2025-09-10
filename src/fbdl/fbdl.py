@@ -2,9 +2,11 @@ import click
 import os
 
 from pathlib import Path
+from typing import List
 
-from .base import FileOperationsUtil, BaseDownloader
-from .nfl import NFLShowDownloader
+from yt_dlp import YoutubeDL
+from .base import FileOperationsUtil, BaseDownloader, DEFAULT_REPLAY_TYPES
+from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 
 
 @click.group()
@@ -38,6 +40,40 @@ def nfl_show(episode_names_file, cookies, show_dir):
     click.echo("Downloading NFL show")
     nfl = NFLShowDownloader(episode_names_file, cookies, show_dir)
     nfl.download_episodes()
+
+@cli.command()
+@click.argument("season", type=int)
+@click.argument("week", type=int)
+@click.option("--team", multiple=True, type=str)
+@click.option("--replay-type", multiple=True, type=click.Choice(DEFAULT_REPLAY_TYPES, case_sensitive=False))
+def nfl_games(season: int, week: int, team: str, replay_type: str):
+    click.echo(f"Season: {season}")
+    click.echo(f"Week: {week}")
+    click.echo(f"Team: {team}")
+    click.echo(f"Replay Type: {replay_type}")
+
+    replay_url = "https://www.nfl.com/plus/games/cowboys-at-eagles-2025-reg-1?mcpid=2272709"
+    profile_dir = os.getenv("PROFILE_LOCATION")
+    destination_dir = Path("/mnt/e/FootballGames/NFL Condensed Games (1920)")
+    allowed_extractors = ["nfl.com:plus:replay"]
+    extractor_args = {"nfl.com:plus:replay": {"type": ["condensed_game"]}}
+
+    add_opts = {
+        "allowed_extractors": allowed_extractors,
+        "extractor_args": extractor_args,
+        "verbose": True
+    }
+
+    nwd = NFLWeeklyDownloader(cookie_file_path=Path(profile_dir),
+                              destination_dir=destination_dir,
+                              add_yt_opts=add_opts)
+    game = {"awayTeam": "Dallas", "homeTeam": "Philadelphia", "divider": "at", "season": 2025, "week": 1}
+    outtmpl = nwd._construct_file_name(game, "All-22", "001") + ".%(ext)s"
+    nwd.base_yt_opts["outtmpl"] = str(Path(destination_dir, outtmpl))
+
+    with YoutubeDL(nwd.base_yt_opts) as ydl:
+        ydl.download([replay_url])
+
 
 
 @cli.command()

@@ -77,6 +77,10 @@ abbreviation_map = {
     "MEM": "Memphis",
 }
 
+CITY_TO_ABBR = {city: abbr for abbr, city in abbreviation_map.items()}
+
+DEFAULT_REPLAY_TYPES = ["Full Game", "All-22", "Condensed Game"]
+
 
 def is_playoff_week(week_str: str) -> str:
     for week_type in ["wc", "div", "conf", "sb"]:
@@ -298,12 +302,12 @@ class BaseDownloader:
     ):
         # self.cookie_file_path = cookie_file_path
         self.base_yt_opts = {
-            "cookies-from-browser": cookie_file_path,
+            "cookiesfrombrowser": ("firefox", cookie_file_path),
             "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
             "merge_output_format": "mp4",
             "concurrent_fragment_downloads": 1,
-            "writethumbnail": True,
-            "embedthumbnail": True,
+            # "writethumbnail": True,
+            # "embedthumbnail": True,
             "addmetadata": True,
             "throttledratelimit": 1000000,
             "embedsubs": True,
