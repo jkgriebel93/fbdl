@@ -7,7 +7,6 @@ from .base import FileOperationsUtil, BaseDownloader
 from .nfl import NFLShowDownloader
 
 
-
 @click.group()
 def cli():
     pass
@@ -18,8 +17,7 @@ def cli():
 @click.argument("output_directory", type=click.Path(exists=True))
 @click.option("--cookie_file", type=click.Path(exists=True))
 def download_list(input_file, output_directory, cookie_file: Path = None):
-    bd = BaseDownloader(cookie_file_path=cookie_file,
-                        destination_dir=output_directory)
+    bd = BaseDownloader(cookie_file_path=cookie_file, destination_dir=output_directory)
     bd.download_from_file(Path(input_file))
 
 
@@ -52,7 +50,9 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
     base_dir = os.getenv("MEDIA_BASE_DIR")
 
     if not base_dir:
-        click.echo("No media base directory set. Set the MEDIA_BASE_DIR environment variable.")
+        click.echo(
+            "No media base directory set. Set the MEDIA_BASE_DIR environment variable."
+        )
         return
 
     # Plex mandates that the release year be included in the
@@ -64,10 +64,8 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
 
     series_directory = Path(base_dir, series_dir)
 
-    fops = FileOperationsUtil(directory_path=series_directory,
-                              pretend=pretend)
-    fops.rename_files(series_name=series_name,
-                      replace=replace)
+    fops = FileOperationsUtil(directory_path=series_directory, pretend=pretend)
+    fops.rename_files(series_name=series_name, replace=replace)
 
 
 @cli.command()

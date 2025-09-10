@@ -6,10 +6,23 @@ from pathlib import Path
 from typing import Dict
 from yt_dlp import YoutubeDL
 
-from .base import MEDIA_BASE_DIR, abbreviation_map, is_playoff_week, get_week_int_as_string
+from .base import (
+    MEDIA_BASE_DIR,
+    abbreviation_map,
+    is_playoff_week,
+    get_week_int_as_string,
+    BaseDownloader,
+)
+
 
 class NFLShowDownloader:
-    def __init__(self, episode_list_path: str, cookie_file_path: str, show_dir: str, pause_time: int = 30):
+    def __init__(
+        self,
+        episode_list_path: str,
+        cookie_file_path: str,
+        show_dir: str,
+        pause_time: int = 30,
+    ):
         self.base_url = "https://www.nfl.com/plus/episodes/"
         self.cookie_file_path = cookie_file_path
         self.pause_time = pause_time
@@ -39,13 +52,18 @@ class NFLShowDownloader:
                 {
                     "key": "EmbedThumbnail",
                     "already_have_thumbnail": True,
-                }
+                },
             ],
             "embedsubs": True,
             "writesubs": True,
             "subtitleslangs": ["en"],
-            "progress_hooks": [lambda d: print(f"Downloading {d['filename']}")
-                                if d['status'] == 'downloading' else None]
+            "progress_hooks": [
+                lambda d: (
+                    print(f"Downloading {d['filename']}")
+                    if d["status"] == "downloading"
+                    else None
+                )
+            ],
         }
         self.completed = []
         self.errors = []
@@ -59,11 +77,17 @@ class NFLShowDownloader:
             if idx + 1 in self.completed_seasons:
                 print(f"Skipping Season {idx + 1}")
                 continue
-            season_directory = self.show_directory / Path("Season " + str(idx + 1).zfill(2))
+            season_directory = self.show_directory / Path(
+                "Season " + str(idx + 1).zfill(2)
+            )
             season_directory.mkdir(parents=True, exist_ok=True)
 
             output_tmpl = str(season_directory / "%(title)s.%(ext)s")
-            completed_urls = [f"{self.base_url}{ep}" for ep in season if ((ep not in self.completed) and (ep not in self.errors))]
+            completed_urls = [
+                f"{self.base_url}{ep}"
+                for ep in season
+                if ((ep not in self.completed) and (ep not in self.errors))
+            ]
             full_opts = {**self.base_yt_ops, "outtmpl": output_tmpl}
 
             with YoutubeDL(full_opts) as ydl:
@@ -73,28 +97,8 @@ class NFLShowDownloader:
             print(f"Pausing for {self.pause_time} between seasons")
             time.sleep(self.pause_time)
 
-def create_season_nfo(base_dir, premiere_dates):
-    season_dirs = [p for p in base_dir.iterdir()
-                   if p.is_dir() and p.name.startswith("Season")]
-    for season in season_dirs:
-        print(f"season.name: {season.name}")
-        year = season.name.split()[-1]
-        if year == "1946":
-            continue
-        premiere = premiere_dates[int(year)]
-        print(f"Year: {year}")
-        print(f"First Game: {premiere}")
 
-        nfo_file = season / "season.nfo"
-        nfo_file.touch()
-        nfo_file.write_text(f"<season>\n"
-                            f"\t<title>{year}</title>\n"
-                            f"\t<premiered>{premiere}</premiered>\n"
-                            f"\t<year>{year}</year>\n"
-                            f"</season>")
-
-
-def create_episode_nfo(base_dir, game_dates):
+class NFLWeeklyDownloader(BaseDownloader):
     pass
 
 
@@ -121,16 +125,19 @@ class MetaDataCreator:
 
         team_one_city = abbreviation_map.get(team_one_abbr)
         if team_one_city is None:
-            raise ValueError(f"Could not find team {team_one_abbr} in abbreviation map.")
+            raise ValueError(
+                f"Could not find team {team_one_abbr} in abbreviation map."
+            )
 
         team_two_city = abbreviation_map.get(team_two_abbr)
         if team_two_city is None:
-            raise ValueError(f"Could not find team {team_two_city} in abbreviation map.")
+            raise ValueError(
+                f"Could not find team {team_two_city} in abbreviation map."
+            )
 
         # parts[3] is either "at" (for any game _not_ at a neutral site)
         # or "vs" (for neutral site games, i.e. the Super Bowl)
         return f"{year} Week {week_repr} - {team_one_city} {parts[3]} {team_two_city}"
-
 
     def create_nfo_for_season(self, year: int):
         season_dir = Path(self.base_dir, f"Season {year}")
@@ -150,10 +157,10 @@ class MetaDataCreator:
 
             xml_str = (
                 f"<episodedetails>\n"
-                    f"\t<title>{title}</title>\n"
-                    f"\t<season>{year}</season>\n"
-                    f"\t<episode>{episode_num.lstrip("0")}</episode>\n"
-                    f"\t<aired>{aired}</aired>\n"
+                f"\t<title>{title}</title>\n"
+                f"\t<season>{year}</season>\n"
+                f"\t<episode>{episode_num.lstrip("0")}</episode>\n"
+                f"\t<aired>{aired}</aired>\n"
                 f"</episodedetails>"
             )
             nfo_file.write_text(xml_str)
@@ -163,9 +170,10 @@ class MetaDataCreator:
         for f in season_dir.rglob(f"{year}*"):
             old_name = f.name
             week_substring = f.stem.split("_")[1]
-            episode_number = "".join([c for c in week_substring
-                                      if c.isdigit()])
-            new_filename = f"NFL Games - s{year}e{episode_number.zfill(3)} - {f.stem}{f.suffix}"
+            episode_number = "".join([c for c in week_substring if c.isdigit()])
+            new_filename = (
+                f"NFL Games - s{year}e{episode_number.zfill(3)} - {f.stem}{f.suffix}"
+            )
             new_path = f.with_name(new_filename)
             f.replace(new_path)
             print(f"Moved {old_name} -> {f.name}")
