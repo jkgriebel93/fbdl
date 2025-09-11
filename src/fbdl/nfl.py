@@ -278,13 +278,13 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         )
 
     def write_metadata_file(self, game: Dict, replay_type: str, ep_num: int) -> None:
-        file_stem = self.construct_file_name(game=game,
-                                             replay_type=replay_type,
-                                             ep_num=ep_num)
+        file_stem = self.construct_file_name(
+            game=game, replay_type=replay_type, ep_num=ep_num
+        )
         nfo_file = Path(self.destination_dir, f"{file_stem}.nfo")
-        xml_string = self.construct_metadata_for_game(game=game,
-                                                      replay_type=replay_type,
-                                                      ep_num=ep_num)
+        xml_string = self.construct_metadata_for_game(
+            game=game, replay_type=replay_type, ep_num=ep_num
+        )
         nfo_file.write_text(xml_string)
 
     def _construct_replay_url(self, game, replay_type):
@@ -321,7 +321,9 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             f"{away_tm}_{game['divider']}_{home_tm}"
         )
 
-    def get_and_extract_games_for_week(self, season: int, week: int, replay_types: List[str]) -> List[Dict]:
+    def get_and_extract_games_for_week(
+        self, season: int, week: int, replay_types: List[str]
+    ) -> List[Dict]:
         print(f"Downloading {replay_types} for {season} week {week}")
         raw_games_list = self.get_games_for_week(season=season, week=week)
         print(f"Found {len(raw_games_list)} games for week {week}")
@@ -343,16 +345,14 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             with YoutubeDL(self.base_yt_opts) as ydl:
                 ydl.download(info["url"])
 
-            self.write_metadata_file(game=game,
-                                     replay_type=replay_type,
-                                     ep_num=ep_num)
+            self.write_metadata_file(game=game, replay_type=replay_type, ep_num=ep_num)
 
     def download_all_for_week(
         self, season: int, week: int, replay_types: List[str], sleep_time: int = 15
     ):
-        extracted_games = self.get_and_extract_games_for_week(season=season,
-                                                              week=week,
-                                                              replay_types=replay_types)
+        extracted_games = self.get_and_extract_games_for_week(
+            season=season, week=week, replay_types=replay_types
+        )
         for idx, game in enumerate(extracted_games):
             self.download_game(game=game, ep_num=idx + 1)
             print(f"Downloaded {idx + 1}/{len(extracted_games)}")
