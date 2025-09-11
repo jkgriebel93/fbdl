@@ -10,7 +10,6 @@ from typing import Dict, Optional, Union, List
 from yt_dlp import YoutubeDL
 from yt_dlp.extractor.nfl import NFLBaseIE
 from yt_dlp.cookies import (
-    load_cookies,
     _parse_browser_specification,
     extract_cookies_from_browser,
 )

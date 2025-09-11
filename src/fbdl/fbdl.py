@@ -33,7 +33,12 @@ def download_list(input_file, output_directory, cookie_file: Path = None):
 
 @cli.command()
 @click.argument("directory_path", type=click.Path(exists=True))
-@click.option("--pretend", default=False, is_flag=True, help="Don't perform any updates; preview only.")
+@click.option(
+    "--pretend",
+    default=False,
+    is_flag=True,
+    help="Don't perform any updates; preview only.",
+)
 @click.option("--verbose", default=False, is_flag=True, help="Enable extra logging.")
 def update_metadata(directory_path, pretend, verbose):
     """
@@ -47,12 +52,16 @@ def update_metadata(directory_path, pretend, verbose):
 
 @cli.command()
 @click.argument("input_file")
-@click.option("--output-directory",
-              type=click.Path(exists=True),
-              help="The path to store the downloaded videos in.")
-@click.option("--cookies",
-              type=click.Path(exists=True),
-              help="A .txt file containing NFL authentication cookies following the Netscape format.")
+@click.option(
+    "--output-directory",
+    type=click.Path(exists=True),
+    help="The path to store the downloaded videos in.",
+)
+@click.option(
+    "--cookies",
+    type=click.Path(exists=True),
+    help="A .txt file containing NFL authentication cookies following the Netscape format.",
+)
 def nfl_show(episode_names_file, cookies, show_dir):
     """
     Download episodes from shows available on NFL Plus.
@@ -67,16 +76,18 @@ def nfl_show(episode_names_file, cookies, show_dir):
 @cli.command()
 @click.argument("season", type=int)
 @click.argument("week", type=int)
-@click.option("--team",
-              multiple=True,
-              type=str,
-              help="Restrict downloads to a single team by providing the team's three letter abbreviation here. "
-                   "If blank, all are fetched.")
+@click.option(
+    "--team",
+    multiple=True,
+    type=str,
+    help="Restrict downloads to a single team by providing the team's three letter abbreviation here. "
+    "If blank, all are fetched.",
+)
 @click.option(
     "--replay-type",
     multiple=True,
     type=click.Choice(DEFAULT_REPLAY_TYPES, case_sensitive=False),
-    help="Specify which replay types to download. If blank, all are fetched."
+    help="Specify which replay types to download. If blank, all are fetched.",
 )
 def nfl_games(season: int, week: int, team: str, replay_type: str):
     """
@@ -111,17 +122,19 @@ def nfl_games(season: int, week: int, team: str, replay_type: str):
 
 @cli.command()
 @click.argument("series_name")
-@click.option("--pretend",
-              default=False,
-              is_flag=True,
-              help="If passed, don't perform actual updates. Preview only.")
-@click.option("--release-year",
-              type=int,
-              help="The year that the show first aired.")
-@click.option("--replace",
-              default=False,
-              is_flag=True,
-              help="If passed, overwrite any file that already exists with the new name.")
+@click.option(
+    "--pretend",
+    default=False,
+    is_flag=True,
+    help="If passed, don't perform actual updates. Preview only.",
+)
+@click.option("--release-year", type=int, help="The year that the show first aired.")
+@click.option(
+    "--replace",
+    default=False,
+    is_flag=True,
+    help="If passed, overwrite any file that already exists with the new name.",
+)
 def rename_series(series_name: str, pretend: bool, release_year: int, replace: bool):
     """
     A one-off command used to change file format names from SEE to <Series Name> (YYYY) - sSeEE - <episode_name>
@@ -152,18 +165,24 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
 
 @cli.command()
 @click.argument("directory")
-@click.option("--pretend",
-              default=False,
-              is_flag=True,
-              help="If passed, don't perform actual updates. Preview only.")
-@click.option("--update-meta",
-              default=False,
-              is_flag=True,
-              help="Update metadata on the resulting mp4 files")
-@click.option("--delete",
-              default=False,
-              is_flag=True,
-              help="If passed, remove the mkv files after conversion.")
+@click.option(
+    "--pretend",
+    default=False,
+    is_flag=True,
+    help="If passed, don't perform actual updates. Preview only.",
+)
+@click.option(
+    "--update-meta",
+    default=False,
+    is_flag=True,
+    help="Update metadata on the resulting mp4 files",
+)
+@click.option(
+    "--delete",
+    default=False,
+    is_flag=True,
+    help="If passed, remove the mkv files after conversion.",
+)
 def convert_format(directory, pretend, update_meta, delete):
     """
     Convert mkv files stored in DIRECTORY to mp4 files. Other formats will be added eventually.
