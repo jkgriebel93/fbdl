@@ -59,7 +59,6 @@ def nfl_games(season: int, week: int, team: str, replay_type: str):
     click.echo(f"Replay Type: {replay_type}")
 
     profile_dir = os.getenv("PROFILE_LOCATION")
-    # profile_dir = "/mnt/c/Users/johnk/AppData/Roaming/Mozilla/Firefox/Profiles/b64w90xm.dev-edition-default"
     destination_dir = os.getenv("DEST_DIR")
     allowed_extractors = ["nfl.com:plus:replay"]
     extractor_args = {"nfl.com:plus:replay": {"type": ["condensed_game"]}}
