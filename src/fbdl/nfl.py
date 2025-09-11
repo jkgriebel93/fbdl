@@ -9,7 +9,11 @@ from pathlib import Path
 from typing import Dict, Optional, Union, List
 from yt_dlp import YoutubeDL
 from yt_dlp.extractor.nfl import NFLBaseIE
-from yt_dlp.cookies import load_cookies, _parse_browser_specification, extract_cookies_from_browser
+from yt_dlp.cookies import (
+    load_cookies,
+    _parse_browser_specification,
+    extract_cookies_from_browser,
+)
 from yt_dlp.utils import urlencode_postdata
 from yt_dlp.utils.traversal import traverse_obj
 
@@ -110,7 +114,8 @@ class NFLShowDownloader:
 
 
 class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
-    def __init__(self,
+    def __init__(
+        self,
         cookie_file_path: Optional[Union[str, Path]],
         destination_dir: Union[str, Path],
         add_yt_opts: dict = None,
@@ -123,12 +128,16 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
 
     def _initialize_cookies(self, browser: str = "firefox"):
         browser_specification = (browser, self.cookie_file_path)
-        browser_name, profile, keyring, container = _parse_browser_specification(*browser_specification)
-        cookies = extract_cookies_from_browser(browser_name=browser_name,
-                                               profile=profile,
-                                               logger=logger,
-                                               keyring=keyring,
-                                               container=container)
+        browser_name, profile, keyring, container = _parse_browser_specification(
+            *browser_specification
+        )
+        cookies = extract_cookies_from_browser(
+            browser_name=browser_name,
+            profile=profile,
+            logger=logger,
+            keyring=keyring,
+            container=container,
+        )
         return cookies.get_cookies_for_url("https://auth-id.nfl.com/")
 
     def _fbdl_get_auth_token(self):
@@ -139,10 +148,14 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         if self._ACCOUNT_INFO.get("refreshToken"):
             token_url += "/refresh"
 
-        token_request_data = json.dumps({**self._CLIENT_DATA, **self._ACCOUNT_INFO}, separators=(',', ':')).encode()
-        response = requests.post(token_url,
-                                 headers={"Content-Type": "application/json"},
-                                 data=token_request_data)
+        token_request_data = json.dumps(
+            {**self._CLIENT_DATA, **self._ACCOUNT_INFO}, separators=(",", ":")
+        ).encode()
+        response = requests.post(
+            token_url,
+            headers={"Content-Type": "application/json"},
+            data=token_request_data,
+        )
         response.raise_for_status()
         token = response.json()
 
@@ -152,29 +165,44 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
 
     def _fbdl_get_account_info(self):
         nfl_cookies = self._initialize_cookies()
-        login_token = traverse_obj(nfl_cookies, (
-            (f'glt_{self._API_KEY}', lambda k, _: k.startswith('glt_')), {lambda x: x.value}), get_all=False)
+        login_token = traverse_obj(
+            nfl_cookies,
+            (
+                (f"glt_{self._API_KEY}", lambda k, _: k.startswith("glt_")),
+                {lambda x: x.value},
+            ),
+            get_all=False,
+        )
         account = requests.post(
-            'https://auth-id.nfl.com/accounts.getAccountInfo',
-            data=urlencode_postdata({
-                'include': 'profile,data',
-                'lang': 'en',
-                'APIKey': self._API_KEY,
-                'sdk': 'js_latest',
-                'login_token': login_token,
-                'authMode': 'cookie',
-                'pageURL': 'https://www.nfl.com/',
-                'sdkBuild': traverse_obj(nfl_cookies, (
-                    'gig_canary_ver', {lambda x: x.value.partition('-')[0]}), default='15170'),
-                'format': 'json',
-            }),
-            headers={'Content-Type': 'application/x-www-form-urlencoded'})
+            "https://auth-id.nfl.com/accounts.getAccountInfo",
+            data=urlencode_postdata(
+                {
+                    "include": "profile,data",
+                    "lang": "en",
+                    "APIKey": self._API_KEY,
+                    "sdk": "js_latest",
+                    "login_token": login_token,
+                    "authMode": "cookie",
+                    "pageURL": "https://www.nfl.com/",
+                    "sdkBuild": traverse_obj(
+                        nfl_cookies,
+                        ("gig_canary_ver", {lambda x: x.value.partition("-")[0]}),
+                        default="15170",
+                    ),
+                    "format": "json",
+                }
+            ),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
 
-        self._ACCOUNT_INFO = traverse_obj(account, {
-            'signatureTimestamp': 'signatureTimestamp',
-            'uid': 'UID',
-            'uidSignature': 'UIDSignature',
-        })
+        self._ACCOUNT_INFO = traverse_obj(
+            account,
+            {
+                "signatureTimestamp": "signatureTimestamp",
+                "uid": "UID",
+                "uidSignature": "UIDSignature",
+            },
+        )
 
     @property
     def _headers(self):
@@ -182,10 +210,12 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         return {
             "Authorization": f"Bearer {self._TOKEN}",
             "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
-    def get_games_for_week(self, season: int, week: int, season_type: str = "REG") -> Dict:
+    def get_games_for_week(
+        self, season: int, week: int, season_type: str = "REG"
+    ) -> Dict:
 
         weekly_endpoint = f"{self._api_base_url}experience/weekly-game-details"
         params = {
@@ -193,14 +223,16 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             "includeStandings": False,
             "season": season,
             "type": season_type,
-            "week": week
+            "week": week,
         }
         response = requests.get(weekly_endpoint, headers=self._headers, params=params)
         response.raise_for_status()
 
         return response.json()
 
-    def extract_game_info(self, game: Dict, replay_types: Optional[List] = None) -> Dict:
+    def extract_game_info(
+        self, game: Dict, replay_types: Optional[List] = None
+    ) -> Dict:
         fields = ["season", "week", "weekType", "date"]
         game_info = {key: value for key, value in game.items() if key in fields}
         game_info["homeTeam"] = game["homeTeam"]["fullName"]
@@ -221,17 +253,21 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             if subType in replay_types:
                 game_info["replays"][subType] = {
                     "mcpPlaybackId": replay["mcpPlaybackId"],
-                    "thumbnailUrl": replay["thumbnail"]["thumbnailUrl"]
+                    "thumbnailUrl": replay["thumbnail"]["thumbnailUrl"],
                 }
 
-                game_info["replays"][subType]["url"] = self._construct_replay_url(game_info, subType)
+                game_info["replays"][subType]["url"] = self._construct_replay_url(
+                    game_info, subType
+                )
 
         return game_info
 
     def construct_metadata_for_game(self, game: Dict, ep_num: int):
         divider = "vs" if game["neutralSite"] else "at"
-        title = (f"{game['season']} Week {game['week']} - "
-                 f"{game['awayTeam']} {divider} {game['homeTeam']}")
+        title = (
+            f"{game['season']} Week {game['week']} - "
+            f"{game['awayTeam']} {divider} {game['homeTeam']}"
+        )
 
         return (
             f"<episodedetails>\n"
@@ -254,12 +290,27 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
     def construct_file_name(self, game, replay_type, ep_num):
         print(f"Constructing file name for {game['slug']}")
 
-        away_tm = CITY_TO_ABBR[game["awayTeam"].split(" ")[0]]
-        home_tm = CITY_TO_ABBR[game["homeTeam"].split(" ")[0]]
-        return (f"NFL {replay_type} - "
-                       f"s{game['season']}e{str(ep_num).zfill(3)} - "
-                       f"{game['season']}_Wk{str(game['week']).zfill(2)}_"
-                       f"{away_tm}_{game['divider']}_{home_tm}")
+        away_city = " ".join(game["awayTeam"].split(" ")[:-1])
+        home_city = " ".join(game["homeTeam"].split(" ")[:-1])
+
+        if "Jets" in game["awayTeam"] or "Chargers" in game["awayTeam"]:
+            away_city += " (A)"
+        elif "Giants" in game["awayTeam"] or "Rams" in game["awayTeam"]:
+            away_city += " (N)"
+
+        if "Jets" in game["homeTeam"] or "Chargers" in game["homeTeam"]:
+            home_city += " (A)"
+        elif "Giants" in game["homeTeam"] or "Rams" in game["homeTeam"]:
+            home_city += " (N)"
+
+        away_tm = CITY_TO_ABBR[away_city]
+        home_tm = CITY_TO_ABBR[home_city]
+        return (
+            f"NFL {replay_type} - "
+            f"s{game['season']}e{str(ep_num).zfill(3)} - "
+            f"{game['season']}_Wk{str(game['week']).zfill(2)}_"
+            f"{away_tm}_{game['divider']}_{home_tm}"
+        )
 
     def download_game(self, game: Dict, ep_num: int):
         for replay_type, info in game["replays"].items():
@@ -274,23 +325,22 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             with YoutubeDL(self.base_yt_opts) as ydl:
                 ydl.download(info["url"])
 
-    def download_all_for_week(self, season: int, week: int, replay_types: List[str], sleep_time: int = 15):
+    def download_all_for_week(
+        self, season: int, week: int, replay_types: List[str], sleep_time: int = 15
+    ):
         print(f"Downloading {replay_types} for {season} week {week}")
-        raw_games_list = self.get_games_for_week(season=season,
-                                                 week=week)
+        raw_games_list = self.get_games_for_week(season=season, week=week)
         print(f"Found {len(raw_games_list)} games for week {week}")
-        extracted_games = [self.extract_game_info(game=game,
-                                                  replay_types=replay_types)
-                           for game in raw_games_list]
+        extracted_games = [
+            self.extract_game_info(game=game, replay_types=replay_types)
+            for game in raw_games_list
+        ]
 
         for idx, game in enumerate(extracted_games):
             self.download_game(game=game, ep_num=idx + 1)
             print(f"Downloaded {idx + 1}/{len(extracted_games)}")
             print(f"Pausing for {sleep_time} seconds")
             time.sleep(sleep_time)
-
-
-
 
 
 @dataclass

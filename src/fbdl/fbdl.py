@@ -42,11 +42,16 @@ def nfl_show(episode_names_file, cookies, show_dir):
     nfl = NFLShowDownloader(episode_names_file, cookies, show_dir)
     nfl.download_episodes()
 
+
 @cli.command()
 @click.argument("season", type=int)
 @click.argument("week", type=int)
 @click.option("--team", multiple=True, type=str)
-@click.option("--replay-type", multiple=True, type=click.Choice(DEFAULT_REPLAY_TYPES, case_sensitive=False))
+@click.option(
+    "--replay-type",
+    multiple=True,
+    type=click.Choice(DEFAULT_REPLAY_TYPES, case_sensitive=False),
+)
 def nfl_games(season: int, week: int, team: str, replay_type: str):
     click.echo(f"Season: {season}")
     click.echo(f"Week: {week}")
@@ -61,14 +66,15 @@ def nfl_games(season: int, week: int, team: str, replay_type: str):
 
     add_opts = {
         "allowed_extractors": allowed_extractors,
-        "extractor_args": extractor_args
+        "extractor_args": extractor_args,
     }
 
-    nwd = NFLWeeklyDownloader(cookie_file_path=Path(profile_dir),
-                              destination_dir=destination_dir,
-                              add_yt_opts=add_opts)
+    nwd = NFLWeeklyDownloader(
+        cookie_file_path=Path(profile_dir),
+        destination_dir=destination_dir,
+        add_yt_opts=add_opts,
+    )
     nwd.download_all_for_week(season, week, [replay_type[0]])
-
 
 
 @cli.command()

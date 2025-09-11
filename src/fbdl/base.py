@@ -12,7 +12,7 @@ MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
 abbreviation_map = {
     "PIT": "Pittsburgh",
     "CLE": "Cleveland",
-    "CIN": "Cincinatti",
+    "CIN": "Cincinnati",
     "BAL": "Baltimore",
     "IND": "Indianapolis",
     "HOU": "Houston",
