@@ -10,72 +10,76 @@ from yt_dlp import YoutubeDL
 
 MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
 abbreviation_map = {
-                    "PIT": "Pittsburgh",
-                    "CLE": "Cleveland",
-                    "CIN": "Cincinatti",
-                    "BAL": "Baltimore",
-                    "IND": "Indianapolis",
-                    "HOU": "Houston",
-                    "JAX": "Jacksonville",
-                    "TEN": "Tennessee",
-                    "NWE": "New England",
-                    "NYJ": "New York (A)",
-                    "MIA": "Miami",
-                    "BUF": "Buffalo",
-                    "KAN": "Kansas City",
-                    "KC": "Kansas City",
-                    "OAK": "Oakland",
-                    "LV": "Las Vegas",
-                    "LVR": "Las Vegas",
-                    "DEN": "Denver",
-                    "SD": "San Diego",
-                    "SDG": "San Diego",
-                    "LAC": "Los Angeles (A)",
-                    "GNB": "Green Bay",
-                    "GB": "Green Bay",
-                    "MIN": "Minnesota",
-                    "DET": "Detroit",
-                    "CHI": "Chicago",
-                    "TAM": "Tampa Bay",
-                    "TB": "Tampa Bay",
-                    "CAR": "Carolina",
-                    "ATL": "Atlanta",
-                    "NO": "New Orleans",
-                    "NOR": "New Orleans",
-                    "NYG": "New York (N)",
-                    "WAS": "Washington",
-                    "DAL": "Dallas",
-                    "PHI": "Philadelphia",
-                    "ARI": "Arizona",
-                    "ARZ": "Arizona",
-                    "LAR": "Los Angeles (N)",
-                    "STL": "St. Louis",
-                    "SEA": "Seattle",
-                    "SF": "San Francisco",
-                    "SFO": "San Francisco",
-                    "RAM": "Los Angeles (N)",
-                    "RAI": "Los Angeles Raiders",
-                    "PHO": "Phoenix",
-                    # CFL
-                    "MON": "Montreal",
-                    "MTL": "Montreal",
-                    "HAM": "Hamilton",
-                    "CGY": "Calgary",
-                    "TOR": "Toronto",
-                    "SSK": "Saskatchewan",
-                    "BC": "British Columbia",
-                    "OTT": "Ottawa",
-                    "WPG": "Winnipeg",
-                    "EDM": "Edmonton",
-                    # UFL
-                    "DC": "Washington DC",
-                    "ARL": "Arlington",
-                    "SA": "San Antonio",
-                    "BHM": "Birmingham",
-                    "BHAM": "Birminghame",
-                    "MICH": "Michigan",
-                    "MEM": "Memphis"
-                }
+    "PIT": "Pittsburgh",
+    "CLE": "Cleveland",
+    "CIN": "Cincinnati",
+    "BAL": "Baltimore",
+    "IND": "Indianapolis",
+    "HOU": "Houston",
+    "JAX": "Jacksonville",
+    "TEN": "Tennessee",
+    "NWE": "New England",
+    "NYJ": "New York (A)",
+    "MIA": "Miami",
+    "BUF": "Buffalo",
+    "KAN": "Kansas City",
+    "KC": "Kansas City",
+    "OAK": "Oakland",
+    "LV": "Las Vegas",
+    "LVR": "Las Vegas",
+    "DEN": "Denver",
+    "SD": "San Diego",
+    "SDG": "San Diego",
+    "LAC": "Los Angeles (A)",
+    "GNB": "Green Bay",
+    "GB": "Green Bay",
+    "MIN": "Minnesota",
+    "DET": "Detroit",
+    "CHI": "Chicago",
+    "TAM": "Tampa Bay",
+    "TB": "Tampa Bay",
+    "CAR": "Carolina",
+    "ATL": "Atlanta",
+    "NO": "New Orleans",
+    "NOR": "New Orleans",
+    "NYG": "New York (N)",
+    "WAS": "Washington",
+    "DAL": "Dallas",
+    "PHI": "Philadelphia",
+    "ARI": "Arizona",
+    "ARZ": "Arizona",
+    "LAR": "Los Angeles (N)",
+    "STL": "St. Louis",
+    "SEA": "Seattle",
+    "SF": "San Francisco",
+    "SFO": "San Francisco",
+    "RAM": "Los Angeles (N)",
+    "RAI": "Los Angeles Raiders",
+    "PHO": "Phoenix",
+    # CFL
+    "MON": "Montreal",
+    "MTL": "Montreal",
+    "HAM": "Hamilton",
+    "CGY": "Calgary",
+    "TOR": "Toronto",
+    "SSK": "Saskatchewan",
+    "BC": "British Columbia",
+    "OTT": "Ottawa",
+    "WPG": "Winnipeg",
+    "EDM": "Edmonton",
+    # UFL
+    "DC": "Washington DC",
+    "ARL": "Arlington",
+    "SA": "San Antonio",
+    "BHM": "Birmingham",
+    "BHAM": "Birminghame",
+    "MICH": "Michigan",
+    "MEM": "Memphis",
+}
+
+CITY_TO_ABBR = {city: abbr for abbr, city in abbreviation_map.items()}
+
+DEFAULT_REPLAY_TYPES = ["Full Game", "All-22", "Condensed Game"]
 
 
 def is_playoff_week(week_str: str) -> str:
@@ -155,7 +159,9 @@ def convert_ufl_playoff_name_to_int(year: int, week_name: str) -> int:
     return num
 
 
-def get_week_int_as_string(week: str, year: int = None, is_ufl: bool = False) -> Union[int, str]:
+def get_week_int_as_string(
+    week: str, year: int = None, is_ufl: bool = False
+) -> Union[int, str]:
     if num := is_playoff_week(week):
         if is_ufl:
             num = convert_ufl_playoff_name_to_int(year, week_name=num)
@@ -167,12 +173,15 @@ def get_week_int_as_string(week: str, year: int = None, is_ufl: bool = False) ->
     for c in week.lower().replace("wk", ""):
         if not c.isdigit():
             break
-        num+= c
+        num += c
 
     return num
 
+
 class FileOperationsUtil:
-    def __init__(self, directory_path: Path, pretend: bool = False, verbose: bool = False):
+    def __init__(
+        self, directory_path: Path, pretend: bool = False, verbose: bool = False
+    ):
         self.directory_path = Path(directory_path)
         self.pretend = pretend
         self.verbose = verbose
@@ -228,18 +237,15 @@ class FileOperationsUtil:
         for item in self.directory_path.rglob("*.mp4"):
             self.update_mp4_title_from_filename(item)
 
-    def convert_formats(self,
-                        orig_format: str = "mkv",
-                        new_format: str = "mp4",
-                        delete: bool = False):
+    def convert_formats(
+        self, orig_format: str = "mkv", new_format: str = "mp4", delete: bool = False
+    ):
         for mkv_file in self.directory_path.rglob(f"*.{orig_format}"):
             stream = ffmpeg.input(str(mkv_file))
             output_path = str(mkv_file.with_suffix(f".{new_format}"))
-            stream = ffmpeg.output(stream,
-                                   output_path,
-                                   vcodec="copy",
-                                   acodec="copy",
-                                   format="mp4")
+            stream = ffmpeg.output(
+                stream, output_path, vcodec="copy", acodec="copy", format="mp4"
+            )
             if self.pretend:
                 log_str = f"Would convert {mkv_file} to {output_path}."
                 if delete:
@@ -254,10 +260,10 @@ class FileOperationsUtil:
 
     def rename_files(self, series_name: str, replace: bool = False):
         # Regular expression to match the xyy-<Episode Name>.mp4 format
-        pattern = r'^(\d{1})(\d{2,3})-(.+)\.mp4$'
+        pattern = r"^(\d{1})(\d{2,3})-(.+)\.mp4$"
 
         # Iterate through all subdirectories
-        for file_path in self.directory_path.rglob('*.mp4'):
+        for file_path in self.directory_path.rglob("*.mp4"):
             # Check if file matches the expected pattern
             match = re.match(pattern, file_path.name)
             if match:
@@ -272,11 +278,15 @@ class FileOperationsUtil:
                 if self.pretend:
                     if delete_:
                         print(f"{new_filename} already exists, would be replaced.")
-                    print(f"Would rename {file_path.name} to {new_filename}."
-                          f" --pretend was passed, so we will not attempt the operation.")
+                    print(
+                        f"Would rename {file_path.name} to {new_filename}."
+                        f" --pretend was passed, so we will not attempt the operation."
+                    )
                 else:
                     if delete_ and not replace:
-                        raise FileExistsError(f"File {new_filename} already exists and replace is False")
+                        raise FileExistsError(
+                            f"File {new_filename} already exists and replace is False"
+                        )
 
                     print(f"Renaming {file_path.name} to {new_file_path.name}")
                     file_path.replace(new_file_path)
@@ -284,18 +294,21 @@ class FileOperationsUtil:
 
 
 class BaseDownloader:
-    def __init__(self,
-                 cookie_file_path: Optional[Union[str, Path]],
-                 destination_dir: str,
-                 add_yt_opts: dict = None):
+    def __init__(
+        self,
+        cookie_file_path: Optional[Union[str, Path]],
+        destination_dir: Optional[str] = None,
+        add_yt_opts: dict = None,
+    ):
         # self.cookie_file_path = cookie_file_path
+        self.cookie_file_path = cookie_file_path
         self.base_yt_opts = {
-            "cookies-from-browser": cookie_file_path,
+            "cookiesfrombrowser": ("firefox", cookie_file_path),
             "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
             "merge_output_format": "mp4",
             "concurrent_fragment_downloads": 1,
-            "writethumbnail": True,
-            "embedthumbnail": True,
+            # "writethumbnail": True,
+            # "embedthumbnail": True,
             "addmetadata": True,
             "throttledratelimit": 1000000,
             "embedsubs": True,
@@ -304,11 +317,12 @@ class BaseDownloader:
         }
         if add_yt_opts:
             self.base_yt_opts.update(add_yt_opts)
+        if destination_dir is None:
+            destination_dir = os.getcwd()
+
         self.destination_dir = Path(destination_dir)
 
-    def download_from_file(self,
-                           input_file: Path,
-                           dlp_overrides: dict = None):
+    def download_from_file(self, input_file: Path, dlp_overrides: dict = None):
         print(f"Downloading files from {input_file.name}")
         urls = input_file.read_text().splitlines()
         output_template = str(self.destination_dir / "%(title)s.%(ext)s")
@@ -319,6 +333,7 @@ class BaseDownloader:
         if dlp_overrides:
             overridden_opts.update(dlp_overrides)
         from pprint import pprint
+
         pprint(overridden_opts, indent=4)
         with YoutubeDL(overridden_opts) as ydl:
             ydl.download(urls)
@@ -326,10 +341,12 @@ class BaseDownloader:
 
 def is_bowl_game(orig_file):
     bowl_str = ""
-    for named_game in ["SEC Championship ",
-                       "Orange Bowl ",
-                       "CFP Final ",
-                       "Peach Bowl CFP Semi-Final"]:
+    for named_game in [
+        "SEC Championship ",
+        "Orange Bowl ",
+        "CFP Final ",
+        "Peach Bowl CFP Semi-Final",
+    ]:
         if named_game in orig_file.stem:
             bowl_str = named_game
             break
@@ -357,14 +374,10 @@ def transform_file_name(orig_file):
     divider = stem_parts[divider_index]
 
     team_one = "_".join(stem_parts[5:divider_index])
-    team_two = "_".join(stem_parts[divider_index + 1:])
+    team_two = "_".join(stem_parts[divider_index + 1 :])
 
     prefix = f"NCAA - s{year}e{game_num.zfill(2)}"
 
     game_str = f"{game_num.zfill(2)}{bowl_str}"
-    new_stem = (f"{prefix} - "
-                f"{year}_Gm{game_str}_"
-                f"{team_one}_{divider}_{team_two}")
+    new_stem = f"{prefix} - " f"{year}_Gm{game_str}_" f"{team_one}_{divider}_{team_two}"
     return new_stem
-
-

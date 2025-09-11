@@ -3,7 +3,9 @@ import time
 from bs4 import BeautifulSoup as BS
 
 import sys
+
 _, input_year = sys.argv
+
 
 def extract_links_for_year(year: int):
     print(f"Extracting links for {year}")
@@ -12,11 +14,11 @@ def extract_links_for_year(year: int):
 
     soup = BS(response.text, "html.parser")
     anchors = soup.find_all("a", href=True)
-    
+
     matching_hrefs = set()
     for anchor in anchors:
         raw_href = anchor.get("href")
-        
+
         if not raw_href:
             print("href attribute is falsey. Skipping.")
             continue
@@ -24,8 +26,9 @@ def extract_links_for_year(year: int):
         to_match = raw_href.strip()
         if to_match.startswith(f"{year}_Steelers"):
             matching_hrefs.add(to_match)
-    
+
     return matching_hrefs
+
 
 # https://www.mcmillenandwife.com/1991_Steelers_26_vs_Chargers_20.html
 if __name__ == "__main__":
@@ -37,4 +40,3 @@ if __name__ == "__main__":
         outfile.writelines(full_links)
     print(f"Completed extraction for {input_year}. Pausing for 10 seconds.")
     time.sleep(10)
-        

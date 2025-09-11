@@ -1,11 +1,13 @@
 import click
+import json
 import os
 
 from pathlib import Path
+from typing import List
 
-from .base import FileOperationsUtil, BaseDownloader
-from .nfl import NFLShowDownloader
-
+from yt_dlp import YoutubeDL
+from .base import FileOperationsUtil, BaseDownloader, DEFAULT_REPLAY_TYPES
+from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 
 
 @click.group()
@@ -18,8 +20,7 @@ def cli():
 @click.argument("output_directory", type=click.Path(exists=True))
 @click.option("--cookie_file", type=click.Path(exists=True))
 def download_list(input_file, output_directory, cookie_file: Path = None):
-    bd = BaseDownloader(cookie_file_path=cookie_file,
-                        destination_dir=output_directory)
+    bd = BaseDownloader(cookie_file_path=cookie_file, destination_dir=output_directory)
     bd.download_from_file(Path(input_file))
 
 
@@ -43,6 +44,39 @@ def nfl_show(episode_names_file, cookies, show_dir):
 
 
 @cli.command()
+@click.argument("season", type=int)
+@click.argument("week", type=int)
+@click.option("--team", multiple=True, type=str)
+@click.option(
+    "--replay-type",
+    multiple=True,
+    type=click.Choice(DEFAULT_REPLAY_TYPES, case_sensitive=False),
+)
+def nfl_games(season: int, week: int, team: str, replay_type: str):
+    click.echo(f"Season: {season}")
+    click.echo(f"Week: {week}")
+    click.echo(f"Team: {team}")
+    click.echo(f"Replay Type: {replay_type}")
+
+    profile_dir = os.getenv("PROFILE_LOCATION")
+    destination_dir = os.getenv("DEST_DIR")
+    allowed_extractors = ["nfl.com:plus:replay"]
+    extractor_args = {"nfl.com:plus:replay": {"type": ["condensed_game"]}}
+
+    add_opts = {
+        "allowed_extractors": allowed_extractors,
+        "extractor_args": extractor_args,
+    }
+
+    nwd = NFLWeeklyDownloader(
+        cookie_file_path=Path(profile_dir),
+        destination_dir=destination_dir,
+        add_yt_opts=add_opts,
+    )
+    nwd.download_all_for_week(season, week, [replay_type[0]])
+
+
+@cli.command()
 @click.argument("series_name")
 @click.option("--pretend", default=False, is_flag=True)
 @click.option("--release-year", type=int)
@@ -52,7 +86,9 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
     base_dir = os.getenv("MEDIA_BASE_DIR")
 
     if not base_dir:
-        click.echo("No media base directory set. Set the MEDIA_BASE_DIR environment variable.")
+        click.echo(
+            "No media base directory set. Set the MEDIA_BASE_DIR environment variable."
+        )
         return
 
     # Plex mandates that the release year be included in the
@@ -64,10 +100,8 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
 
     series_directory = Path(base_dir, series_dir)
 
-    fops = FileOperationsUtil(directory_path=series_directory,
-                              pretend=pretend)
-    fops.rename_files(series_name=series_name,
-                      replace=replace)
+    fops = FileOperationsUtil(directory_path=series_directory, pretend=pretend)
+    fops.rename_files(series_name=series_name, replace=replace)
 
 
 @cli.command()

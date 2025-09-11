@@ -4,3 +4,4 @@ venv/
 __pycache__/
 cookies.txt
 .ignore
+nfl_headers.json
