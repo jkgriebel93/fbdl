@@ -53,31 +53,21 @@ def nfl_games(season: int, week: int, team: str, replay_type: str):
     click.echo(f"Team: {team}")
     click.echo(f"Replay Type: {replay_type}")
 
-    replay_url = "https://www.nfl.com/plus/games/cowboys-at-eagles-2025-reg-1?mcpid=2272709"
-    # profile_dir = os.getenv("PROFILE_LOCATION")
-    profile_dir = "/mnt/c/Users/johnk/AppData/Roaming/Mozilla/Firefox/Profiles/b64w90xm.dev-edition-default"
-    destination_dir = Path("/mnt/e/FootballGames/NFL Condensed Games (1920)")
+    profile_dir = os.getenv("PROFILE_LOCATION")
+    # profile_dir = "/mnt/c/Users/johnk/AppData/Roaming/Mozilla/Firefox/Profiles/b64w90xm.dev-edition-default"
+    destination_dir = os.getenv("DEST_DIR")
     allowed_extractors = ["nfl.com:plus:replay"]
     extractor_args = {"nfl.com:plus:replay": {"type": ["condensed_game"]}}
 
     add_opts = {
         "allowed_extractors": allowed_extractors,
-        "extractor_args": extractor_args,
-        "verbose": True
+        "extractor_args": extractor_args
     }
 
     nwd = NFLWeeklyDownloader(cookie_file_path=Path(profile_dir),
                               destination_dir=destination_dir,
                               add_yt_opts=add_opts)
-    game = {"awayTeam": "Dallas", "homeTeam": "Philadelphia", "divider": "at", "season": 2025, "week": 1}
-    outtmpl = nwd.construct_file_name(game, "All-22", "001") + ".%(ext)s"
-    nwd.base_yt_opts["outtmpl"] = str(Path(destination_dir, outtmpl))
-
-    game_data = nwd.get_games_for_week(season=season, week=week)
-    click.echo(json.dumps(game_data, indent=4))
-
-    # with YoutubeDL(nwd.base_yt_opts) as ydl:
-    #     ydl.download([replay_url])
+    nwd.download_all_for_week(season, week, [replay_type[0]])
 
 
 

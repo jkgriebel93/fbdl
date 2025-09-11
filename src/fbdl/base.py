@@ -297,7 +297,7 @@ class BaseDownloader:
     def __init__(
         self,
         cookie_file_path: Optional[Union[str, Path]],
-        destination_dir: str,
+        destination_dir: Optional[str] = None,
         add_yt_opts: dict = None,
     ):
         # self.cookie_file_path = cookie_file_path
@@ -317,6 +317,9 @@ class BaseDownloader:
         }
         if add_yt_opts:
             self.base_yt_opts.update(add_yt_opts)
+        if destination_dir is None:
+            destination_dir = os.getcwd()
+
         self.destination_dir = Path(destination_dir)
 
     def download_from_file(self, input_file: Path, dlp_overrides: dict = None):

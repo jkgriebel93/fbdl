@@ -202,7 +202,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
 
     def extract_game_info(self, game: Dict, replay_types: Optional[List] = None) -> Dict:
         fields = ["season", "week", "weekType", "date"]
-        game_info = {key: value for key, value in game if key in fields}
+        game_info = {key: value for key, value in game.items() if key in fields}
         game_info["homeTeam"] = game["homeTeam"]["fullName"]
         game_info["awayTeam"] = game["awayTeam"]["fullName"]
         game_info["divider"] = "vs" if game["neutralSite"] else "at"
@@ -216,11 +216,15 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
 
         game_info["replays"] = {}
         for replay in game["replays"]:
-            if subType := replay["subType"] in replay_types:
+            subType = replay["subType"]
+
+            if subType in replay_types:
                 game_info["replays"][subType] = {
                     "mcpPlaybackId": replay["mcpPlaybackId"],
                     "thumbnailUrl": replay["thumbnail"]["thumbnailUrl"]
                 }
+
+                game_info["replays"][subType]["url"] = self._construct_replay_url(game_info, subType)
 
         return game_info
 
@@ -239,19 +243,52 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         )
 
     def _construct_replay_url(self, game, replay_type):
-        return f"{self._replay_base_url}{game['slug']}?mcpid={game['replays'][replay_type]['mcpPlaybackId']}"
+        try:
+            url = f"{self._replay_base_url}{game['slug']}?mcpid={game['replays'][replay_type]['mcpPlaybackId']}"
+            return url
+        except KeyError as e:
+            with open("error_file.json", "w") as outfile:
+                json.dump(game, outfile, indent=4)
+            raise e
 
     def construct_file_name(self, game, replay_type, ep_num):
-        away_tm = CITY_TO_ABBR[game["awayTeam"]]
-        home_tm = CITY_TO_ABBR[game["homeTeam"]]
+        print(f"Constructing file name for {game['slug']}")
+
+        away_tm = CITY_TO_ABBR[game["awayTeam"].split(" ")[0]]
+        home_tm = CITY_TO_ABBR[game["homeTeam"].split(" ")[0]]
         return (f"NFL {replay_type} - "
-                       f"s{game['season']}e{ep_num} - "
+                       f"s{game['season']}e{str(ep_num).zfill(3)} - "
                        f"{game['season']}_Wk{str(game['week']).zfill(2)}_"
                        f"{away_tm}_{game['divider']}_{home_tm}")
 
-    def download_game(self, game: Dict, replay_type: str, ep_num: int):
-        full_replay_url = self._construct_replay_url(game, replay_type)
-        file_name = self.construct_file_name(game, replay_type, ep_num)
+    def download_game(self, game: Dict, ep_num: int):
+        for replay_type, info in game["replays"].items():
+            file_name = self.construct_file_name(game, replay_type, ep_num)
+            outtmpl = Path(self.destination_dir, file_name)
+
+            outtmpl = f"{outtmpl}.%(ext)s"
+            print(f"Output path: {outtmpl}")
+
+            self.base_yt_opts["outtmpl"] = str(outtmpl)
+
+            with YoutubeDL(self.base_yt_opts) as ydl:
+                ydl.download(info["url"])
+
+    def download_all_for_week(self, season: int, week: int, replay_types: List[str], sleep_time: int = 15):
+        print(f"Downloading {replay_types} for {season} week {week}")
+        raw_games_list = self.get_games_for_week(season=season,
+                                                 week=week)
+        print(f"Found {len(raw_games_list)} games for week {week}")
+        extracted_games = [self.extract_game_info(game=game,
+                                                  replay_types=replay_types)
+                           for game in raw_games_list]
+
+        for idx, game in enumerate(extracted_games):
+            self.download_game(game=game, ep_num=idx + 1)
+            print(f"Downloaded {idx + 1}/{len(extracted_games)}")
+            print(f"Pausing for {sleep_time} seconds")
+            time.sleep(sleep_time)
+
 
 
 
