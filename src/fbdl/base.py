@@ -77,7 +77,7 @@ abbreviation_map = {
 }
 CITY_TO_ABBR = {city: abbr for abbr, city in abbreviation_map.items()}
 CONCURRENT_FRAGMENTS = os.getenv("CONCURRENT_FRAGMENTS", 1)
-DEFAULT_REPLAY_TYPES = ["Full Game", "All-22", "Condensed Game"]
+DEFAULT_REPLAY_TYPES = ["Full Game", "All-22", "Condensed Game", "Full Game - Alternative Broadcasts"]
 MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
 THROTTLED_RATE_LIMIT = os.getenv("THROTTLED_RATE_LIMIT", 1000000)
 
@@ -311,7 +311,7 @@ class BaseDownloader:
         }
 
         if self.cookie_file_path is not None:
-            self.base_yt_opts["cookiefrombrowser"] = ("firefox", self.cookie_file_path)
+            self.base_yt_opts["cookiesfrombrowser"] = ("firefox", self.cookie_file_path)
 
         if add_yt_opts:
             self.base_yt_opts.update(add_yt_opts)

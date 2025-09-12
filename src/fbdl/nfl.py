@@ -6,7 +6,7 @@ import requests
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Union, List
+from typing import Dict, Optional, Union, List, Any
 from yt_dlp import YoutubeDL
 from yt_dlp.extractor.nfl import NFLBaseIE
 from yt_dlp.cookies import (
@@ -179,7 +179,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         # self.headers = self._construct_headers()
         self._fbdl_get_account_info()
 
-    def _initialize_cookies(self, browser: str = "firefox") -> None:
+    def _initialize_cookies(self, browser: str = "firefox") -> Any:
         """
         Setup the relevant cookies based on the provided browser.
 
