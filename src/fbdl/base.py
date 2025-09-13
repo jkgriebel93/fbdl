@@ -167,7 +167,7 @@ def get_week_int_as_string(
     :param is_ufl: A flag used to specify which conversion function is uses.
     :type is_ufl: bool
     :return: A string, left padded to a length of 2, representing the week number of the game.
-    rtype: str
+    :rtype: str
     """
     if num := is_playoff_week(week):
         if is_ufl:
