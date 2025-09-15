@@ -33,8 +33,6 @@ class NFLShowDownloader:
     """
     A wrapper around YoutubeDL that specializes in downloading TV Series available on NFL Plus.
     TODO: This class requires a lot of work to leverage yt-dlp fully.
-
-    ivar base_url: str - The base URL the NFL uses for its TV episodes
     """
 
     def __init__(
