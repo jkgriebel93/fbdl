@@ -27,7 +27,6 @@ from .base import (
 )
 
 logger = logging.getLogger(__name__)
-from pprint import pprint
 
 
 class NFLShowDownloader:
