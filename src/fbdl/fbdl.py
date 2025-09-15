@@ -169,6 +169,15 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
 @cli.command()
 @click.argument("directory")
 @click.option(
+    "--orig-format",
+    type=str,
+    default="mkv",
+    help="fbdl will attempt to convert all videos with the file extension provided here.",
+)
+@click.option(
+    "--new-format", type=str, default="mp4", help="The desired output file type."
+)
+@click.option(
     "--pretend",
     default=False,
     is_flag=True,
@@ -180,7 +189,13 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
     is_flag=True,
     help="If passed, remove the mkv files after conversion.",
 )
-def convert_format(directory: str, pretend: bool = False, delete: bool = False):
+def convert_format(
+    directory: str,
+    orig_format: str = "mkv",
+    new_format: str = "mp4",
+    pretend: bool = False,
+    delete: bool = False,
+):
     """
     Convert mkv files stored in DIRECTORY to mp4 files. Other formats will be added eventually.
 
@@ -191,4 +206,6 @@ def convert_format(directory: str, pretend: bool = False, delete: bool = False):
         raise FileNotFoundError(f"Directory {conv_dir} does not exist.")
 
     fops_util = FileOperationsUtil(conv_dir, pretend)
-    fops_util.convert_formats(delete=delete)
+    fops_util.convert_formats(
+        orig_format=orig_format, new_format=new_format, delete=delete
+    )
