@@ -6,11 +6,10 @@ import requests
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Union, List
+from typing import Dict, Optional, Union, List, Any
 from yt_dlp import YoutubeDL
 from yt_dlp.extractor.nfl import NFLBaseIE
 from yt_dlp.cookies import (
-    load_cookies,
     _parse_browser_specification,
     extract_cookies_from_browser,
 )
@@ -31,23 +30,48 @@ logger = logging.getLogger(__name__)
 
 
 class NFLShowDownloader:
+    """
+    A wrapper around YoutubeDL that specializes in downloading TV Series available on NFL Plus.
+    TODO: This class requires a lot of work to leverage yt-dlp fully.
+
+    ivar base_url: str - The base URL the NFL uses for its TV episodes
+    """
+
     def __init__(
         self,
-        episode_list_path: str,
-        cookie_file_path: str,
-        show_dir: str,
+        episode_list_path: Union[str, Path],
+        cookie_file_path: Union[str, Path],
+        show_dir: Union[str, Path],
         pause_time: int = 30,
-    ):
+    ) -> None:
+        """
+        Create the NFLShowDownloader with the given arguments.
+
+        :param episode_list_path: The JSON file containing an array of arrays,
+            each containing URL leaves for the season's episodes.
+        :type episode_list_path: str | Path
+
+        :param cookie_file_path: The Netscape format cookies file to use for authentication.
+        :type cookie_file_path: str | Path
+
+        :param show_dir: The directory to store the show's seasons and episodes in.
+        :type show_dir: str | Path
+
+        :param pause_time: Number of seconds to sleep the program between season downloads
+            to avoid being banned or throttled.
+        """
         self.base_url = "https://www.nfl.com/plus/episodes/"
+
+        with open(str(episode_list_path), "r") as infile:
+            data = json.load(infile)
+            self.episodes = data["seasons"]
+
+        if isinstance(cookie_file_path, str):
+            cookie_file_path = Path(cookie_file_path)
         self.cookie_file_path = cookie_file_path
-        self.pause_time = pause_time
 
         self.show_directory = Path(MEDIA_BASE_DIR, show_dir)
         self.show_directory.mkdir(parents=True, exist_ok=True)
-
-        with open(episode_list_path, "r") as infile:
-            data = json.load(infile)
-            self.episodes = data["seasons"]
 
         self.base_yt_ops = {
             "cookiefile": self.cookie_file_path,
@@ -84,8 +108,13 @@ class NFLShowDownloader:
         self.errors = []
         self.errors = []
         self.completed_seasons = []
+        self.pause_time = pause_time
 
-    def download_episodes(self):
+    def download_episodes(self) -> None:
+        """
+        Donwload the show episodes as specified in __init__
+        :return:
+        """
         print("Downloading episodes")
         for idx, season in enumerate(self.episodes):
             print(f"Working on season {idx + 1}")
@@ -114,19 +143,49 @@ class NFLShowDownloader:
 
 
 class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
+    """
+    A YoutubeDL wrapper that leverages the NFL tools included with yt-dlp.
+    The class (especially authentication + authorization) is a bit messy
+    due to its custom nature. This can certainly be cleaned up.
+
+    ivar _api_base_url: str - The base URL of the NFL's data API, i.e. not its auth API
+    ivar _replay_base_url: str - The base URL of game replays.
+
+    """
+
     def __init__(
         self,
-        cookie_file_path: Optional[Union[str, Path]],
+        cookie_file_path: Union[str, Path],
         destination_dir: Union[str, Path],
-        add_yt_opts: dict = None,
-    ):
+        add_yt_opts: Optional[Dict] = None,
+    ) -> None:
+        """
+        Create the downloader; set its download and storage parameters
+
+        :param cookie_file_path: The Netscape format cookies file used for auth.
+        :type cookie_file_path: str | Path
+
+        :param destination_dir: The directory to store the replays in.
+            This needs some tweaking in order to properly handle different replay types.
+        :type destination_dir: str | Path
+
+        :param add_yt_opts: Any yt-dlp options that should override the base options,
+            and apply to all download invocations by this object.
+        :type add_yt_opts: Dict | None
+        """
         super().__init__(cookie_file_path, destination_dir, add_yt_opts)
         self._api_base_url = "https://api.nfl.com/football/v2/"
         self._replay_base_url = "https://www.nfl.com/plus/games/"
         # self.headers = self._construct_headers()
         self._fbdl_get_account_info()
 
-    def _initialize_cookies(self, browser: str = "firefox"):
+    def _initialize_cookies(self, browser: str = "firefox") -> Any:
+        """
+        Setup the relevant cookies based on the provided browser.
+
+        :param browser: Only implementing firefox for now.
+        :type browser: str
+        """
         browser_specification = (browser, self.cookie_file_path)
         browser_name, profile, keyring, container = _parse_browser_specification(
             *browser_specification
@@ -140,7 +199,11 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         )
         return cookies.get_cookies_for_url("https://auth-id.nfl.com/")
 
-    def _fbdl_get_auth_token(self):
+    def _fbdl_get_auth_token(self) -> None:
+        """
+        A custom method to get an auth token. The _fbdl prefix of the method name is necessary because
+        the naming collision results in the parent class' version being called, and it fails.
+        """
         if self._TOKEN and self._TOKEN_EXPIRY > int(time.time() + 30):
             return
 
@@ -163,7 +226,11 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         self._TOKEN_EXPIRY = token["expiresIn"]
         self._ACCOUNT_INFO["refreshToken"] = token["refreshToken"]
 
-    def _fbdl_get_account_info(self):
+    def _fbdl_get_account_info(self) -> None:
+        """
+        A custom method to get and store account info. The _fbdl prefix of the method name is necessary because
+        the naming collision results in the parent class' version being called, and it fails.
+        """
         nfl_cookies = self._initialize_cookies()
         login_token = traverse_obj(
             nfl_cookies,
@@ -205,7 +272,11 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         )
 
     @property
-    def _headers(self):
+    def _headers(self) -> Dict[str, str]:
+        """
+        Headers to be used in HTTP requests.
+        :return:
+        """
         self._fbdl_get_auth_token()
         return {
             "Authorization": f"Bearer {self._TOKEN}",
@@ -216,7 +287,20 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
     def get_games_for_week(
         self, season: int, week: int, season_type: str = "REG"
     ) -> Dict:
+        """
+        Get the list of games played during the given season and week.
 
+        :param season: The season we're fetching games for.
+        :type season: int
+
+        :param week: The week number to fetch games for.
+        :type week: int
+
+        :param season_type: Currently only 'REG' is implemented.
+
+        :returns: The response JSON from the NFL's API
+        :rtype: Dict
+        """
         weekly_endpoint = f"{self._api_base_url}experience/weekly-game-details"
         params = {
             "includeReplays": True,
@@ -233,6 +317,20 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
     def extract_game_info(
         self, game: Dict, replay_types: Optional[List] = None
     ) -> Dict:
+        """
+        Extract only the information relevant to downloading and storing the replays properly.
+
+        :param game: A dict containing all the information about a given game returned by the NFL's API
+        :type game: Dict
+
+        :param replay_types: Which replay type(s) to grab the necessary information for.
+            Must be one of 'full', 'condensed', or 'all_22'.
+            (Currently I actually use the pretty string because it's a bit easier in some ways).
+        :type replay_types: List[str]
+
+        :returns: A dict containing only the relevant information.
+        :rtype: Dict
+        """
         fields = ["season", "week", "weekType", "date"]
         game_info = {key: value for key, value in game.items() if key in fields}
         game_info["homeTeam"] = game["homeTeam"]["fullName"]
@@ -244,7 +342,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
                 game_info["slug"] = ex_id["id"]
 
         if not replay_types:
-            replay_types = DEFAULT_REPLAY_TYPES
+            replay_types = DEFAULT_REPLAY_TYPES.values()
 
         game_info["replays"] = {}
         for replay in game["replays"]:
@@ -253,7 +351,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             if subType in replay_types:
                 game_info["replays"][subType] = {
                     "mcpPlaybackId": replay["mcpPlaybackId"],
-                    "thumbnailUrl": replay["thumbnail"]["thumbnailUrl"],
+                    "thumbnailUrl": replay["thumbnail"].get("thumbnailUrl"),
                 }
 
                 game_info["replays"][subType]["url"] = self._construct_replay_url(
@@ -262,7 +360,25 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
 
         return game_info
 
-    def construct_metadata_for_game(self, game: Dict, replay_type: str, ep_num: int):
+    def construct_metadata_for_game(
+        self, game: Dict, replay_type: str, ep_num: int
+    ) -> str:
+        """
+        Given information about the game, construct the XML string that
+        will be stored in the related nfo file for Plex/Jellyfin parsing.
+
+        :param game: The game's information.
+        :type game: Dict
+
+        :param replay_type: Which replay type we're creating the metadata for.
+        :type replay_type: str
+
+        :param ep_num: The 'episode number' to assign to the replay. In practice this ends up being
+            the game's placement amongst all games played in the entire season.
+            e.g. The 87th game played in the NFL season will be 87.
+        :return: A string containing XML information that defines the metadata Jellyfin wants.
+        :rtype: str
+        """
         title = (
             f"{game['season']} Week {game['week']} - ({replay_type})"
             f"{game['awayTeam']} {game['divider']} {game['homeTeam']}"
@@ -278,6 +394,18 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         )
 
     def write_metadata_file(self, game: Dict, replay_type: str, ep_num: int) -> None:
+        """
+        Construct metadata for the given game and store it in an nfo file.
+
+        :param game: The game to create metadata for.
+        :type game: Dict
+
+        :param replay_type: The replay type of the video we're creating metadata for.
+        :type replay_type: str
+
+        :param ep_num: The position of this game in the sequence of all NFL games played in the season
+        :type ep_num: int
+        """
         file_stem = self.construct_file_name(
             game=game, replay_type=replay_type, ep_num=ep_num
         )
@@ -287,16 +415,37 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         )
         nfo_file.write_text(xml_string)
 
-    def _construct_replay_url(self, game, replay_type):
-        try:
-            url = f"{self._replay_base_url}{game['slug']}?mcpid={game['replays'][replay_type]['mcpPlaybackId']}"
-            return url
-        except KeyError as e:
-            with open("error_file.json", "w") as outfile:
-                json.dump(game, outfile, indent=4)
-            raise e
+    def _construct_replay_url(self, game: Dict, replay_type: str) -> str:
+        """
+        Simple helper method to construct the URL yt-dlp should use to extract the video file.
 
-    def construct_file_name(self, game, replay_type, ep_num):
+        :param game: Data for the game we're working on.
+        :type game: Dict
+
+        :param replay_type: The type of replay we want to download/
+        :type replay_type: str
+
+        :return: The full URL of the game replay.
+        :rtype: str
+        """
+        return f"{self._replay_base_url}{game['slug']}?mcpid={game['replays'][replay_type]['mcpPlaybackId']}"
+
+    def construct_file_name(self, game: Dict, replay_type: str, ep_num: int) -> str:
+        """
+        Create the video file's name according to the established format.
+
+        :param game: Data for the game we're working on.
+        :type game: Dict
+
+        :param replay_type: The replay type we're currently storing.
+        :type replay_type: str
+
+        :param ep_num: The position of this game in the sequence of all NFL games played in the season.
+        :type ep_num: int
+
+        :return: The stem to be used in the video file's name.
+        :rtype: str
+        """
         print(f"Constructing file name for {game['slug']}")
 
         away_city = " ".join(game["awayTeam"].split(" ")[:-1])
@@ -324,6 +473,21 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
     def get_and_extract_games_for_week(
         self, season: int, week: int, replay_types: List[str]
     ) -> List[Dict]:
+        """
+        Combine the tasks of 1.) Fetching the list of games, 2.) Extracting the info we care about.
+
+        :param season: The season we're downloading replays for.
+        :type season: int
+
+        :param week: The week number we're downloading replays for.
+        :type week: int
+
+        :param replay_types: A list of the replay types we want to download.
+        :type replay_types: List[str]
+
+        :return: A list of dict objects containing only the information we need in order to download replays.
+        :rtype: List[Dict]
+        """
         print(f"Downloading {replay_types} for {season} week {week}")
         raw_games_list = self.get_games_for_week(season=season, week=week)
         print(f"Found {len(raw_games_list)} games for week {week}")
@@ -332,14 +496,23 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             for game in raw_games_list
         ]
 
-    def download_game(self, game: Dict, ep_num: int):
+    def download_game(self, game: Dict, ep_num: int) -> None:
+        """
+        Download all the replay types we specified for this game.
+
+        :param game: Data for the game we're downloading.
+        :type game: Dict
+
+        :param ep_num: The position of this game in the sequence of all NFL games played in the season.
+        :type ep_num: int
+        """
         for replay_type, info in game["replays"].items():
+            print(f"Replay type: {replay_type}")
             file_name = self.construct_file_name(game, replay_type, ep_num)
             outtmpl = Path(self.destination_dir, file_name)
 
             outtmpl = f"{outtmpl}.%(ext)s"
             print(f"Output path: {outtmpl}")
-
             self.base_yt_opts["outtmpl"] = str(outtmpl)
 
             with YoutubeDL(self.base_yt_opts) as ydl:
@@ -348,13 +521,42 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             self.write_metadata_file(game=game, replay_type=replay_type, ep_num=ep_num)
 
     def download_all_for_week(
-        self, season: int, week: int, replay_types: List[str], sleep_time: int = 15
-    ):
+        self,
+        season: int,
+        week: int,
+        replay_types: List[str],
+        sleep_time: int = 15,
+        start_ep: int = 0,
+    ) -> None:
+        """
+        Combine the tasks of
+            1.) Fetching the list of games,
+            2.) Extracting their information, and
+            3.) Downloading the replays
+
+        :param season: The season we're downloading games for.
+        :type season: int
+
+        :param week: The week we're downloading games for.
+        :type week: int
+
+        :param replay_types: The list of replay types we want to download.
+        :type replay_types: List[str]
+
+        :param sleep_time: The number of seconds to wait between downloads.
+        :type sleep_time: int
+        """
         extracted_games = self.get_and_extract_games_for_week(
             season=season, week=week, replay_types=replay_types
         )
+
         for idx, game in enumerate(extracted_games):
-            self.download_game(game=game, ep_num=idx + 1)
+            ep_num = start_ep + idx + 1
+            if ep_num in [17, 18]:
+                print("Already downloaded this game, skipping.")
+                continue
+
+            self.download_game(game=game, ep_num=ep_num)
             print(f"Downloaded {idx + 1}/{len(extracted_games)}")
             print(f"Pausing for {sleep_time} seconds")
             time.sleep(sleep_time)
@@ -362,11 +564,36 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
 
 @dataclass
 class MetaDataCreator:
-    base_dir: Path
-    # season_premieres: Dict
-    game_dates: Dict
+    """
+    Create and store metadata based on information stored in file name.
+    Used for replays downloaded before NFLWeeklyDownloader was implemented.
+    """
 
-    def _create_title_string(self, file_stem):
+    # season_premieres: Dict
+
+    def __init__(self, base_dir: Union[str, Path], game_dates: Dict) -> None:
+        """
+        Initialize the utility, set basic config.
+
+        :param base_dir: The directory containing the videos to generate metadata for.
+        :type base_dir: str | Path
+
+        :param game_dates: A dict mapping seasons to a dict of week numbers -> date the game was played on.
+        :type game_dates: Dict
+        """
+        self.base_dir = base_dir
+        self.game_dates = game_dates
+
+    def _create_title_string(self, file_stem: str) -> str:
+        """
+        Given the file name, create the title that should be displayed in viewing clients.
+
+        :param file_stem: The file's base name.
+        :type file_stem: str
+
+        :return: The name to be stored in metadata.
+        :rtype: str
+        """
         # file_stem will be something like "2024_Wk01_PIT_at_ATL"
         base_name = file_stem.split(" - ")[-1]
         parts = base_name.split("_")
@@ -397,7 +624,13 @@ class MetaDataCreator:
         # or "vs" (for neutral site games, i.e. the Super Bowl)
         return f"{year} Week {week_repr} - {team_one_city} {parts[3]} {team_two_city}"
 
-    def create_nfo_for_season(self, year: int):
+    def create_nfo_for_season(self, year: int) -> None:
+        """
+        Create metadata files for all games in the provided year
+
+        :param year: The year to create metadata for.
+        :type year: int
+        """
         season_dir = Path(self.base_dir, f"Season {year}")
         if not season_dir.exists():
             raise FileNotFoundError(f"{season_dir} does not exist.")
@@ -423,7 +656,14 @@ class MetaDataCreator:
             )
             nfo_file.write_text(xml_str)
 
-    def rename_files_for_season(self, year: int):
+    def rename_files_for_season(self, year: int) -> None:
+        """
+        Add the necessary prefix to file names so that Jellyfin will parse
+        the game replays as TV seasons.
+
+        :param year: The season to rename video files for.
+        :type year: int
+        """
         season_dir = Path(self.base_dir, f"Season {year}")
         for f in season_dir.rglob(f"{year}*"):
             old_name = f.name
