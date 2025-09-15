@@ -27,6 +27,7 @@ from .base import (
 )
 
 logger = logging.getLogger(__name__)
+from pprint import pprint
 
 
 class NFLShowDownloader:
@@ -342,7 +343,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
                 game_info["slug"] = ex_id["id"]
 
         if not replay_types:
-            replay_types = DEFAULT_REPLAY_TYPES
+            replay_types = DEFAULT_REPLAY_TYPES.values()
 
         game_info["replays"] = {}
         for replay in game["replays"]:
@@ -351,7 +352,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             if subType in replay_types:
                 game_info["replays"][subType] = {
                     "mcpPlaybackId": replay["mcpPlaybackId"],
-                    "thumbnailUrl": replay["thumbnail"]["thumbnailUrl"],
+                    "thumbnailUrl": replay["thumbnail"].get("thumbnailUrl"),
                 }
 
                 game_info["replays"][subType]["url"] = self._construct_replay_url(
@@ -507,12 +508,12 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         :type ep_num: int
         """
         for replay_type, info in game["replays"].items():
+            print(f"Replay type: {replay_type}")
             file_name = self.construct_file_name(game, replay_type, ep_num)
             outtmpl = Path(self.destination_dir, file_name)
 
             outtmpl = f"{outtmpl}.%(ext)s"
             print(f"Output path: {outtmpl}")
-
             self.base_yt_opts["outtmpl"] = str(outtmpl)
 
             with YoutubeDL(self.base_yt_opts) as ydl:
@@ -521,7 +522,12 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             self.write_metadata_file(game=game, replay_type=replay_type, ep_num=ep_num)
 
     def download_all_for_week(
-        self, season: int, week: int, replay_types: List[str], sleep_time: int = 15
+        self,
+        season: int,
+        week: int,
+        replay_types: List[str],
+        sleep_time: int = 15,
+        start_ep: int = 0,
     ) -> None:
         """
         Combine the tasks of
@@ -544,8 +550,14 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         extracted_games = self.get_and_extract_games_for_week(
             season=season, week=week, replay_types=replay_types
         )
+
         for idx, game in enumerate(extracted_games):
-            self.download_game(game=game, ep_num=idx + 1)
+            ep_num = start_ep + idx + 1
+            if ep_num in [17, 18]:
+                print("Already downloaded this game, skipping.")
+                continue
+
+            self.download_game(game=game, ep_num=ep_num)
             print(f"Downloaded {idx + 1}/{len(extracted_games)}")
             print(f"Pausing for {sleep_time} seconds")
             time.sleep(sleep_time)

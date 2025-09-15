@@ -3,7 +3,7 @@ import os
 import re
 
 from pathlib import Path
-from typing import Any, Optional, Union, Dict
+from typing import Any, Optional, Union, Dict, List
 
 from mutagen.mp4 import MP4
 from yt_dlp import YoutubeDL
@@ -77,7 +77,12 @@ abbreviation_map = {
 }
 CITY_TO_ABBR = {city: abbr for abbr, city in abbreviation_map.items()}
 CONCURRENT_FRAGMENTS = os.getenv("CONCURRENT_FRAGMENTS", 1)
-DEFAULT_REPLAY_TYPES = ["Full Game", "All-22", "Condensed Game", "Full Game - Alternative Broadcasts"]
+DEFAULT_REPLAY_TYPES = {
+    "full_game": "Full Game",
+    "all_22": "All-22",
+    "condensed_game": "Condensed Game",
+    "full_game_alternative": "Full Game - Alternative Broadcasts",
+}
 MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
 THROTTLED_RATE_LIMIT = os.getenv("THROTTLED_RATE_LIMIT", 1000000)
 
@@ -456,7 +461,7 @@ class FileOperationsUtil:
 
     def convert_formats(
         self, orig_format: str = "mkv", new_format: str = "mp4", delete: bool = False
-    ) -> None:
+    ) -> List[str]:
         """
         Use ffmpeg to convert video files in self.directory_path from one format to another.
 
@@ -467,8 +472,15 @@ class FileOperationsUtil:
         :type new_format: str
 
         :param delete: If True, delete the original files of the old format.
+
+        :return: List of file names (stem only) that were successfully converted.
+        :rtype: List[str]
         """
+
+        successfully_converted = []
         for mkv_file in self.directory_path.rglob(f"*.{orig_format}"):
+            orig_stem = mkv_file.stem
+
             stream = ffmpeg.input(str(mkv_file))
             output_path = str(mkv_file.with_suffix(f".{new_format}"))
             stream = ffmpeg.output(
@@ -479,12 +491,16 @@ class FileOperationsUtil:
                 if delete:
                     log_str += f"\nWould delete {mkv_file} as well."
                 print(log_str)
+                successfully_converted.append(orig_stem)
             else:
                 print(f"Converting {mkv_file} to {output_path}")
                 ffmpeg.run(stream)
+                successfully_converted.append(orig_stem)
                 if delete:
                     print(f"Deleting {mkv_file}.")
                     mkv_file.unlink()
+
+        return successfully_converted
 
     def rename_files(self, series_name: str, replace: bool = False) -> None:
         """

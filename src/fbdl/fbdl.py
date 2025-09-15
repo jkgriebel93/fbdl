@@ -86,10 +86,11 @@ def nfl_show(episode_names_file, cookies, show_dir):
 @click.option(
     "--replay-type",
     multiple=True,
-    type=click.Choice(DEFAULT_REPLAY_TYPES, case_sensitive=False),
+    type=click.Choice(DEFAULT_REPLAY_TYPES.keys(), case_sensitive=False),
     help="Specify which replay types to download. If blank, all are fetched.",
 )
-def nfl_games(season: int, week: int, team: str, replay_type: str):
+@click.option("--start-ep", type=int, help="")
+def nfl_games(season: int, week: int, team: str, replay_type: str, start_ep: int = 0):
     """
     Download NFL game replays of the specified SEASON and WEEK
 
@@ -105,7 +106,7 @@ def nfl_games(season: int, week: int, team: str, replay_type: str):
     profile_dir = os.getenv("PROFILE_LOCATION")
     destination_dir = os.getenv("DEST_DIR")
     allowed_extractors = ["nfl.com:plus:replay"]
-    extractor_args = {"nfl.com:plus:replay": {"type": ["condensed_game"]}}
+    extractor_args = {"nflplusreplay": {"type": [replay_type[0]]}}
 
     add_opts = {
         "allowed_extractors": allowed_extractors,
@@ -117,7 +118,9 @@ def nfl_games(season: int, week: int, team: str, replay_type: str):
         destination_dir=destination_dir,
         add_yt_opts=add_opts,
     )
-    nwd.download_all_for_week(season, week, [replay_type[0]])
+    nwd.download_all_for_week(
+        season, week, DEFAULT_REPLAY_TYPES[replay_type[0]], start_ep=start_ep
+    )
 
 
 @cli.command()
@@ -172,18 +175,12 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
     help="If passed, don't perform actual updates. Preview only.",
 )
 @click.option(
-    "--update-meta",
-    default=False,
-    is_flag=True,
-    help="Update metadata on the resulting mp4 files",
-)
-@click.option(
     "--delete",
     default=False,
     is_flag=True,
     help="If passed, remove the mkv files after conversion.",
 )
-def convert_format(directory, pretend, update_meta, delete):
+def convert_format(directory: str, pretend: bool = False, delete: bool = False):
     """
     Convert mkv files stored in DIRECTORY to mp4 files. Other formats will be added eventually.
 
@@ -195,6 +192,3 @@ def convert_format(directory, pretend, update_meta, delete):
 
     fops_util = FileOperationsUtil(conv_dir, pretend)
     fops_util.convert_formats(delete=delete)
-
-    for converted_file in conv_dir.rglob("*.mp4"):
-        fops_util.update_mp4_title_from_filename(converted_file)
