@@ -14,8 +14,16 @@ dependencies = [
     "sphinx_rtd_theme==3.0.2"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+]
+
 [project.scripts]
 fbdl = "fbdl.fbdl:cli"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [build-system]
 requires = ["hatchling >= 1.27.0"]
