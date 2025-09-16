@@ -339,6 +339,7 @@ class BaseDownloader:
         cookie_file_path: Optional[Union[str, Path]] = None,
         destination_dir: Optional[Union[str, Path]] = None,
         add_yt_opts: Optional[Dict] = None,
+        browser: str = "firefox",
     ) -> None:
         """
         Construct the BaseDownloader and store specification information to be passed to ydl.
@@ -353,6 +354,9 @@ class BaseDownloader:
             fbdl. The values passed in this parameter will supersede any base parameters, and can be overriden when
             download_from_file is invoked.
         :type add_yt_opts: Dict
+
+        :param browser: Lower case name of the browser cookies are being extracted from.
+        :type browser: str
         """
         self.cookie_file_path = cookie_file_path
         self.base_yt_opts = {
@@ -367,7 +371,7 @@ class BaseDownloader:
         }
 
         if self.cookie_file_path is not None:
-            self.base_yt_opts["cookiesfrombrowser"] = ("firefox", self.cookie_file_path)
+            self.base_yt_opts["cookiesfrombrowser"] = (browser, self.cookie_file_path)
 
         if add_yt_opts:
             self.base_yt_opts.update(add_yt_opts)
@@ -381,7 +385,10 @@ class BaseDownloader:
         self.destination_dir = destination_dir
 
     def download_from_file(
-        self, input_file: Path, dlp_overrides: Optional[Dict] = None
+        self,
+        input_file: Path,
+        dlp_overrides: Optional[Dict] = None,
+        output_file_name_template: str = "%(title)s.%(ext)s",
     ) -> None:
         """
         Use YoutubeDL to download the videos stored at each URL from input_file.
@@ -391,13 +398,15 @@ class BaseDownloader:
 
         :param dlp_overrides: A dict storing YoutubeDL parameters to be used for this invocation of download_from_file
         :type dlp_overrides: Dict | None
+
+        :param output_file_name_template: A string using Python's string formatting rules that will dictate the downloaded file's name. See yt-dlp docs for more.
+        :type output_file_name_template: str
         :return:
         """
         print(f"Downloading files from {input_file.name}")
 
         urls = input_file.read_text().splitlines()
-
-        output_template = str(self.destination_dir / "%(title)s.%(ext)s")
+        output_template = str(self.destination_dir / output_file_name_template)
         overridden_opts = {
             **self.base_yt_opts,
             "outtmpl": output_template,
@@ -406,7 +415,7 @@ class BaseDownloader:
         if dlp_overrides:
             overridden_opts.update(dlp_overrides)
 
-        with YoutubeDL(overridden_opts) as ydl:
+        with YoutubeDL(params=overridden_opts) as ydl:
             ydl.download(urls)
 
 

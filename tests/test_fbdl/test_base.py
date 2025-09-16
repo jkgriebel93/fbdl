@@ -1,11 +1,17 @@
-from pathlib import Path
+import os
 
-from fbdl.base import (convert_nfl_playoff_name_to_int,
-                       convert_ufl_playoff_name_to_int,
-                       get_week_int_as_string,
-                       is_bowl_game,
-                       is_playoff_week,
-                       transform_file_name)
+from pathlib import Path
+from unittest.mock import Mock, patch, MagicMock
+
+from fbdl.base import (
+    convert_nfl_playoff_name_to_int,
+    convert_ufl_playoff_name_to_int,
+    get_week_int_as_string,
+    is_bowl_game,
+    is_playoff_week,
+    transform_file_name,
+    BaseDownloader,
+)
 
 
 class TestUtilFunctions:
@@ -14,7 +20,9 @@ class TestUtilFunctions:
         assert result == 15
 
     def test_convert_nfl_playoff_name_to_int_pre_1978_conf(self):
-        result = convert_nfl_playoff_name_to_int(year=1977, week_name="Conference Championship")
+        result = convert_nfl_playoff_name_to_int(
+            year=1977, week_name="Conference Championship"
+        )
         assert result == 16
 
     def test_convert_nfl_playoff_name_to_int_pre_1978_sb(self):
@@ -34,7 +42,9 @@ class TestUtilFunctions:
         assert result == 18
 
     def test_convert_nfl_playoff_name_to_int_1978_to_89_conf(self):
-        result = convert_nfl_playoff_name_to_int(year=1985, week_name="Conference Championship")
+        result = convert_nfl_playoff_name_to_int(
+            year=1985, week_name="Conference Championship"
+        )
         assert result == 19
 
     def test_convert_nfl_playoff_name_to_int_1978_to_89_sb(self):
@@ -54,7 +64,9 @@ class TestUtilFunctions:
         assert result == 19
 
     def test_convert_nfl_playoff_name_to_int_1990_to_2019_conf(self):
-        result = convert_nfl_playoff_name_to_int(year=2000, week_name="Conference Championship")
+        result = convert_nfl_playoff_name_to_int(
+            year=2000, week_name="Conference Championship"
+        )
         assert result == 20
 
     def test_convert_nfl_playoff_name_to_int_1990_to_2019_sb(self):
@@ -74,7 +86,9 @@ class TestUtilFunctions:
         assert result == 20
 
     def test_convert_nfl_playoff_name_to_int_2020_plus_conf(self):
-        result = convert_nfl_playoff_name_to_int(year=2022, week_name="Conference Championship")
+        result = convert_nfl_playoff_name_to_int(
+            year=2022, week_name="Conference Championship"
+        )
         assert result == 21
 
     def test_convert_nfl_playoff_name_to_int_2020_plus_sb(self):
@@ -86,13 +100,17 @@ class TestUtilFunctions:
         assert result is None
 
     def test_convert_ufl_playoff_name_to_int_conf(self):
-        result = convert_ufl_playoff_name_to_int(year=2024, week_name="Conference Championship")
+        result = convert_ufl_playoff_name_to_int(
+            year=2024, week_name="Conference Championship"
+        )
         assert result == 11
-    
+
     def test_convert_ufl_playoff_name_to_int_champ(self):
-        result = convert_ufl_playoff_name_to_int(year=2024, week_name="UFL Championship")
+        result = convert_ufl_playoff_name_to_int(
+            year=2024, week_name="UFL Championship"
+        )
         assert result == 12
-    
+
     def test_convert_ufl_playoff_name_to_int_invalid(self):
         result = convert_ufl_playoff_name_to_int(year=2024, week_name="Fubar")
         assert result is None
@@ -118,7 +136,12 @@ class TestUtilFunctions:
         assert result == ""
 
     def test_is_bowl_game_positive(self):
-        for name in ["SEC Championship ", "Orange Bowl ", "CFP Final ", "Peach Bowl CFP Semi-Final"]:
+        for name in [
+            "SEC Championship ",
+            "Orange Bowl ",
+            "CFP Final ",
+            "Peach Bowl CFP Semi-Final",
+        ]:
             result = is_bowl_game(name)
             assert result == name
 
@@ -152,3 +175,53 @@ class TestUtilFunctions:
 
         assert result == "NCAA - s2024e13 - 2024_Gm13SECChampionship_Georgia_vs_Texas"
 
+
+class TestBaseDownloader:
+    fake_urls_list = [
+        "https://www.youtube.com/watch?v=abcdefgh",
+        "https://www.youtube.com/watch?v=ijklmonpq",
+    ]
+
+    def test_cookies_from_browser_set_correctly_when_passed(self, tmp_path):
+        d = tmp_path / "base_downloader"
+        d.mkdir()
+        cookies_file = d / "cookies.txt"
+        bd = BaseDownloader(cookie_file_path=cookies_file, browser="firefox")
+
+        assert bd.cookie_file_path == cookies_file
+        assert bd.base_yt_opts["cookiesfrombrowser"] == ("firefox", cookies_file)
+
+    def test_destination_dir_set_as_cwd_when_not_passed(self):
+        bd = BaseDownloader()
+        assert bd.destination_dir == Path(os.getcwd())
+
+    def test_init_overrides_yt_opts_when_passed(self):
+        bd = BaseDownloader(add_yt_opts={"merge_output_format": "mkv"})
+        assert bd.base_yt_opts["merge_output_format"] == "mkv"
+
+    @patch("fbdl.base.YoutubeDL")
+    def test_download_from_file(self, mock_ytdl_class, tmp_path):
+        # TODO: Make the mocking cleaner
+        d = tmp_path / "base_downloader"
+        d.mkdir()
+        input_file = d / "urls.txt"
+        input_file.write_text("\n".join(self.fake_urls_list), encoding="utf-8")
+
+        fname_template = "%(title)s.%(ext)s"
+
+        mock_ytdl_instance = Mock()
+        mock_ytdl_instance.__enter__ = MagicMock(return_value=mock_ytdl_instance)
+        mock_ytdl_instance.__exit__ = MagicMock(return_value=None)
+        mock_ytdl_instance.download = MagicMock(return_value=None)
+
+        mock_ytdl_class.return_value = mock_ytdl_instance
+
+        bd = BaseDownloader()
+        bd.download_from_file(
+            input_file=input_file, output_file_name_template=fname_template
+        )
+
+        outtmpl_actual_val = mock_ytdl_class.call_args.kwargs["params"]["outtmpl"]
+
+        assert outtmpl_actual_val == f"{os.getcwd()}/{fname_template}"
+        mock_ytdl_instance.download.assert_called_once_with(self.fake_urls_list)
