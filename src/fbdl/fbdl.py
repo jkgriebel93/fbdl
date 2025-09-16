@@ -2,6 +2,7 @@ import click
 import os
 
 from pathlib import Path
+from typing import Tuple
 
 from .base import FileOperationsUtil, BaseDownloader, DEFAULT_REPLAY_TYPES
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
@@ -87,10 +88,16 @@ def nfl_show(episode_names_file, cookies, show_dir):
     "--replay-type",
     multiple=True,
     type=click.Choice(DEFAULT_REPLAY_TYPES.keys(), case_sensitive=False),
-    help="Specify which replay types to download. If blank, all are fetched.",
+    help="Specify which replay types to download. If blank, the full game is downloaded.",
 )
 @click.option("--start-ep", type=int, help="")
-def nfl_games(season: int, week: int, team: str, replay_type: str, start_ep: int = 0):
+def nfl_games(
+    season: int,
+    week: int,
+    team: Tuple[str],
+    replay_type: Tuple[str] = ("full_game",),
+    start_ep: int = 0,
+):
     """
     Download NFL game replays of the specified SEASON and WEEK
 
@@ -118,8 +125,15 @@ def nfl_games(season: int, week: int, team: str, replay_type: str, start_ep: int
         destination_dir=destination_dir,
         add_yt_opts=add_opts,
     )
+
+    replay_type = [DEFAULT_REPLAY_TYPES[r] for r in replay_type]
+
     nwd.download_all_for_week(
-        season, week, DEFAULT_REPLAY_TYPES[replay_type[0]], start_ep=start_ep
+        season=season,
+        week=week,
+        teams=list(team),
+        replay_types=replay_type,
+        start_ep=start_ep,
     )
 
 

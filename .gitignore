@@ -2,7 +2,10 @@
 venv/
 *.pyc
 __pycache__/
-cookies.txt
-.ignore
-nfl_headers.json
 docs/_build
+
+.ignore
+
+cookies.txt
+nfl_headers.json
+example_game.json
