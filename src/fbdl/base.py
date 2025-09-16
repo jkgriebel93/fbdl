@@ -234,27 +234,31 @@ def get_week_int_as_string(
             break
         num += c
 
-    return num.zfill(2)
+    # If we're given an invalid week, return the empty string.
+    # Without this ternary, "00" would be returned
+    return num.zfill(2) if num else ""
 
 
-def is_bowl_game(orig_file: Path) -> str:
+def is_bowl_game(orig_file: str) -> str:
     """
     Given a (properly named) Path object, determine if it
     represents an NCAA bowl/playoff game and return the game's name.
 
-    :param orig_file: The Path object for the video file we're inspecting.
-    :type orig_file: Path
+    :param orig_file: The string representing the file name stem for the video file we're inspecting.
+    :type orig_file: str
     :return: Either the empty string or the name of the bowl game.
     :rtype: str
     """
     bowl_str = ""
+    print(orig_file)
+    # TODO: This needs to be generalized.
     for named_game in [
         "SEC Championship ",
         "Orange Bowl ",
         "CFP Final ",
         "Peach Bowl CFP Semi-Final",
     ]:
-        if named_game in orig_file.stem:
+        if named_game in orig_file:
             bowl_str = named_game
             break
     return bowl_str
@@ -287,18 +291,18 @@ def is_playoff_week(week_str: str) -> str:
     return ""
 
 
-def transform_file_name(orig_file: Path) -> str:
+def transform_file_name(orig_file_stem: str) -> str:
     """
     A specialized function that takes a file which follows the naming convention of a specific YouTube channel,
     and transforms the name to match our convention and play nice with Plex, Jellyfin, etc.
-    :param orig_file: Path object representing the originally downloaded file.
-    :type: orig_file: Path
+    :param orig_file_stem: String representing the originally downloaded file's stem.
+    :type: orig_file: str
     :return: The transformed file _stem_ as a string.
     :rtype: str
     """
-    stem = orig_file.stem.replace("UGA", "Georgia").replace("@", "at")
+    stem = orig_file_stem.replace("UGA", "Georgia").replace("@", "at")
 
-    if bowl_str := is_bowl_game(orig_file):
+    if bowl_str := is_bowl_game(orig_file_stem):
         stem = stem.replace(bowl_str, "")
         bowl_str = bowl_str.strip().replace(" ", "").replace("-Final", "")
 
