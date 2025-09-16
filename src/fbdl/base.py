@@ -76,6 +76,53 @@ abbreviation_map = {
     "MEM": "Memphis",
 }
 CITY_TO_ABBR = {city: abbr for abbr, city in abbreviation_map.items()}
+CITY_TO_ABBR["Los Angeles (A)"] = "LAC"
+CITY_TO_ABBR["Los Angeles (N)"] = "LAR"
+CITY_TO_ABBR["New York (A)"] = "NYJ"
+CITY_TO_ABBR["New York (N)"] = "NYG"
+
+TEAM_FULL_NAMES = {
+    "NYJ": "New York Jets",
+    "NWE": "New England Patriots",
+    "MIA": "Miami Dolphins",
+    "BUF": "Buffalo Bills",
+    "PIT": "Pittsburgh Steelers",
+    "CLE": "Cleveland Browns",
+    "BAL": "Baltimore Ravens",
+    "CIN": "Cincinnati",
+    "JAX": "Jacksonville Jaguars",
+    "IND": "Indianapolis Colts",
+    "HOU": "Houston Texans",
+    "TEN": "Tennessee Titans",
+    "LAC": "Los Angeles Chargers",
+    "KC": "Kansas City Chiefs",
+    "KAN": "Kansas City Chiefs",
+    "LVR": "Las Vegas Raiders",
+    "DEN": "Denver Broncos",
+    "DAL": "Dallas Cowboys",
+    "NYG": "New York Giants",
+    "PHI": "Philadelphia Eagles",
+    "WAS": "Washington Commanders",
+    "GB": "Green Bay Packers",
+    "GNB": "Green Bay Packers",
+    "CHI": "Chicago Bears",
+    "MIN": "Minnesota Vikings",
+    "DET": "Detroit Lions",
+    "TB": "Tampa Bay Buccaneers",
+    "TAM": "Tampa Bay Buccaneers",
+    "CAR": "Carolina Panthers",
+    "ATL": "Atlanta Falcons",
+    "NO": "New Orleans Saints",
+    "NOR": "New Orleans Saints",
+    "ARI": "Arizona Cardinals",
+    "ARZ": "Arizona Cardinals",
+    "SEA": "Seattle Seahawks",
+    "SF": "San Francisco 49ers",
+    "SFO": "San Francisco 49ers",
+    "LAR": "Los Angeles Rams",
+    "RAM": "Los Angeles Rams",
+}
+
 CONCURRENT_FRAGMENTS = os.getenv("CONCURRENT_FRAGMENTS", 1)
 DEFAULT_REPLAY_TYPES = {
     "full_game": "Full Game",

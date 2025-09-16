@@ -19,6 +19,7 @@ from yt_dlp.utils.traversal import traverse_obj
 from .base import (
     MEDIA_BASE_DIR,
     DEFAULT_REPLAY_TYPES,
+    TEAM_FULL_NAMES,
     CITY_TO_ABBR,
     abbreviation_map,
     is_playoff_week,
@@ -269,11 +270,36 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             },
         )
 
+    def _should_extract(self, game: Dict, teams: List[str]) -> bool:
+        """
+        Determine whether we should proceed with extracting this game.
+
+        :param game: The (parsed) game JSON returned by the NFL API.
+        :type game: Dict
+
+        :param teams: A list of teams that games should be extracted for. Values are expected to be abbreviations.
+        :type teams: List[str]
+
+        :return: A boolean indicating yes or no.
+        :rtype: bool
+        """
+        if teams == ["all"]:
+            return True
+
+        game_participants = [game["homeTeam"]["fullName"], game["awayTeam"]["fullName"]]
+
+        for team in teams:
+            if TEAM_FULL_NAMES[team.upper()] in game_participants:
+                return True
+
+        return False
+
     @property
     def _headers(self) -> Dict[str, str]:
         """
         Headers to be used in HTTP requests.
-        :return:
+        :return: A dict object to be used for request headers
+        :rtype: Dict[str, str]
         """
         self._fbdl_get_auth_token()
         return {
@@ -469,7 +495,11 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         )
 
     def get_and_extract_games_for_week(
-        self, season: int, week: int, replay_types: List[str]
+        self,
+        season: int,
+        week: int,
+        teams: Optional[List[str]] = None,
+        replay_types: Optional[List[str]] = None,
     ) -> List[Dict]:
         """
         Combine the tasks of 1.) Fetching the list of games, 2.) Extracting the info we care about.
@@ -480,8 +510,11 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         :param week: The week number we're downloading replays for.
         :type week: int
 
-        :param replay_types: A list of the replay types we want to download.
-        :type replay_types: List[str]
+        :param teams: Only extract games involving these teams. If None, download all games.
+        :type teams: Optional[List[str]]
+
+        :param replay_types: A list of the replay types we want to download. If None, download all replay types.
+        :type replay_types: Optional[List[str]]
 
         :return: A list of dict objects containing only the information we need in order to download replays.
         :rtype: List[Dict]
@@ -489,10 +522,18 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         print(f"Downloading {replay_types} for {season} week {week}")
         raw_games_list = self.get_games_for_week(season=season, week=week)
         print(f"Found {len(raw_games_list)} games for week {week}")
-        return [
-            self.extract_game_info(game=game, replay_types=replay_types)
-            for game in raw_games_list
-        ]
+
+        if not teams:
+            teams = ["all"]
+
+        extracted_games = []
+        for game in raw_games_list:
+            if self._should_extract(game=game, teams=teams):
+                extracted_games.append(
+                    self.extract_game_info(game=game, replay_types=replay_types)
+                )
+
+        return extracted_games
 
     def download_game(self, game: Dict, ep_num: int) -> None:
         """
@@ -522,7 +563,8 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         self,
         season: int,
         week: int,
-        replay_types: List[str],
+        teams: Optional[List[str]] = None,
+        replay_types: Optional[List[str]] = None,
         sleep_time: int = 15,
         start_ep: int = 0,
     ) -> None:
@@ -538,21 +580,24 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         :param week: The week we're downloading games for.
         :type week: int
 
+        :param teams: A list of teams to extract games for. Should be a list of abbreviations.
+        :type teams: Optional[List[str]]
+
         :param replay_types: The list of replay types we want to download.
-        :type replay_types: List[str]
+        :type replay_types: Optional[List[str]]
 
         :param sleep_time: The number of seconds to wait between downloads.
         :type sleep_time: int
+
+        :param start_ep: The number to start episode labeling with.
+        :type start_ep: int
         """
         extracted_games = self.get_and_extract_games_for_week(
-            season=season, week=week, replay_types=replay_types
+            season=season, week=week, teams=teams, replay_types=replay_types
         )
 
         for idx, game in enumerate(extracted_games):
             ep_num = start_ep + idx + 1
-            if ep_num in [17, 18]:
-                print("Already downloaded this game, skipping.")
-                continue
 
             self.download_game(game=game, ep_num=ep_num)
             print(f"Downloaded {idx + 1}/{len(extracted_games)}")
