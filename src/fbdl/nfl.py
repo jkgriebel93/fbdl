@@ -637,6 +637,7 @@ class MetaDataCreator:
         :return: The name to be stored in metadata.
         :rtype: str
         """
+        # TODO: There are multiple versions of this method. Consolidate
         # file_stem will be something like "2024_Wk01_PIT_at_ATL"
         base_name = file_stem.split(" - ")[-1]
         parts = base_name.split("_")
@@ -647,6 +648,8 @@ class MetaDataCreator:
         week_repr = get_week_int_as_string(week, int(year))
         if suffix := is_playoff_week(week):
             week_repr += f" {suffix}"
+
+        week_repr = week_repr.lstrip("0")
 
         team_one_abbr = parts[2]
         team_two_abbr = parts[4]
@@ -667,36 +670,41 @@ class MetaDataCreator:
         # or "vs" (for neutral site games, i.e. the Super Bowl)
         return f"{year} Week {week_repr} - {team_one_city} {parts[3]} {team_two_city}"
 
+    def construct_metadata_xml_for_game(self, game_stem: str) -> str:
+        # TODO: Consolidate this with the same method from NFLWeeklyDownloader
+        title = self._create_title_string(game_stem)
+
+        year, episode_num = [
+            x.replace("s", "").strip() for x in game_stem.split("-")[1].split("e")
+        ]
+        aired = self.game_dates[str(year)][episode_num.lstrip("0")]
+
+        return (
+            f"<episodedetails>\n"
+            f"\t<title>{title}</title>\n"
+            f"\t<season>{year}</season>\n"
+            f"\t<episode>{episode_num.lstrip("0")}</episode>\n"
+            f"\t<aired>{aired}</aired>\n"
+            f"</episodedetails>"
+        )
+
     def create_nfo_for_season(self, year: int) -> None:
         """
         Create metadata files for all games in the provided year
 
         :param year: The year to create metadata for.
         :type year: int
+
         """
         season_dir = Path(self.base_dir, f"Season {year}")
         if not season_dir.exists():
             raise FileNotFoundError(f"{season_dir} does not exist.")
 
         for game in season_dir.rglob("*.mp4"):
-            game_stem = game.stem
-            nfo_file = Path(season_dir, f"{game_stem}.nfo")
+            nfo_file = Path(season_dir, f"{game.stem}.nfo")
             print(f"Creating {nfo_file}")
             nfo_file.touch()
-            title = self._create_title_string(game_stem)
-
-            episode_num = game_stem.split("-")[1].split("e")[-1].strip()
-
-            aired = self.game_dates[str(year)][episode_num.lstrip("0")]
-
-            xml_str = (
-                f"<episodedetails>\n"
-                f"\t<title>{title}</title>\n"
-                f"\t<season>{year}</season>\n"
-                f"\t<episode>{episode_num.lstrip("0")}</episode>\n"
-                f"\t<aired>{aired}</aired>\n"
-                f"</episodedetails>"
-            )
+            xml_str = self.construct_metadata_xml_for_game(game_stem=game.stem)
             nfo_file.write_text(xml_str)
 
     def rename_files_for_season(self, year: int) -> None:
