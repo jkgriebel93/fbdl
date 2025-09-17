@@ -11,6 +11,7 @@ from fbdl.base import (
     is_playoff_week,
     transform_file_name,
     BaseDownloader,
+    FileOperationsUtil,
 )
 
 
@@ -225,3 +226,73 @@ class TestBaseDownloader:
 
         assert outtmpl_actual_val == f"{os.getcwd()}/{fname_template}"
         mock_ytdl_instance.download.assert_called_once_with(self.fake_urls_list)
+
+
+class TestFileOperationsUtil:
+    def test_construct_mp4_title_reg_season(self, tmp_path):
+        example_file_stem = "2025_Wk05_PIT_at_LVR"
+        d = tmp_path / "fops"
+        fops = FileOperationsUtil(directory_path=d)
+        result = fops._construct_mp4_title(file_stem=example_file_stem)
+
+        assert result == "2025 Wk05 - Pittsburgh at Las Vegas"
+
+    def test_construct_mp4_title_super_bowl(self, tmp_path):
+        d = tmp_path / self.__class__.__name__
+        fops = FileOperationsUtil(directory_path=d)
+        example_file_stem = "2005_Wk21SBXL_PIT_vs_SEA"
+        result = fops._construct_mp4_title(file_stem=example_file_stem)
+        assert result == "2005 Wk21SBXL - Pittsburgh vs Seattle"
+
+    @patch("fbdl.base.MP4")
+    def test_save_is_called_when_not_pretending(self, mock_MP4_class, tmp_path):
+        d = tmp_path / self.__class__.__name__
+
+        mock_MP4_instance = MagicMock()
+        mock_MP4_class.return_value = mock_MP4_instance
+
+        fops = FileOperationsUtil(directory_path=d, pretend=False)
+        fake_file = d / "2025_Wk01_PIT_at_NYJ.mp4"
+        fops.update_mp4_title_from_filename(file_obj=fake_file)
+
+        mock_MP4_instance.save.assert_called_once()
+
+    @patch("fbdl.base.MP4")
+    def test_save_is_not_called_when_pretending(self, mock_MP4_class, tmp_path):
+        d = tmp_path / self.__class__.__name__
+        fops = FileOperationsUtil(directory_path=d, pretend=True)
+
+        fake_file = d / "2025_Wk01_PIT_at_NYJ.mp4"
+        fops.update_mp4_title_from_filename(file_obj=fake_file)
+
+        mock_MP4_instance = Mock()
+        mock_MP4_instance.save = MagicMock(return_value=None)
+        mock_MP4_class.return_value = mock_MP4_instance
+
+        mock_MP4_instance.save.assert_not_called()
+
+    @patch("ffmpeg.input")
+    @patch("ffmpeg.output")
+    @patch("ffmpeg.run")
+    def test_convert_formats_only_converts_orig_format(
+        self, mock_run, mock_output, mock_input, tmp_path
+    ):
+        mock_stream = MagicMock()
+        mock_input.return_value = mock_stream
+        mock_output.return_value = mock_stream
+
+        fake_mkv = tmp_path / "fake.mkv"
+        fake_mkv.write_text("this is a fake mkv")
+
+        fake_mp4 = tmp_path / "also_fake.mp4"
+        fake_mp4.write_text("Another fake video")
+
+        fops = FileOperationsUtil(directory_path=tmp_path)
+        fops.convert_formats(orig_format="mkv", new_format="mp4")
+
+        mock_input.assert_called_once_with(str(fake_mkv))
+        output_path = str(fake_mkv.with_suffix(".mp4"))
+        mock_output.assert_called_once_with(
+            mock_stream, output_path, vcodec="copy", acodec="copy", format="mp4"
+        )
+        mock_run.assert_called_once_with(mock_stream)

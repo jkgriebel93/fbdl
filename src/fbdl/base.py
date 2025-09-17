@@ -464,6 +464,33 @@ class FileOperationsUtil:
             print(f"Variable: {name}")
             print(f"Value: {var}")
 
+    def _construct_mp4_title(self, file_stem: str) -> str:
+        """
+        Given a file stem create a pretty string for display in media client
+
+        :param file_stem: The file's name without file extension. Matches pattern YYYY_WkXX_ABC_at|vs_XYZ
+        :type file_stem: str
+
+        :return: The pretty string used to display in UIs
+        :rtype: str
+        """
+        # TODO: Implement an actual logging config to make this nicer
+        self._log_var("Base Name", file_stem)
+
+        name_parts = file_stem.split("_")
+        self._log_var("Name Parts", name_parts)
+
+        year = name_parts[0]
+        self._log_var("Year", year)
+
+        away_city = abbreviation_map[name_parts[2]]
+        home_city = abbreviation_map[name_parts[4]]
+        at_vs = "vs" if "SB" in name_parts[1] else "at"
+
+        self._log_var("@ or vs", at_vs)
+
+        return f"{year} {name_parts[1]} - {away_city} {at_vs} {home_city}"
+
     def update_mp4_title_from_filename(self, file_obj: Path) -> None:
         """
         Using information stored in a mp4 file's name, update the title stored in its metadata
@@ -480,34 +507,13 @@ class FileOperationsUtil:
 
         try:
             audio = MP4(file_obj)
-
-            # Get the filename without extension
-            base_name = file_obj.name.split(".")[0]
-            self._log_var("Base Name", base_name)
-
-            name_parts = base_name.split("_")
-            self._log_var("Name Parts", name_parts)
-
-            year = name_parts[0]
-            self._log_var("Year", year)
-
-            away_city = abbreviation_map[name_parts[2]]
-            home_city = abbreviation_map[name_parts[4]]
-            at_vs = "vs" if "SB" in name_parts[1] else "at"
-
-            self._log_var("@ or vs", at_vs)
-
-            new_name = f"{year} {name_parts[1]} - {away_city} {at_vs} {home_city}"
-            self._log_var("New name", new_name)
-
-            audio["\xa9nam"] = new_name  # Tags are often lists in MP4
-            audio["\xa9day"] = year
+            audio["\xa9nam"] = self._construct_mp4_title(file_stem=file_obj.stem)
 
             if not self.pretend:
                 print("Saving file.")
                 audio.save()
 
-            print(f"Updated title for '{file_obj.name}' to: '{new_name}'")
+            print(f"Updated title for '{file_obj.name}' to: '{audio['\xa9nam']}'")
         except Exception as e:
             print(f"Error processing '{file_obj.name}': {e}")
             raise e
