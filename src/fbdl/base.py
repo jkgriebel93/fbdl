@@ -234,27 +234,31 @@ def get_week_int_as_string(
             break
         num += c
 
-    return num.zfill(2)
+    # If we're given an invalid week, return the empty string.
+    # Without this ternary, "00" would be returned
+    return num.zfill(2) if num else ""
 
 
-def is_bowl_game(orig_file: Path) -> str:
+def is_bowl_game(orig_file: str) -> str:
     """
     Given a (properly named) Path object, determine if it
     represents an NCAA bowl/playoff game and return the game's name.
 
-    :param orig_file: The Path object for the video file we're inspecting.
-    :type orig_file: Path
+    :param orig_file: The string representing the file name stem for the video file we're inspecting.
+    :type orig_file: str
     :return: Either the empty string or the name of the bowl game.
     :rtype: str
     """
     bowl_str = ""
+    print(orig_file)
+    # TODO: This needs to be generalized.
     for named_game in [
         "SEC Championship ",
         "Orange Bowl ",
         "CFP Final ",
         "Peach Bowl CFP Semi-Final",
     ]:
-        if named_game in orig_file.stem:
+        if named_game in orig_file:
             bowl_str = named_game
             break
     return bowl_str
@@ -287,18 +291,18 @@ def is_playoff_week(week_str: str) -> str:
     return ""
 
 
-def transform_file_name(orig_file: Path) -> str:
+def transform_file_name(orig_file_stem: str) -> str:
     """
     A specialized function that takes a file which follows the naming convention of a specific YouTube channel,
     and transforms the name to match our convention and play nice with Plex, Jellyfin, etc.
-    :param orig_file: Path object representing the originally downloaded file.
-    :type: orig_file: Path
+    :param orig_file_stem: String representing the originally downloaded file's stem.
+    :type: orig_file: str
     :return: The transformed file _stem_ as a string.
     :rtype: str
     """
-    stem = orig_file.stem.replace("UGA", "Georgia").replace("@", "at")
+    stem = orig_file_stem.replace("UGA", "Georgia").replace("@", "at")
 
-    if bowl_str := is_bowl_game(orig_file):
+    if bowl_str := is_bowl_game(orig_file_stem):
         stem = stem.replace(bowl_str, "")
         bowl_str = bowl_str.strip().replace(" ", "").replace("-Final", "")
 
@@ -335,6 +339,7 @@ class BaseDownloader:
         cookie_file_path: Optional[Union[str, Path]] = None,
         destination_dir: Optional[Union[str, Path]] = None,
         add_yt_opts: Optional[Dict] = None,
+        browser: str = "firefox",
     ) -> None:
         """
         Construct the BaseDownloader and store specification information to be passed to ydl.
@@ -349,6 +354,9 @@ class BaseDownloader:
             fbdl. The values passed in this parameter will supersede any base parameters, and can be overriden when
             download_from_file is invoked.
         :type add_yt_opts: Dict
+
+        :param browser: Lower case name of the browser cookies are being extracted from.
+        :type browser: str
         """
         self.cookie_file_path = cookie_file_path
         self.base_yt_opts = {
@@ -363,7 +371,7 @@ class BaseDownloader:
         }
 
         if self.cookie_file_path is not None:
-            self.base_yt_opts["cookiesfrombrowser"] = ("firefox", self.cookie_file_path)
+            self.base_yt_opts["cookiesfrombrowser"] = (browser, self.cookie_file_path)
 
         if add_yt_opts:
             self.base_yt_opts.update(add_yt_opts)
@@ -377,7 +385,10 @@ class BaseDownloader:
         self.destination_dir = destination_dir
 
     def download_from_file(
-        self, input_file: Path, dlp_overrides: Optional[Dict] = None
+        self,
+        input_file: Path,
+        dlp_overrides: Optional[Dict] = None,
+        output_file_name_template: str = "%(title)s.%(ext)s",
     ) -> None:
         """
         Use YoutubeDL to download the videos stored at each URL from input_file.
@@ -387,13 +398,15 @@ class BaseDownloader:
 
         :param dlp_overrides: A dict storing YoutubeDL parameters to be used for this invocation of download_from_file
         :type dlp_overrides: Dict | None
+
+        :param output_file_name_template: A string using Python's string formatting rules that will dictate the downloaded file's name. See yt-dlp docs for more.
+        :type output_file_name_template: str
         :return:
         """
         print(f"Downloading files from {input_file.name}")
 
         urls = input_file.read_text().splitlines()
-
-        output_template = str(self.destination_dir / "%(title)s.%(ext)s")
+        output_template = str(self.destination_dir / output_file_name_template)
         overridden_opts = {
             **self.base_yt_opts,
             "outtmpl": output_template,
@@ -402,7 +415,7 @@ class BaseDownloader:
         if dlp_overrides:
             overridden_opts.update(dlp_overrides)
 
-        with YoutubeDL(overridden_opts) as ydl:
+        with YoutubeDL(params=overridden_opts) as ydl:
             ydl.download(urls)
 
 
@@ -451,6 +464,33 @@ class FileOperationsUtil:
             print(f"Variable: {name}")
             print(f"Value: {var}")
 
+    def _construct_mp4_title(self, file_stem: str) -> str:
+        """
+        Given a file stem create a pretty string for display in media client
+
+        :param file_stem: The file's name without file extension. Matches pattern YYYY_WkXX_ABC_at|vs_XYZ
+        :type file_stem: str
+
+        :return: The pretty string used to display in UIs
+        :rtype: str
+        """
+        # TODO: Implement an actual logging config to make this nicer
+        self._log_var("Base Name", file_stem)
+
+        name_parts = file_stem.split("_")
+        self._log_var("Name Parts", name_parts)
+
+        year = name_parts[0]
+        self._log_var("Year", year)
+
+        away_city = abbreviation_map[name_parts[2]]
+        home_city = abbreviation_map[name_parts[4]]
+        at_vs = "vs" if "SB" in name_parts[1] else "at"
+
+        self._log_var("@ or vs", at_vs)
+
+        return f"{year} {name_parts[1]} - {away_city} {at_vs} {home_city}"
+
     def update_mp4_title_from_filename(self, file_obj: Path) -> None:
         """
         Using information stored in a mp4 file's name, update the title stored in its metadata
@@ -467,34 +507,13 @@ class FileOperationsUtil:
 
         try:
             audio = MP4(file_obj)
-
-            # Get the filename without extension
-            base_name = file_obj.name.split(".")[0]
-            self._log_var("Base Name", base_name)
-
-            name_parts = base_name.split("_")
-            self._log_var("Name Parts", name_parts)
-
-            year = name_parts[0]
-            self._log_var("Year", year)
-
-            away_city = abbreviation_map[name_parts[2]]
-            home_city = abbreviation_map[name_parts[4]]
-            at_vs = "vs" if "SB" in name_parts[1] else "at"
-
-            self._log_var("@ or vs", at_vs)
-
-            new_name = f"{year} {name_parts[1]} - {away_city} {at_vs} {home_city}"
-            self._log_var("New name", new_name)
-
-            audio["\xa9nam"] = new_name  # Tags are often lists in MP4
-            audio["\xa9day"] = year
+            audio["\xa9nam"] = self._construct_mp4_title(file_stem=file_obj.stem)
 
             if not self.pretend:
                 print("Saving file.")
                 audio.save()
 
-            print(f"Updated title for '{file_obj.name}' to: '{new_name}'")
+            print(f"Updated title for '{file_obj.name}' to: '{audio['\xa9nam']}'")
         except Exception as e:
             print(f"Error processing '{file_obj.name}': {e}")
             raise e
