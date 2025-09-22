@@ -5,18 +5,20 @@ description="My customized tools for downloading (American) football content"
 requires-python=">=3.12"
 dependencies = [
     "yt-dlp==2025.9.5",
-    "click==8.2.1",
+    "click==8.3.0",
     "ffmpeg-python==0.2.0",
+    "mutagen==1.47.0",
     "pycryptodomex==3.23.0",
-    "black==25.1.0",
+    "black==25.9.0",
     "sphinx==8.2.3",
     "sphinx-click==6.1.0",
-    "sphinx_rtd_theme==3.0.2"
+    "sphinx_rtd_theme==3.0.2",
+    "griddy==0.1.0"
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.3",
+    "pytest==8.4.2",
 ]
 
 [project.scripts]
@@ -26,5 +28,5 @@ fbdl = "fbdl.fbdl:cli"
 testpaths = ["tests"]
 
 [build-system]
-requires = ["hatchling >= 1.27.0"]
+requires = ["hatchling == 1.27.0"]
 build-backend = "hatchling.build"
