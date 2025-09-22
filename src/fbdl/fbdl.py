@@ -91,14 +91,18 @@ def nfl_show(episode_names_file, cookies, show_dir):
     help="Specify which replay types to download. If blank, the full game is downloaded.",
 )
 @click.option("--start-ep", type=int, help="Where to pick up episode numbering from.")
-@click.option("--raw-cookies", type=click.Path(exists=True), help="A txt file containing cookies needed for NFL API authentication.")
+@click.option(
+    "--raw-cookies",
+    type=click.Path(exists=True),
+    help="A txt file containing cookies needed for NFL API authentication.",
+)
 def nfl_games(
     season: int,
     week: int,
     team: Tuple[str],
     replay_type: Tuple[str] = ("full_game",),
     start_ep: int = 0,
-    raw_cookies: str = "cookies.txt"
+    raw_cookies: str = "cookies.txt",
 ):
     """
     Download NFL game replays of the specified SEASON and WEEK

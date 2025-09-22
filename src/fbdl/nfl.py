@@ -380,7 +380,9 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         :rtype: List[Dict]
         """
         print(f"Downloading {replay_types} for {season} week {week}")
-        raw_games_list = self.nfl_client.get_games(season=season, week=week, include_replays=True)
+        raw_games_list = self.nfl_client.get_games(
+            season=season, week=week, include_replays=True
+        )
         print(f"Found {len(raw_games_list)} games for week {week}")
 
         if not teams:
