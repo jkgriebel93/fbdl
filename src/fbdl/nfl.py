@@ -2,19 +2,13 @@ import json
 import logging
 import time
 
-import requests
-
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, Union, List, Any
+
+from griddy.nfl import NFLClient
 from yt_dlp import YoutubeDL
 from yt_dlp.extractor.nfl import NFLBaseIE
-from yt_dlp.cookies import (
-    _parse_browser_specification,
-    extract_cookies_from_browser,
-)
-from yt_dlp.utils import urlencode_postdata
-from yt_dlp.utils.traversal import traverse_obj
 
 from .base import (
     MEDIA_BASE_DIR,
@@ -147,19 +141,23 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
     The class (especially authentication + authorization) is a bit messy
     due to its custom nature. This can certainly be cleaned up.
 
-    ivar _api_base_url: str - The base URL of the NFL's data API, i.e. not its auth API
-    ivar _replay_base_url: str - The base URL of game replays.
+    var _replay_base_url: str - The base URL of game replays.
 
     """
 
     def __init__(
         self,
+        firefox_profile_path: Union[str, Path],
         cookie_file_path: Union[str, Path],
         destination_dir: Union[str, Path],
         add_yt_opts: Optional[Dict] = None,
     ) -> None:
         """
         Create the downloader; set its download and storage parameters
+
+        :param firefox_profile_path: Path to the user's Firefox profile.
+            This is needed because yt_dlp doesn't work with a raw cookies file.
+        :type firefox_profile_path: str | Path
 
         :param cookie_file_path: The Netscape format cookies file used for auth.
         :type cookie_file_path: str | Path
@@ -172,103 +170,9 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             and apply to all download invocations by this object.
         :type add_yt_opts: Dict | None
         """
-        super().__init__(cookie_file_path, destination_dir, add_yt_opts)
-        self._api_base_url = "https://api.nfl.com/football/v2/"
+        super().__init__(firefox_profile_path, destination_dir, add_yt_opts)
         self._replay_base_url = "https://www.nfl.com/plus/games/"
-        # self.headers = self._construct_headers()
-        self._fbdl_get_account_info()
-
-    def _initialize_cookies(self, browser: str = "firefox") -> Any:
-        """
-        Setup the relevant cookies based on the provided browser.
-
-        :param browser: Only implementing firefox for now.
-        :type browser: str
-        """
-        browser_specification = (browser, self.cookie_file_path)
-        browser_name, profile, keyring, container = _parse_browser_specification(
-            *browser_specification
-        )
-        cookies = extract_cookies_from_browser(
-            browser_name=browser_name,
-            profile=profile,
-            logger=logger,
-            keyring=keyring,
-            container=container,
-        )
-        return cookies.get_cookies_for_url("https://auth-id.nfl.com/")
-
-    def _fbdl_get_auth_token(self) -> None:
-        """
-        A custom method to get an auth token. The _fbdl prefix of the method name is necessary because
-        the naming collision results in the parent class' version being called, and it fails.
-        """
-        if self._TOKEN and self._TOKEN_EXPIRY > int(time.time() + 30):
-            return
-
-        token_url = "https://api.nfl.com/identity/v3/token"
-        if self._ACCOUNT_INFO.get("refreshToken"):
-            token_url += "/refresh"
-
-        token_request_data = json.dumps(
-            {**self._CLIENT_DATA, **self._ACCOUNT_INFO}, separators=(",", ":")
-        ).encode()
-        response = requests.post(
-            token_url,
-            headers={"Content-Type": "application/json"},
-            data=token_request_data,
-        )
-        response.raise_for_status()
-        token = response.json()
-
-        self._TOKEN = token["accessToken"]
-        self._TOKEN_EXPIRY = token["expiresIn"]
-        self._ACCOUNT_INFO["refreshToken"] = token["refreshToken"]
-
-    def _fbdl_get_account_info(self) -> None:
-        """
-        A custom method to get and store account info. The _fbdl prefix of the method name is necessary because
-        the naming collision results in the parent class' version being called, and it fails.
-        """
-        nfl_cookies = self._initialize_cookies()
-        login_token = traverse_obj(
-            nfl_cookies,
-            (
-                (f"glt_{self._API_KEY}", lambda k, _: k.startswith("glt_")),
-                {lambda x: x.value},
-            ),
-            get_all=False,
-        )
-        account = requests.post(
-            "https://auth-id.nfl.com/accounts.getAccountInfo",
-            data=urlencode_postdata(
-                {
-                    "include": "profile,data",
-                    "lang": "en",
-                    "APIKey": self._API_KEY,
-                    "sdk": "js_latest",
-                    "login_token": login_token,
-                    "authMode": "cookie",
-                    "pageURL": "https://www.nfl.com/",
-                    "sdkBuild": traverse_obj(
-                        nfl_cookies,
-                        ("gig_canary_ver", {lambda x: x.value.partition("-")[0]}),
-                        default="15170",
-                    ),
-                    "format": "json",
-                }
-            ),
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-
-        self._ACCOUNT_INFO = traverse_obj(
-            account,
-            {
-                "signatureTimestamp": "signatureTimestamp",
-                "uid": "UID",
-                "uidSignature": "UIDSignature",
-            },
-        )
+        self.nfl_client = NFLClient(cookies_file=str(cookie_file_path))
 
     def _should_extract(self, game: Dict, teams: List[str]) -> bool:
         """
@@ -293,50 +197,6 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
                 return True
 
         return False
-
-    @property
-    def _headers(self) -> Dict[str, str]:
-        """
-        Headers to be used in HTTP requests.
-        :return: A dict object to be used for request headers
-        :rtype: Dict[str, str]
-        """
-        self._fbdl_get_auth_token()
-        return {
-            "Authorization": f"Bearer {self._TOKEN}",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        }
-
-    def get_games_for_week(
-        self, season: int, week: int, season_type: str = "REG"
-    ) -> Dict:
-        """
-        Get the list of games played during the given season and week.
-
-        :param season: The season we're fetching games for.
-        :type season: int
-
-        :param week: The week number to fetch games for.
-        :type week: int
-
-        :param season_type: Currently only 'REG' is implemented.
-
-        :returns: The response JSON from the NFL's API
-        :rtype: Dict
-        """
-        weekly_endpoint = f"{self._api_base_url}experience/weekly-game-details"
-        params = {
-            "includeReplays": True,
-            "includeStandings": False,
-            "season": season,
-            "type": season_type,
-            "week": week,
-        }
-        response = requests.get(weekly_endpoint, headers=self._headers, params=params)
-        response.raise_for_status()
-
-        return response.json()
 
     def extract_game_info(
         self, game: Dict, replay_types: Optional[List] = None
@@ -520,7 +380,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         :rtype: List[Dict]
         """
         print(f"Downloading {replay_types} for {season} week {week}")
-        raw_games_list = self.get_games_for_week(season=season, week=week)
+        raw_games_list = self.nfl_client.get_games(season=season, week=week, include_replays=True)
         print(f"Found {len(raw_games_list)} games for week {week}")
 
         if not teams:

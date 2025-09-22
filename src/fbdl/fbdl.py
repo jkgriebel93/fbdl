@@ -90,13 +90,15 @@ def nfl_show(episode_names_file, cookies, show_dir):
     type=click.Choice(DEFAULT_REPLAY_TYPES.keys(), case_sensitive=False),
     help="Specify which replay types to download. If blank, the full game is downloaded.",
 )
-@click.option("--start-ep", type=int, help="")
+@click.option("--start-ep", type=int, help="Where to pick up episode numbering from.")
+@click.option("--raw-cookies", type=click.Path(exists=True), help="A txt file containing cookies needed for NFL API authentication.")
 def nfl_games(
     season: int,
     week: int,
     team: Tuple[str],
     replay_type: Tuple[str] = ("full_game",),
     start_ep: int = 0,
+    raw_cookies: str = "cookies.txt"
 ):
     """
     Download NFL game replays of the specified SEASON and WEEK
@@ -109,6 +111,8 @@ def nfl_games(
     click.echo(f"Week: {week}")
     click.echo(f"Team: {team}")
     click.echo(f"Replay Type: {replay_type}")
+    click.echo(f"Start episode: {start_ep}")
+    click.echo(f"Cookies file: {raw_cookies}")
 
     profile_dir = os.getenv("PROFILE_LOCATION")
     destination_dir = os.getenv("DEST_DIR")
@@ -121,7 +125,8 @@ def nfl_games(
     }
 
     nwd = NFLWeeklyDownloader(
-        cookie_file_path=Path(profile_dir),
+        firefox_profile_path=profile_dir,
+        cookie_file_path=raw_cookies,
         destination_dir=destination_dir,
         add_yt_opts=add_opts,
     )
