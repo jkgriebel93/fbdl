@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
+jobs:
+  build-test:
+    name: Format, Test, and Upload Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Configure AWS credentials (for CodeArtifact)
+        if: ${{ secrets.AWS_REGION != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        continue-on-error: true
+
+      - name: Login to AWS CodeArtifact (pip)
+        if: ${{ secrets.CODEARTIFACT_DOMAIN != '' && secrets.CODEARTIFACT_ACCOUNT_ID != '' && secrets.CODEARTIFACT_REPOSITORY != '' && secrets.AWS_REGION != '' }}
+        uses: aws-actions/aws-codeartifact-login@v1
+        with:
+          domain: ${{ secrets.CODEARTIFACT_DOMAIN }}
+          domain-owner: ${{ secrets.CODEARTIFACT_ACCOUNT_ID }}
+          repository: ${{ secrets.CODEARTIFACT_REPOSITORY }}
+          duration-seconds: 900
+          tool: pip
+        continue-on-error: false
+
+      - name: Install dependencies
+      
+        run: |
+          python -m pip install --upgrade pip
+          # Install the package and tooling needed for CI
+          pip install .
+          pip install pytest pytest-cov black
+
+      - name: Black code style check
+        run: |
+          black --version
+          black --check .
+
+      - name: Run tests with coverage
+        run: |
+          pytest --maxfail=1 --disable-warnings -q --cov=src --cov-report=term --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          # If this is a private repo, set CODECOV_TOKEN in the repo secrets
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
