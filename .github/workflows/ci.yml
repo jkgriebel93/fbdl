@@ -24,9 +24,29 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-          cache: 'pip'
+
+      - name: Configure AWS credentials (for CodeArtifact)
+        if: ${{ secrets.AWS_REGION != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        continue-on-error: true
+
+      - name: Login to AWS CodeArtifact (pip)
+        if: ${{ secrets.CODEARTIFACT_DOMAIN != '' && secrets.CODEARTIFACT_ACCOUNT_ID != '' && secrets.CODEARTIFACT_REPOSITORY != '' && secrets.AWS_REGION != '' }}
+        uses: aws-actions/aws-codeartifact-login@v1
+        with:
+          domain: ${{ secrets.CODEARTIFACT_DOMAIN }}
+          domain-owner: ${{ secrets.CODEARTIFACT_ACCOUNT_ID }}
+          repository: ${{ secrets.CODEARTIFACT_REPOSITORY }}
+          duration-seconds: 900
+          tool: pip
+        continue-on-error: false
 
       - name: Install dependencies
+      
         run: |
           python -m pip install --upgrade pip
           # Install the package and tooling needed for CI
@@ -39,8 +59,6 @@ jobs:
           black --check .
 
       - name: Run tests with coverage
-        env:
-          PYTHONPATH: src
         run: |
           pytest --maxfail=1 --disable-warnings -q --cov=src --cov-report=term --cov-report=xml
 
