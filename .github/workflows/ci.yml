@@ -26,7 +26,6 @@ jobs:
           python-version: '3.13'
 
       - name: Configure AWS credentials (for CodeArtifact)
-        if: ${{ secrets.AWS_REGION != '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ secrets.AWS_REGION }}
@@ -35,7 +34,6 @@ jobs:
         continue-on-error: true
 
       - name: Login to AWS CodeArtifact (pip)
-        if: ${{ secrets.CODEARTIFACT_DOMAIN != '' && secrets.CODEARTIFACT_ACCOUNT_ID != '' && secrets.CODEARTIFACT_REPOSITORY != '' && secrets.AWS_REGION != '' }}
         uses: aws-actions/aws-codeartifact-login@v1
         with:
           domain: ${{ secrets.CODEARTIFACT_DOMAIN }}
@@ -46,7 +44,6 @@ jobs:
         continue-on-error: false
 
       - name: Install dependencies
-      
         run: |
           python -m pip install --upgrade pip
           # Install the package and tooling needed for CI
