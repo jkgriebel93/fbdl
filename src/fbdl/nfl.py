@@ -264,7 +264,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         :rtype: str
         """
         title = (
-            f"{game['season']} Week {game['week']} - ({replay_type})"
+            f"{game['season']} Week {game['week']} - ({replay_type}) "
             f"{game['awayTeam']} {game['divider']} {game['homeTeam']}"
         )
 
