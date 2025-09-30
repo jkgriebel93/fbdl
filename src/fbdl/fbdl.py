@@ -96,6 +96,10 @@ def nfl_show(episode_names_file, cookies, show_dir):
     type=click.Path(exists=True),
     help="A txt file containing cookies needed for NFL API authentication.",
 )
+@click.option("--destination-dir",
+              envvar="DESTINATION_DIR",
+              type=click.Path(exists=True),
+              help="Directory the downloaded games should be saved to.")
 def nfl_games(
     season: int,
     week: int,
@@ -103,6 +107,7 @@ def nfl_games(
     replay_type: Tuple[str] = ("full_game",),
     start_ep: int = 0,
     raw_cookies: str = "cookies.txt",
+    destination_dir: str = os.getcwd()
 ):
     """
     Download NFL game replays of the specified SEASON and WEEK
@@ -117,9 +122,9 @@ def nfl_games(
     click.echo(f"Replay Type: {replay_type}")
     click.echo(f"Start episode: {start_ep}")
     click.echo(f"Cookies file: {raw_cookies}")
+    click.echo(f"Destination directory: {destination_dir}")
 
     profile_dir = os.getenv("PROFILE_LOCATION")
-    destination_dir = os.getenv("DEST_DIR")
     allowed_extractors = ["nfl.com:plus:replay"]
     extractor_args = {"nflplusreplay": {"type": [replay_type[0]]}}
 
