@@ -89,7 +89,7 @@ TEAM_FULL_NAMES = {
     "PIT": "Pittsburgh Steelers",
     "CLE": "Cleveland Browns",
     "BAL": "Baltimore Ravens",
-    "CIN": "Cincinnati",
+    "CIN": "Cincinnati Bengals",
     "JAX": "Jacksonville Jaguars",
     "IND": "Indianapolis Colts",
     "HOU": "Houston Texans",
