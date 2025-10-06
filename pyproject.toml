@@ -13,7 +13,7 @@ dependencies = [
     "sphinx==8.2.3",
     "sphinx-click==6.1.0",
     "sphinx_rtd_theme==3.0.2",
-    "griddy==0.1.0"
+    "griddy==0.2.1"
 ]
 
 [project.optional-dependencies]

@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, Union, List, Any
 
-from griddy.nfl import NFLClient
+from griddy.nfl import GriddyNFL
+from griddy.nfl.models import WeeklyGameDetail
 from yt_dlp import YoutubeDL
 from yt_dlp.extractor.nfl import NFLBaseIE
 
@@ -172,9 +173,9 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         """
         super().__init__(firefox_profile_path, destination_dir, add_yt_opts)
         self._replay_base_url = "https://www.nfl.com/plus/games/"
-        self.nfl_client = NFLClient(cookies_file=str(cookie_file_path))
+        self.nfl_client = GriddyNFL(cookies_file=str(cookie_file_path))
 
-    def _should_extract(self, game: Dict, teams: List[str]) -> bool:
+    def _should_extract(self, game: WeeklyGameDetail, teams: List[str]) -> bool:
         """
         Determine whether we should proceed with extracting this game.
 
@@ -190,7 +191,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         if teams == ["all"]:
             return True
 
-        game_participants = [game["homeTeam"]["fullName"], game["awayTeam"]["fullName"]]
+        game_participants = [game.home_team.full_name, game.away_team.full_name]
 
         for team in teams:
             if TEAM_FULL_NAMES[team.upper()] in game_participants:
@@ -199,7 +200,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         return False
 
     def extract_game_info(
-        self, game: Dict, replay_types: Optional[List] = None
+        self, game: WeeklyGameDetail, replay_types: Optional[List] = None
     ) -> Dict:
         """
         Extract only the information relevant to downloading and storing the replays properly.
@@ -215,27 +216,28 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         :returns: A dict containing only the relevant information.
         :rtype: Dict
         """
-        fields = ["season", "week", "weekType", "date"]
-        game_info = {key: value for key, value in game.items() if key in fields}
-        game_info["homeTeam"] = game["homeTeam"]["fullName"]
-        game_info["awayTeam"] = game["awayTeam"]["fullName"]
-        game_info["divider"] = "vs" if game["neutralSite"] else "at"
+        fields = ["season", "week", "week_type", "date_"]
 
-        for ex_id in game["externalIds"]:
-            if ex_id["source"] == "slug":
-                game_info["slug"] = ex_id["id"]
+        game_info = {attr: getattr(game, attr) for attr in fields}
+        game_info["homeTeam"] = game.home_team.full_name
+        game_info["awayTeam"] = game.away_team.full_name
+        game_info["divider"] = "vs" if game.neutral_site else "at"
+
+        for ex_id in game.external_ids:
+            if ex_id.source == "slug":
+                game_info["slug"] = ex_id.id
 
         if not replay_types:
             replay_types = DEFAULT_REPLAY_TYPES.values()
 
         game_info["replays"] = {}
-        for replay in game["replays"]:
-            subType = replay["subType"]
+        for replay in game.replays:
+            subType = replay.sub_type
 
             if subType in replay_types:
                 game_info["replays"][subType] = {
-                    "mcpPlaybackId": replay["mcpPlaybackId"],
-                    "thumbnailUrl": replay["thumbnail"].get("thumbnailUrl"),
+                    "mcpPlaybackId": replay.mcp_playback_id,
+                    "thumbnailUrl": replay.thumbnail.get("thumbnailUrl"),
                 }
 
                 game_info["replays"][subType]["url"] = self._construct_replay_url(
@@ -380,8 +382,8 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         :rtype: List[Dict]
         """
         print(f"Downloading {replay_types} for {season} week {week}")
-        raw_games_list = self.nfl_client.get_games(
-            season=season, week=week, include_replays=True
+        raw_games_list = self.nfl_client.football.get_weekly_game_details(
+            season=season, type_="REG", week=week, include_replays=True
         )
         print(f"Found {len(raw_games_list)} games for week {week}")
 

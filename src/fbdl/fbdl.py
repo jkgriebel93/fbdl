@@ -4,10 +4,10 @@ import os
 from pathlib import Path
 from typing import Tuple
 
-from .base import FileOperationsUtil, BaseDownloader, DEFAULT_REPLAY_TYPES
+from .base import FileOperationsUtil, BaseDownloader, DEFAULT_REPLAY_TYPES, TEAM_FULL_NAMES
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 
-
+import ffmpeg
 @click.group()
 def cli():
     pass
@@ -84,6 +84,10 @@ def nfl_show(episode_names_file, cookies, show_dir):
     help="Restrict downloads to a single team by providing the team's three letter abbreviation here. "
     "If blank, all are fetched.",
 )
+@click.option("--exclude",
+              multiple=True,
+              type=str,
+              help="Teams to exclude")
 @click.option(
     "--replay-type",
     multiple=True,
@@ -104,11 +108,13 @@ def nfl_games(
     season: int,
     week: int,
     team: Tuple[str],
+    exclude: Tuple[str],
     replay_type: Tuple[str] = ("full_game",),
     start_ep: int = 0,
     raw_cookies: str = "cookies.txt",
     destination_dir: str = os.getcwd()
 ):
+    # TODO: Ensure jellyfin isn't running..it borks the post processing
     """
     Download NFL game replays of the specified SEASON and WEEK
 
@@ -119,6 +125,7 @@ def nfl_games(
     click.echo(f"Season: {season}")
     click.echo(f"Week: {week}")
     click.echo(f"Team: {team}")
+    click.echo(f"Exclude: {exclude}")
     click.echo(f"Replay Type: {replay_type}")
     click.echo(f"Start episode: {start_ep}")
     click.echo(f"Cookies file: {raw_cookies}")
@@ -140,12 +147,17 @@ def nfl_games(
         add_yt_opts=add_opts,
     )
 
+    if team:
+        teams_to_fetch = [tm for tm in team if tm not in exclude]
+    else:
+        teams_to_fetch = [tm for tm in TEAM_FULL_NAMES if tm not in exclude]
+
     replay_type = [DEFAULT_REPLAY_TYPES[r] for r in replay_type]
 
     nwd.download_all_for_week(
         season=season,
         week=week,
-        teams=list(team),
+        teams=teams_to_fetch,
         replay_types=replay_type,
         start_ep=start_ep,
     )
