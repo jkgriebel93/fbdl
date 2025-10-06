@@ -275,7 +275,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             f"\t<title>{title}</title>\n"
             f"\t<season>{game['season']}</season>\n"
             f"\t<episode>{ep_num}</episode>\n"
-            f"\t<aired>{game['date']}</aired>\n"
+            f"\t<aired>{game['date_']}</aired>\n"
             f"</episodedetails>"
         )
 
