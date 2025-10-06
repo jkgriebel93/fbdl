@@ -4,10 +4,17 @@ import os
 from pathlib import Path
 from typing import Tuple
 
-from .base import FileOperationsUtil, BaseDownloader, DEFAULT_REPLAY_TYPES, TEAM_FULL_NAMES
+from .base import (
+    FileOperationsUtil,
+    BaseDownloader,
+    DEFAULT_REPLAY_TYPES,
+    TEAM_FULL_NAMES,
+)
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 
 import ffmpeg
+
+
 @click.group()
 def cli():
     pass
@@ -84,10 +91,7 @@ def nfl_show(episode_names_file, cookies, show_dir):
     help="Restrict downloads to a single team by providing the team's three letter abbreviation here. "
     "If blank, all are fetched.",
 )
-@click.option("--exclude",
-              multiple=True,
-              type=str,
-              help="Teams to exclude")
+@click.option("--exclude", multiple=True, type=str, help="Teams to exclude")
 @click.option(
     "--replay-type",
     multiple=True,
@@ -100,10 +104,12 @@ def nfl_show(episode_names_file, cookies, show_dir):
     type=click.Path(exists=True),
     help="A txt file containing cookies needed for NFL API authentication.",
 )
-@click.option("--destination-dir",
-              envvar="DESTINATION_DIR",
-              type=click.Path(exists=True),
-              help="Directory the downloaded games should be saved to.")
+@click.option(
+    "--destination-dir",
+    envvar="DESTINATION_DIR",
+    type=click.Path(exists=True),
+    help="Directory the downloaded games should be saved to.",
+)
 def nfl_games(
     season: int,
     week: int,
@@ -112,7 +118,7 @@ def nfl_games(
     replay_type: Tuple[str] = ("full_game",),
     start_ep: int = 0,
     raw_cookies: str = "cookies.txt",
-    destination_dir: str = os.getcwd()
+    destination_dir: str = os.getcwd(),
 ):
     # TODO: Ensure jellyfin isn't running..it borks the post processing
     """
