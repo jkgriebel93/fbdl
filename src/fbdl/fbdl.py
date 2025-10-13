@@ -1,4 +1,5 @@
 import click
+import json
 import os
 
 from pathlib import Path
@@ -110,6 +111,13 @@ def nfl_show(episode_names_file, cookies, show_dir):
     type=click.Path(exists=True),
     help="Directory the downloaded games should be saved to.",
 )
+@click.option(
+    "--list-only",
+    type=bool,
+    default=False,
+    is_flag=True,
+    help="Don't download the games, only list them to stdout."
+)
 def nfl_games(
     season: int,
     week: int,
@@ -119,6 +127,8 @@ def nfl_games(
     start_ep: int = 0,
     raw_cookies: str = "cookies.txt",
     destination_dir: str = os.getcwd(),
+    list_only: bool = False
+
 ):
     # TODO: Ensure jellyfin isn't running..it borks the post processing
     """
@@ -160,13 +170,24 @@ def nfl_games(
 
     replay_type = [DEFAULT_REPLAY_TYPES[r] for r in replay_type]
 
-    nwd.download_all_for_week(
-        season=season,
-        week=week,
-        teams=teams_to_fetch,
-        replay_types=replay_type,
-        start_ep=start_ep,
-    )
+    if list_only:
+        games = nwd.get_and_extract_games_for_week(
+            season=season,
+            week=week,
+            teams=teams_to_fetch,
+            replay_types=replay_type
+        )
+        from pprint import pprint
+        pprint(games, indent=4)
+    else:
+
+        nwd.download_all_for_week(
+            season=season,
+            week=week,
+            teams=teams_to_fetch,
+            replay_types=replay_type,
+            start_ep=start_ep,
+        )
 
 
 @cli.command()
