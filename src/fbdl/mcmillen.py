@@ -1,8 +1,8 @@
-import requests
-import time
-from bs4 import BeautifulSoup as BS
-
 import sys
+import time
+
+import requests
+from bs4 import BeautifulSoup as BS
 
 
 def extract_links_for_year(year: int):

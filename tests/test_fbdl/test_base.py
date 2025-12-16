@@ -1,17 +1,16 @@
 import os
-
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 from fbdl.base import (
+    BaseDownloader,
+    FileOperationsUtil,
     convert_nfl_playoff_name_to_int,
     convert_ufl_playoff_name_to_int,
     get_week_int_as_string,
     is_bowl_game,
     is_playoff_week,
     transform_file_name,
-    BaseDownloader,
-    FileOperationsUtil,
 )
 
 

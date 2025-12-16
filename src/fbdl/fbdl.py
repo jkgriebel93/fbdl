@@ -1,19 +1,19 @@
-import click
 import json
 import os
-
 from pathlib import Path
 from typing import Tuple
 
+import click
+import ffmpeg
+
 from .base import (
-    FileOperationsUtil,
-    BaseDownloader,
     DEFAULT_REPLAY_TYPES,
     TEAM_FULL_NAMES,
+    BaseDownloader,
+    FileOperationsUtil,
+    MetaDataCreator,
 )
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
-
-import ffmpeg
 
 
 @click.group()
@@ -116,7 +116,7 @@ def nfl_show(episode_names_file, cookies, show_dir):
     type=bool,
     default=False,
     is_flag=True,
-    help="Don't download the games, only list them to stdout."
+    help="Don't download the games, only list them to stdout.",
 )
 def nfl_games(
     season: int,
@@ -127,8 +127,7 @@ def nfl_games(
     start_ep: int = 0,
     raw_cookies: str = "cookies.txt",
     destination_dir: str = os.getcwd(),
-    list_only: bool = False
-
+    list_only: bool = False,
 ):
     # TODO: Ensure jellyfin isn't running..it borks the post processing
     """
@@ -147,7 +146,7 @@ def nfl_games(
     click.echo(f"Cookies file: {raw_cookies}")
     click.echo(f"Destination directory: {destination_dir}")
 
-    profile_dir = os.getenv("PROFILE_LOCATION")
+    profile_dir = os.getenv("FIREFOX_PROFILE")
     allowed_extractors = ["nfl.com:plus:replay"]
     extractor_args = {"nflplusreplay": {"type": [replay_type[0]]}}
 
@@ -172,12 +171,10 @@ def nfl_games(
 
     if list_only:
         games = nwd.get_and_extract_games_for_week(
-            season=season,
-            week=week,
-            teams=teams_to_fetch,
-            replay_types=replay_type
+            season=season, week=week, teams=teams_to_fetch, replay_types=replay_type
         )
         from pprint import pprint
+
         pprint(games, indent=4)
     else:
 
@@ -276,3 +273,41 @@ def convert_format(
     fops_util.convert_formats(
         orig_format=orig_format, new_format=new_format, delete=delete
     )
+
+
+@cli.command()
+@click.argument("directory", type=click.Path(exists=True))
+@click.argument("season", type=int)
+@click.argument("dates", type=click.Path(exists=True))
+@click.option("--league", type=str, help="One of nfl, ufl, cfl")
+@click.option(
+    "--overwrite",
+    type=bool,
+    default=False,
+    is_flag=True,
+    help="Passing this flag tells fbdl to overwrite any existing .nfo files it may encounter for a given video.",
+)
+def generate_nfo_files(
+    directory: str,
+    season: int,
+    dates: str,
+    league: str = "nfl",
+    overwrite: bool = False,
+):
+    """
+    Construct .nfo files for games of the given league + season combo.
+
+    DIRECTORY is the league's base directory, i.e. the one containing all season directories.
+    SEASON is the year we should generate .nfo files for, e.g. 2025
+    DATES is a JSON file mapping game numbers to the date they were played.
+
+    """
+    click.echo(f"Generating .nfo files for {league.upper()} season {season}.")
+    click.echo(f"Looking for relevant video files in {directory}")
+    with open(dates, "r") as infile:
+        game_dates = json.load(infile)
+
+    mdc = MetaDataCreator(base_dir=directory, game_dates=game_dates, league=league)
+
+    mdc.create_nfo_for_season(year=season, overwrite=overwrite)
+    click.echo("Done")

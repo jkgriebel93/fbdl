@@ -1,10 +1,8 @@
 import json
 import logging
 import time
-
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Union, List, Any
+from typing import Any, Dict, List, Optional, Union
 
 from griddy.nfl import GriddyNFL
 from griddy.nfl.models import WeeklyGameDetail
@@ -12,14 +10,14 @@ from yt_dlp import YoutubeDL
 from yt_dlp.extractor.nfl import NFLBaseIE
 
 from .base import (
-    MEDIA_BASE_DIR,
-    DEFAULT_REPLAY_TYPES,
-    TEAM_FULL_NAMES,
     CITY_TO_ABBR,
-    abbreviation_map,
-    is_playoff_week,
-    get_week_int_as_string,
+    DEFAULT_REPLAY_TYPES,
+    MEDIA_BASE_DIR,
+    TEAM_FULL_NAMES,
     BaseDownloader,
+    abbreviation_map,
+    get_week_int_as_string,
+    is_playoff_week,
 )
 
 logger = logging.getLogger(__name__)
@@ -467,126 +465,3 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             print(f"Downloaded {idx + 1}/{len(extracted_games)}")
             print(f"Pausing for {sleep_time} seconds")
             time.sleep(sleep_time)
-
-
-@dataclass
-class MetaDataCreator:
-    """
-    Create and store metadata based on information stored in file name.
-    Used for replays downloaded before NFLWeeklyDownloader was implemented.
-    """
-
-    # season_premieres: Dict
-
-    def __init__(self, base_dir: Union[str, Path], game_dates: Dict) -> None:
-        """
-        Initialize the utility, set basic config.
-
-        :param base_dir: The directory containing the videos to generate metadata for.
-        :type base_dir: str | Path
-
-        :param game_dates: A dict mapping seasons to a dict of week numbers -> date the game was played on.
-        :type game_dates: Dict
-        """
-        self.base_dir = base_dir
-        self.game_dates = game_dates
-
-    def _create_title_string(self, file_stem: str) -> str:
-        """
-        Given the file name, create the title that should be displayed in viewing clients.
-
-        :param file_stem: The file's base name.
-        :type file_stem: str
-
-        :return: The name to be stored in metadata.
-        :rtype: str
-        """
-        # TODO: There are multiple versions of this method. Consolidate
-        # file_stem will be something like "2024_Wk01_PIT_at_ATL"
-        base_name = file_stem.split(" - ")[-1]
-        parts = base_name.split("_")
-
-        year = parts[0]
-        week = parts[1]
-
-        week_repr = get_week_int_as_string(week, int(year))
-        if suffix := is_playoff_week(week):
-            week_repr += f" {suffix}"
-
-        week_repr = week_repr.lstrip("0")
-
-        team_one_abbr = parts[2]
-        team_two_abbr = parts[4]
-
-        team_one_city = abbreviation_map.get(team_one_abbr)
-        if team_one_city is None:
-            raise ValueError(
-                f"Could not find team {team_one_abbr} in abbreviation map."
-            )
-
-        team_two_city = abbreviation_map.get(team_two_abbr)
-        if team_two_city is None:
-            raise ValueError(
-                f"Could not find team {team_two_city} in abbreviation map."
-            )
-
-        # parts[3] is either "at" (for any game _not_ at a neutral site)
-        # or "vs" (for neutral site games, i.e. the Super Bowl)
-        return f"{year} Week {week_repr} - {team_one_city} {parts[3]} {team_two_city}"
-
-    def construct_metadata_xml_for_game(self, game_stem: str) -> str:
-        # TODO: Consolidate this with the same method from NFLWeeklyDownloader
-        title = self._create_title_string(game_stem)
-
-        year, episode_num = [
-            x.replace("s", "").strip() for x in game_stem.split("-")[1].split("e")
-        ]
-        aired = self.game_dates[str(year)][episode_num.lstrip("0")]
-
-        return (
-            f"<episodedetails>\n"
-            f"\t<title>{title}</title>\n"
-            f"\t<season>{year}</season>\n"
-            f"\t<episode>{episode_num.lstrip("0")}</episode>\n"
-            f"\t<aired>{aired}</aired>\n"
-            f"</episodedetails>"
-        )
-
-    def create_nfo_for_season(self, year: int) -> None:
-        """
-        Create metadata files for all games in the provided year
-
-        :param year: The year to create metadata for.
-        :type year: int
-
-        """
-        season_dir = Path(self.base_dir, f"Season {year}")
-        if not season_dir.exists():
-            raise FileNotFoundError(f"{season_dir} does not exist.")
-
-        for game in season_dir.rglob("*.mp4"):
-            nfo_file = Path(season_dir, f"{game.stem}.nfo")
-            print(f"Creating {nfo_file}")
-            nfo_file.touch()
-            xml_str = self.construct_metadata_xml_for_game(game_stem=game.stem)
-            nfo_file.write_text(xml_str)
-
-    def rename_files_for_season(self, year: int) -> None:
-        """
-        Add the necessary prefix to file names so that Jellyfin will parse
-        the game replays as TV seasons.
-
-        :param year: The season to rename video files for.
-        :type year: int
-        """
-        season_dir = Path(self.base_dir, f"Season {year}")
-        for f in season_dir.rglob(f"{year}*"):
-            old_name = f.name
-            week_substring = f.stem.split("_")[1]
-            episode_number = "".join([c for c in week_substring if c.isdigit()])
-            new_filename = (
-                f"NFL Games - s{year}e{episode_number.zfill(3)} - {f.stem}{f.suffix}"
-            )
-            new_path = f.with_name(new_filename)
-            f.replace(new_path)
-            print(f"Moved {old_name} -> {f.name}")
