@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Tuple
 
 import click
-import ffmpeg
 
 from .base import (
     DEFAULT_REPLAY_TYPES,
