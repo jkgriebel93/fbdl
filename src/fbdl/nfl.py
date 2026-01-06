@@ -147,11 +147,11 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
     def __init__(
         self,
         firefox_profile_path: Union[str, Path],
-            nfl_username: str,
-            nfl_password: str,
+        nfl_username: str,
+        nfl_password: str,
         destination_dir: Union[str, Path],
-            show_login: bool = False,
-            add_yt_opts: Optional[Dict] = None,
+        show_login: bool = False,
+        add_yt_opts: Optional[Dict] = None,
     ) -> None:
         """
         Create the downloader; set its download and storage parameters
@@ -179,9 +179,11 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         """
         super().__init__(firefox_profile_path, destination_dir, add_yt_opts)
         self._replay_base_url = "https://www.nfl.com/plus/games/"
-        self.nfl_client = GriddyNFL(login_email=nfl_username,
-                                    login_password=nfl_password,
-                                    headless_login=(not show_login))
+        self.nfl_client = GriddyNFL(
+            login_email=nfl_username,
+            login_password=nfl_password,
+            headless_login=(not show_login),
+        )
 
     def _should_extract(self, game: WeeklyGameDetail, teams: List[str]) -> bool:
         """

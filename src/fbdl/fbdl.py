@@ -130,12 +130,22 @@ def nfl_show(ctx, input_file, output_directory, cookies):
 
 
 @cli.command()
-@click.option("--nfl-username", type=str, help="The username/email associated with your NFL.com account.")
-@click.option("--nfl-password", type=str, help="The password associated with your NFL.com account.")
-@click.option("--show-login",
+@click.option(
+    "--nfl-username",
+    type=str,
+    help="The username/email associated with your NFL.com account.",
+)
+@click.option(
+    "--nfl-password",
+    type=str,
+    help="The password associated with your NFL.com account.",
+)
+@click.option(
+    "--show-login",
     type=bool,
     is_flag=True,
-    help="When passed, show the browser window while performing automated login.")
+    help="When passed, show the browser window while performing automated login.",
+)
 @click.option("--season", type=int, help="Season games were played in")
 @click.option("--week", type=int, multiple=True, help="Week the games were played in")
 @click.option(
@@ -175,9 +185,9 @@ def nfl_show(ctx, input_file, output_directory, cookies):
 @click.pass_context
 def nfl_games(
     ctx,
-        nfl_username: str,
-        nfl_password: str,
-        show_login: bool,
+    nfl_username: str,
+    nfl_password: str,
+    show_login: bool,
     season: int,
     week: Tuple[int],
     team: Tuple[str],
