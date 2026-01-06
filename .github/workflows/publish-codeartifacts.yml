@@ -34,14 +34,42 @@ jobs:
 
   build-and-publish:
     runs-on: ubuntu-latest
+    needs: check-version-bump
+    if: needs.check-version-bump.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
     steps:
-      - name: Publish
-        uses: source-ag/poetry-codeartifact-publish-action@v1
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.14
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-          # role-to-assume: ${{ secrets.PACKAGE_REPOSITORY_ROLE }}
-          codeartifact-domain: ${{ secrets.CODEARTIFACT_DOMAIN }}
-          codeartifact-domain-owner: ${{ secrets.CODEARTIFACT_DOMAIN_OWNER }}
-          codeartifact-repository: ${{ secrets.CODEARTIFACT_REPOSITORY }}
+
+      - name: Install Dependencies
+        run: pip install .
+
+      - name: Build Python package
+        run: |
+          hatch build
+
+      - name: Login to CodeArtifact
+        run: |
+          aws --version
+          aws codeartifact login \
+          --tool twine \
+          --repository ${{ secrets.AWS_CODEARTIFACT_REPO }} \
+          --domain ${{ secrets.AWS_CODEARTIFACT_DOMAIN }} \
+          --domain-owner ${{ secrets.AWS_CODEARTIFACT_DOMAIN_OWNER }} \
+          --region ${{ secrets.AWS_REGION }}
+
+      - name: Publish to CodeArtifact
+        run: |
+          twine upload --repository codeartifact dist/*
