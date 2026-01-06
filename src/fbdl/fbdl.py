@@ -1,8 +1,8 @@
 import json
 import os
+from datetime import date
 from pathlib import Path
 from typing import Tuple
-from datetime import date
 
 import click
 
@@ -14,7 +14,7 @@ from .base import (
     MetaDataCreator,
 )
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
-from .utils import find_config, load_config, apply_config_to_kwargs
+from .utils import apply_config_to_kwargs, find_config, load_config
 
 
 @click.group()
@@ -73,7 +73,11 @@ def download_list(ctx, input_file, output_directory, cookies_file: Path = None):
     help="Don't perform any updates; preview only.",
 )
 @click.option(
-    "--verbose", default=None, is_flag=True, flag_value=True, help="Enable extra logging."
+    "--verbose",
+    default=None,
+    is_flag=True,
+    flag_value=True,
+    help="Enable extra logging.",
 )
 @click.pass_context
 def update_metadata(ctx, directory_path, pretend, verbose):
@@ -118,7 +122,9 @@ def nfl_show(ctx, input_file, output_directory, cookies):
     kwargs = apply_config_to_kwargs(config, "nfl_show", kwargs)
 
     click.echo("Downloading NFL show")
-    nfl = NFLShowDownloader(input_file, kwargs.get("cookies"), kwargs.get("output_directory"))
+    nfl = NFLShowDownloader(
+        input_file, kwargs.get("cookies"), kwargs.get("output_directory")
+    )
     nfl.download_episodes()
 
 
@@ -206,8 +212,6 @@ def nfl_games(
     destination_dir = kwargs.get("destination_dir") or os.getcwd()
     list_only = kwargs.get("list_only") or False
 
-
-
     click.echo(f"Season: {season}")
     click.echo(f"Week: {week}")
     click.echo(f"Team: {team}")
@@ -250,6 +254,7 @@ def nfl_games(
             games.extend(wk_games)
 
         from pprint import pprint
+
         pprint(games, indent=4)
 
     else:
@@ -282,7 +287,9 @@ def nfl_games(
     help="If passed, overwrite any file that already exists with the new name.",
 )
 @click.pass_context
-def rename_series(ctx, series_name: str, pretend: bool, release_year: int, replace: bool):
+def rename_series(
+    ctx, series_name: str, pretend: bool, release_year: int, replace: bool
+):
     """
     A one-off command used to change file format names from SEE to <Series Name> (YYYY) - sSeEE - <episode_name>
 
