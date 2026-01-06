@@ -50,8 +50,8 @@ nfl_games:
 Common config keys are mapped to command-specific parameter names:
 | Config Key | Commands | Maps To |
 |------------|----------|---------|
-| `cookies_file` | download-list, nfl-show, nfl-games | --cookies-file, --cookies, --raw-cookies |
-| `output_directory` | download-list, nfl-show, nfl-games | OUTPUT_DIRECTORY, --output-directory, --destination-dir |
+| `cookies_file` | download-list, nfl-show, nfl-games | --cookies-file |
+| `output_directory` | download-list, nfl-show, nfl-games | --output-directory |
 | `pretend` | update-metadata, rename-series, convert-format | --pretend |
 | `verbose` | update-metadata | --verbose |
 
@@ -79,11 +79,11 @@ Command: `download-list`
 
 ```powershell
 # urls.txt contains one video URL per line
-fbdl download-list E:\\Downloads\\urls.txt E:\\Media\\Misc --cookies-file E:\\Downloads\\cookies.txt
+fbdl download-list E:\\Downloads\\urls.txt --output-directory E:\\Media\\Misc --cookies-file E:\\Downloads\\cookies.txt
 ```
 
 - `input_file` is a text file with one URL per line.
-- `output_directory` is where the files will be stored (can also be set via config).
+- `--output-directory` is where the files will be stored (can also be set via config).
 - `--cookies-file` is optional and must be a Netscape-format cookies file if auth is required.
 
 ### 2) Update embedded metadata for existing game files
@@ -104,11 +104,11 @@ Command: `nfl-show`
 
 ```powershell
 # episode list JSON contains URL leaves for episodes (see show_lists directory for examples)
-fbdl nfl-show show_lists\\americas_game.json --cookies E:\\Downloads\\cookies.txt --output-directory "E:\\Media\\NFL Shows\\America's Game"
+fbdl nfl-show show_lists\\americas_game.json --cookies-file E:\\Downloads\\cookies.txt --output-directory "E:\\Media\\NFL Shows\\America's Game"
 ```
 
 - `input_file` is a JSON file containing a `seasons` array of arrays with episode URL leaves.
-- `--cookies` points to your NFL cookies (Netscape txt format) for authentication.
+- `--cookies-file` points to your NFL cookies (Netscape txt format) for authentication.
 - `--output-directory` is the base directory where seasons/episodes will be saved.
 
 ### 4) Download NFL game replays for a given week
@@ -118,39 +118,39 @@ Command: `nfl-games`
 Basic full-game downloads (all teams for a week):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --raw-cookies E:\\Downloads\\nfl_api_cookies.txt
+fbdl nfl-games --season 2024 --week 1 --cookies-file E:\\Downloads\\nfl_api_cookies.txt
 ```
 
 Download multiple weeks at once:
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --week 2 --week 3 --raw-cookies E:\\Downloads\\nfl_api_cookies.txt
+fbdl nfl-games --season 2024 --week 1 --week 2 --week 3 --cookies-file E:\\Downloads\\nfl_api_cookies.txt
 ```
 
 Filter to a team (you can repeat `--team` multiple times):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --team PIT --team DAL --raw-cookies E:\\Downloads\\nfl_api_cookies.txt
+fbdl nfl-games --season 2024 --week 1 --team PIT --team DAL --cookies-file E:\\Downloads\\nfl_api_cookies.txt
 ```
 
 Choose replay type (keys come from the tool's supported types, e.g. `full_game`, `condensed_game`, `all_22`):
 
 ```powershell
 # Download condensed replays only
-fbdl nfl-games --season 2024 --week 1 --replay-type condensed_game --raw-cookies E:\\Downloads\\nfl_api_cookies.txt
+fbdl nfl-games --season 2024 --week 1 --replay-type condensed_game --cookies-file E:\\Downloads\\nfl_api_cookies.txt
 ```
 
 Continue episode numbering (useful when combining multiple weeks):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 2 --start-ep 5 --raw-cookies E:\\Downloads\\nfl_api_cookies.txt
+fbdl nfl-games --season 2024 --week 2 --start-ep 5 --cookies-file E:\\Downloads\\nfl_api_cookies.txt
 ```
 
 Notes:
 - If `--season` is omitted, defaults to the current year.
 - If `--week` is omitted, defaults to all regular season weeks (1-18).
 - This command reads `FIREFOX_PROFILE` and `DESTINATION_DIR` from the environment to configure yt-dlp and output directory.
-- `--raw-cookies` should point to a txt file with cookies needed for the NFL API.
+- `--cookies-file` should point to a txt file with cookies needed for the NFL API.
 - All options can be set via config file (see Configuration section above).
 
 ### 5) Rename a series to Plex-friendly format
@@ -186,5 +186,5 @@ fbdl convert-format E:\\Media\\NFL\\All22 --delete
 
 - Use a config file (`fbdl.yaml`) to avoid repeating common options like cookies paths and output directories. See `fbdl.yaml.example` for a template.
 - Many examples above reference the `show_lists` folder in this repo; it contains example JSON files for show downloads.
-- If you run into authentication errors with NFL+, export cookies in Netscape format from your browser and pass via the `--cookies` or `--raw-cookies` options as appropriate.
+- If you run into authentication errors with NFL+, export cookies in Netscape format from your browser and pass via the `--cookies-file` option.
 - For Windows paths in PowerShell, remember to escape backslashes when using them inside quoted strings in documentation; in the shell itself, normal backslashes are fine.
