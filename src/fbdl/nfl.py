@@ -9,9 +9,14 @@ from griddy.nfl.models import WeeklyGameDetail
 from yt_dlp import YoutubeDL
 from yt_dlp.extractor.nfl import NFLBaseIE
 
-from .base import (CITY_TO_ABBR, DEFAULT_REPLAY_TYPES, MEDIA_BASE_DIR,
-                   TEAM_FULL_NAMES, BaseDownloader,
-                   get_max_episode_number_in_dir)
+from .base import (
+    CITY_TO_ABBR,
+    DEFAULT_REPLAY_TYPES,
+    MEDIA_BASE_DIR,
+    TEAM_FULL_NAMES,
+    BaseDownloader,
+    get_max_episode_number_in_dir,
+)
 
 logger = logging.getLogger(__name__)
 
