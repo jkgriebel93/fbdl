@@ -109,14 +109,22 @@ def nfl_show(ctx, input_file, output_directory, cookies_file):
     help="A txt file containing cookies needed for NFL API authentication.",
 )
 @click.option(
+    "--credentials-file",
+    type=click.Path(exists=True),
+    help="A JSON file containing NFL auth tokens (accessToken, refreshToken, expiresIn). "
+    "Cannot be used with --nfl-username/--nfl-password.",
+)
+@click.option(
     "--nfl-username",
     type=str,
-    help="The username/email associated with your NFL.com account.",
+    help="The username/email associated with your NFL.com account. "
+    "Cannot be used with --credentials-file.",
 )
 @click.option(
     "--nfl-password",
     type=str,
-    help="The password associated with your NFL.com account.",
+    help="The password associated with your NFL.com account. "
+    "Cannot be used with --credentials-file.",
 )
 @click.option(
     "--show-login",
@@ -154,6 +162,7 @@ def nfl_games(
     ctx,
     output_directory: str,
     cookies_file: str,
+    credentials_file: str,
     nfl_username: str,
     nfl_password: str,
     show_login: bool,
@@ -178,6 +187,7 @@ def nfl_games(
     kwargs = {
         "output_directory": output_directory,
         "cookies_file": cookies_file,
+        "credentials_file": credentials_file,
         "nfl_username": nfl_username if nfl_username else None,
         "nfl_password": nfl_password if nfl_password else None,
         "show_login": show_login if show_login else None,
@@ -193,6 +203,7 @@ def nfl_games(
     # Apply defaults for values still not set
     output_directory = kwargs.get("output_directory") or os.getcwd()
     cookies_file = kwargs.get("cookies_file") or "cookies.txt"
+    credentials_file = kwargs.get("credentials_file")
     nfl_username = kwargs.get("nfl_username", None)
     nfl_password = kwargs.get("nfl_password", None)
     show_login = kwargs.get("show_login", False)
@@ -204,9 +215,27 @@ def nfl_games(
     start_ep = kwargs.get("start_ep") or None
     list_only = kwargs.get("list_only") or False
 
+    # Validate mutual exclusivity: credentials_file vs username/password
+    has_credentials_file = credentials_file is not None
+    has_username_password = nfl_username is not None or nfl_password is not None
+
+    if has_credentials_file and has_username_password:
+        raise click.UsageError(
+            "--credentials-file cannot be used with --nfl-username/--nfl-password. "
+            "Use one authentication method or the other."
+        )
+
+    # Load credentials from file if provided
+    nfl_auth = None
+    if credentials_file:
+        with open(credentials_file, "r") as f:
+            nfl_auth = json.load(f)
+        click.echo(f"Using credentials file: {credentials_file}")
+    else:
+        click.echo(f"NFL Username: {nfl_username}")
+
     click.echo(f"Output directory: {output_directory}")
     click.echo(f"Cookies file: {cookies_file}")
-    click.echo(f"NFL Username: {nfl_username}")
     click.echo(f"Show Login: {show_login}")
     click.echo(f"Season: {season}")
     click.echo(f"Week: {week}")
@@ -226,9 +255,10 @@ def nfl_games(
 
     nwd = NFLWeeklyDownloader(
         firefox_profile_path=profile_dir,
+        destination_dir=output_directory,
         nfl_username=nfl_username,
         nfl_password=nfl_password,
-        destination_dir=output_directory,
+        nfl_auth=nfl_auth,
         show_login=show_login,
         add_yt_opts=add_opts,
     )
