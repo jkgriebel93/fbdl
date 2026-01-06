@@ -35,7 +35,11 @@ def cli(ctx, config):
 
 @cli.command()
 @click.argument("input_file", type=click.Path(exists=True))
-@click.argument("output_directory", type=click.Path(exists=True), required=False)
+@click.option(
+    "--output-directory",
+    type=click.Path(exists=True),
+    help="The path to store the downloaded videos in.",
+)
 @click.option(
     "--cookies-file",
     type=click.Path(exists=True),
@@ -44,17 +48,16 @@ def cli(ctx, config):
 @click.pass_context
 def download_list(ctx, input_file, output_directory, cookies_file: Path = None):
     """
-    Download a list of URLS provided via INPUT_FILE and store the files in OUTPUT_DIRECTORY.
+    Download a list of URLS provided via INPUT_FILE.
 
     INPUT_FILE is the path to a text file where video URLs are listed, one per line.
-    OUTPUT_DIRECTORY is the path to store the downloaded videos in.
     """
     config = ctx.obj.get("config", {})
     kwargs = {"cookies_file": cookies_file, "output_directory": output_directory}
     kwargs = apply_config_to_kwargs(config, "download_list", kwargs)
 
     if not kwargs.get("output_directory"):
-        raise click.UsageError("OUTPUT_DIRECTORY is required (via argument or config)")
+        raise click.UsageError("--output-directory is required (via option or config)")
 
     bd = BaseDownloader(
         cookie_file_path=kwargs["cookies_file"],
@@ -71,29 +74,40 @@ def download_list(ctx, input_file, output_directory, cookies_file: Path = None):
     help="The path to store the downloaded videos in.",
 )
 @click.option(
-    "--cookies",
+    "--cookies-file",
     type=click.Path(exists=True),
     help="A .txt file containing NFL authentication cookies following the Netscape format.",
 )
 @click.pass_context
-def nfl_show(ctx, input_file, output_directory, cookies):
+def nfl_show(ctx, input_file, output_directory, cookies_file):
     """
     Download episodes from shows available on NFL Plus.
 
     INPUT_FILE is a JSON file containing the URL leaf nfl.com uses for each episode.
     """
     config = ctx.obj.get("config", {})
-    kwargs = {"cookies": cookies, "output_directory": output_directory}
+    kwargs = {"cookies_file": cookies_file, "output_directory": output_directory}
     kwargs = apply_config_to_kwargs(config, "nfl_show", kwargs)
 
     click.echo("Downloading NFL show")
     nfl = NFLShowDownloader(
-        input_file, kwargs.get("cookies"), kwargs.get("output_directory")
+        input_file, kwargs.get("cookies_file"), kwargs.get("output_directory")
     )
     nfl.download_episodes()
 
 
 @cli.command()
+@click.option(
+    "--output-directory",
+    envvar="DESTINATION_DIR",
+    type=click.Path(exists=True),
+    help="Directory the downloaded games should be saved to.",
+)
+@click.option(
+    "--cookies-file",
+    type=click.Path(exists=True),
+    help="A txt file containing cookies needed for NFL API authentication.",
+)
 @click.option(
     "--nfl-username",
     type=str,
@@ -128,17 +142,6 @@ def nfl_show(ctx, input_file, output_directory, cookies):
 )
 @click.option("--start-ep", type=int, help="Where to pick up episode numbering from.")
 @click.option(
-    "--raw-cookies",
-    type=click.Path(exists=True),
-    help="A txt file containing cookies needed for NFL API authentication.",
-)
-@click.option(
-    "--destination-dir",
-    envvar="DESTINATION_DIR",
-    type=click.Path(exists=True),
-    help="Directory the downloaded games should be saved to.",
-)
-@click.option(
     "--list-only",
     type=bool,
     default=None,
@@ -149,6 +152,8 @@ def nfl_show(ctx, input_file, output_directory, cookies):
 @click.pass_context
 def nfl_games(
     ctx,
+    output_directory: str,
+    cookies_file: str,
     nfl_username: str,
     nfl_password: str,
     show_login: bool,
@@ -158,8 +163,6 @@ def nfl_games(
     exclude: Tuple[str],
     replay_type: Tuple[str],
     start_ep: int,
-    raw_cookies: str,
-    destination_dir: str,
     list_only: bool,
 ):
     # TODO: Ensure jellyfin isn't running..it borks the post processing
@@ -173,6 +176,8 @@ def nfl_games(
 
     # Build kwargs, converting tuples to lists for config merging
     kwargs = {
+        "output_directory": output_directory,
+        "cookies_file": cookies_file,
         "nfl_username": nfl_username if nfl_username else None,
         "nfl_password": nfl_password if nfl_password else None,
         "show_login": show_login if show_login else None,
@@ -182,12 +187,12 @@ def nfl_games(
         "exclude": list(exclude) if exclude else None,
         "replay_type": list(replay_type) if replay_type else None,
         "start_ep": start_ep,
-        "raw_cookies": raw_cookies,
-        "destination_dir": destination_dir,
         "list_only": list_only,
     }
     kwargs = apply_config_to_kwargs(config, "nfl_games", kwargs)
     # Apply defaults for values still not set
+    output_directory = kwargs.get("output_directory") or os.getcwd()
+    cookies_file = kwargs.get("cookies_file") or "cookies.txt"
     nfl_username = kwargs.get("nfl_username", None)
     nfl_password = kwargs.get("nfl_password", None)
     show_login = kwargs.get("show_login", False)
@@ -197,10 +202,10 @@ def nfl_games(
     exclude = kwargs.get("exclude") or []
     replay_type = kwargs.get("replay_type") or ["full_game"]
     start_ep = kwargs.get("start_ep") or None
-    raw_cookies = kwargs.get("raw_cookies") or "cookies.txt"
-    destination_dir = kwargs.get("destination_dir") or os.getcwd()
     list_only = kwargs.get("list_only") or False
 
+    click.echo(f"Output directory: {output_directory}")
+    click.echo(f"Cookies file: {cookies_file}")
     click.echo(f"NFL Username: {nfl_username}")
     click.echo(f"Show Login: {show_login}")
     click.echo(f"Season: {season}")
@@ -209,8 +214,6 @@ def nfl_games(
     click.echo(f"Exclude: {exclude}")
     click.echo(f"Replay Type: {replay_type}")
     click.echo(f"Start episode: {start_ep}")
-    click.echo(f"Cookies file: {raw_cookies}")
-    click.echo(f"Destination directory: {destination_dir}")
 
     profile_dir = os.getenv("FIREFOX_PROFILE")
     allowed_extractors = ["nfl.com:plus:replay"]
@@ -225,7 +228,7 @@ def nfl_games(
         firefox_profile_path=profile_dir,
         nfl_username=nfl_username,
         nfl_password=nfl_password,
-        destination_dir=destination_dir,
+        destination_dir=output_directory,
         show_login=show_login,
         add_yt_opts=add_opts,
     )
@@ -265,6 +268,13 @@ def nfl_games(
 @cli.command()
 @click.argument("directory")
 @click.option(
+    "--pretend",
+    default=None,
+    is_flag=True,
+    flag_value=True,
+    help="If passed, don't perform actual updates. Preview only.",
+)
+@click.option(
     "--orig-format",
     type=str,
     default=None,
@@ -272,13 +282,6 @@ def nfl_games(
 )
 @click.option(
     "--new-format", type=str, default=None, help="The desired output file type."
-)
-@click.option(
-    "--pretend",
-    default=None,
-    is_flag=True,
-    flag_value=True,
-    help="If passed, don't perform actual updates. Preview only.",
 )
 @click.option(
     "--delete",
@@ -291,9 +294,9 @@ def nfl_games(
 def convert_format(
     ctx,
     directory: str,
+    pretend: bool,
     orig_format: str,
     new_format: str,
-    pretend: bool,
     delete: bool,
 ):
     """

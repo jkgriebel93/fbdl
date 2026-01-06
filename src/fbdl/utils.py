@@ -6,24 +6,25 @@ import yaml
 CONFIG_FILE_NAME = "fbdl.yaml"
 
 # Mapping of common config keys to command-specific parameter names
+# Since option names are now standardized, these mappings are identity mappings
 COMMON_OPTION_MAPPINGS = {
     "download_list": {
-        "cookies_file": "cookies_file",
         "output_directory": "output_directory",
+        "cookies_file": "cookies_file",
     },
     "update_metadata": {
         "pretend": "pretend",
         "verbose": "verbose",
     },
     "nfl_show": {
-        "cookies_file": "cookies",
         "output_directory": "output_directory",
+        "cookies_file": "cookies_file",
     },
     "nfl_games": {
+        "output_directory": "output_directory",
+        "cookies_file": "cookies_file",
         "nfl_username": "nfl_username",
         "nfl_password": "nfl_password",
-        "cookies_file": "raw_cookies",
-        "output_directory": "destination_dir",
     },
     "rename_series": {
         "pretend": "pretend",
