@@ -1,7 +1,11 @@
 [project]
 name="fbdl"
-version="0.0.1"
-description="My customized tools for downloading (American) football content"
+version="0.1.0"
+description="Command line tools for downloading and archiving (American) football content"
+authors = [
+    {name = "John Griebel", email = "john@thistlegrow.com"}
+]
+readme = "README.md"
 requires-python=">=3.14"
 dependencies = [
     "yt-dlp==2025.12.8",
@@ -9,16 +13,14 @@ dependencies = [
     "ffmpeg-python==0.2.0",
     "mutagen==1.47.0",
     "pycryptodomex==3.23.0",
-    "black==25.12.0",
-    # "sphinx==8.2.3",
-    # "sphinx-click==6.1.0",
-    # "sphinx_rtd_theme==3.0.2",
     "griddy==0.7.4",
     "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "black==25.12.0",
+    "isort==7.0.0",
     "pytest==9.0.2",
 ]
 
@@ -31,3 +33,70 @@ testpaths = ["tests"]
 [build-system]
 requires = ["hatchling == 1.27.0"]
 build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 88
+target-version = ['py313']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+src_paths = ["src", "tests"]
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
