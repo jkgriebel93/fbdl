@@ -1,0 +1,46 @@
+# fbdl configuration file
+# Copy this file to fbdl.yaml in your current directory or ~/.config/fbdl.yaml
+
+# Common options (applied to commands where applicable)
+# cookies_file: /path/to/cookies.txt
+# output_directory: /path/to/output
+# pretend: false
+# verbose: false
+
+# Command-specific options
+# download_list:
+#   # Uses common: cookies_file, output_directory
+
+# update_metadata:
+#   # Uses common: pretend, verbose
+
+# nfl_show:
+#   # Uses common: cookies_file (as 'cookies'), output_directory
+
+# nfl_games:
+#   season: 2025
+#   week:
+#       - 1
+#       - 12
+#   team: []           # List of team abbreviations, e.g. [PIT, DAL]
+#   exclude: []        # Teams to exclude
+#   replay_type:       # List of replay types
+#     - full_game
+#   start_ep: 0
+#   list_only: false
+#   # Uses common: cookies_file (as 'raw_cookies'), output_directory (as 'destination_dir')
+
+# rename_series:
+#   release_year: null
+#   replace: false
+#   # Uses common: pretend
+
+# convert_format:
+#   orig_format: mkv
+#   new_format: mp4
+#   delete: false
+#   # Uses common: pretend
+
+# generate_nfo_files:
+#   league: nfl        # One of: nfl, ufl, cfl
+#   overwrite: false

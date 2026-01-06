@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 from typing import Tuple
+from datetime import date
 
 import click
 
@@ -13,29 +14,52 @@ from .base import (
     MetaDataCreator,
 )
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
+from .utils import find_config, load_config, apply_config_to_kwargs
 
 
 @click.group()
-def cli():
-    pass
+@click.option(
+    "--config",
+    type=click.Path(exists=False),
+    help="Path to config file. Auto-discovers fbdl.yaml in CWD or ~/.config/ if not specified.",
+)
+@click.pass_context
+def cli(ctx, config):
+    """fbdl - Football download and archiving tools."""
+    ctx.ensure_object(dict)
+    config_path = find_config(config)
+    ctx.obj["config"] = load_config(config_path)
+    if config_path:
+        click.echo(f"Using config: {config_path}")
 
 
 @cli.command()
 @click.argument("input_file", type=click.Path(exists=True))
-@click.argument("output_directory", type=click.Path(exists=True))
+@click.argument("output_directory", type=click.Path(exists=True), required=False)
 @click.option(
-    "--cookie_file",
+    "--cookies-file",
     type=click.Path(exists=True),
     help="If authentication is required, you can provide a cookies file via this flag. The file must follow the Netscape format.",
 )
-def download_list(input_file, output_directory, cookie_file: Path = None):
+@click.pass_context
+def download_list(ctx, input_file, output_directory, cookies_file: Path = None):
     """
     Download a list of URLS provided via INPUT_FILE and store the files in OUTPUT_DIRECTORY.
 
     INPUT_FILE is the path to a text file where video URLs are listed, one per line.
     OUTPUT_DIRECTORY is the path to store the downloaded videos in.
     """
-    bd = BaseDownloader(cookie_file_path=cookie_file, destination_dir=output_directory)
+    config = ctx.obj.get("config", {})
+    kwargs = {"cookies_file": cookies_file, "output_directory": output_directory}
+    kwargs = apply_config_to_kwargs(config, "download_list", kwargs)
+
+    if not kwargs.get("output_directory"):
+        raise click.UsageError("OUTPUT_DIRECTORY is required (via argument or config)")
+
+    bd = BaseDownloader(
+        cookie_file_path=kwargs["cookies_file"],
+        destination_dir=kwargs["output_directory"],
+    )
     bd.download_from_file(Path(input_file))
 
 
@@ -43,18 +67,30 @@ def download_list(input_file, output_directory, cookie_file: Path = None):
 @click.argument("directory_path", type=click.Path(exists=True))
 @click.option(
     "--pretend",
-    default=False,
+    default=None,
     is_flag=True,
+    flag_value=True,
     help="Don't perform any updates; preview only.",
 )
-@click.option("--verbose", default=False, is_flag=True, help="Enable extra logging.")
-def update_metadata(directory_path, pretend, verbose):
+@click.option(
+    "--verbose", default=None, is_flag=True, flag_value=True, help="Enable extra logging."
+)
+@click.pass_context
+def update_metadata(ctx, directory_path, pretend, verbose):
     """
     A largely one-off command to update embedded metadata for already downloaded NFL games based on the file's name.
 
     DIRECTORY_PATH is the directory fbdl will search for mp4 files.
     """
-    md_updater = FileOperationsUtil(directory_path, pretend, verbose)
+    config = ctx.obj.get("config", {})
+    kwargs = {"pretend": pretend, "verbose": verbose}
+    kwargs = apply_config_to_kwargs(config, "update_metadata", kwargs)
+
+    md_updater = FileOperationsUtil(
+        directory_path,
+        kwargs.get("pretend", False),
+        kwargs.get("verbose", False),
+    )
     md_updater.iter_and_update_children()
 
 
@@ -70,20 +106,25 @@ def update_metadata(directory_path, pretend, verbose):
     type=click.Path(exists=True),
     help="A .txt file containing NFL authentication cookies following the Netscape format.",
 )
-def nfl_show(episode_names_file, cookies, show_dir):
+@click.pass_context
+def nfl_show(ctx, input_file, output_directory, cookies):
     """
     Download episodes from shows available on NFL Plus.
 
     INPUT_FILE is a JSON file containing the URL leaf nfl.com uses for each episode.
     """
+    config = ctx.obj.get("config", {})
+    kwargs = {"cookies": cookies, "output_directory": output_directory}
+    kwargs = apply_config_to_kwargs(config, "nfl_show", kwargs)
+
     click.echo("Downloading NFL show")
-    nfl = NFLShowDownloader(episode_names_file, cookies, show_dir)
+    nfl = NFLShowDownloader(input_file, kwargs.get("cookies"), kwargs.get("output_directory"))
     nfl.download_episodes()
 
 
 @cli.command()
-@click.argument("season", type=int)
-@click.argument("week", type=int)
+@click.option("--season", type=int, help="Season games were played in")
+@click.option("--week", type=int, multiple=True, help="Week the games were played in")
 @click.option(
     "--team",
     multiple=True,
@@ -113,20 +154,23 @@ def nfl_show(episode_names_file, cookies, show_dir):
 @click.option(
     "--list-only",
     type=bool,
-    default=False,
+    default=None,
     is_flag=True,
+    flag_value=True,
     help="Don't download the games, only list them to stdout.",
 )
+@click.pass_context
 def nfl_games(
+    ctx,
     season: int,
-    week: int,
+    week: Tuple[int],
     team: Tuple[str],
     exclude: Tuple[str],
-    replay_type: Tuple[str] = ("full_game",),
-    start_ep: int = 0,
-    raw_cookies: str = "cookies.txt",
-    destination_dir: str = os.getcwd(),
-    list_only: bool = False,
+    replay_type: Tuple[str],
+    start_ep: int,
+    raw_cookies: str,
+    destination_dir: str,
+    list_only: bool,
 ):
     # TODO: Ensure jellyfin isn't running..it borks the post processing
     """
@@ -135,6 +179,34 @@ def nfl_games(
     SEASON Is the year (2009 or later) for which to download replays.
     WEEK The season week number to download replays for.
     """
+    config = ctx.obj.get("config", {})
+
+    # Build kwargs, converting tuples to lists for config merging
+    kwargs = {
+        "season": season if season else None,
+        "week": list(week) if week else None,
+        "team": list(team) if team else None,
+        "exclude": list(exclude) if exclude else None,
+        "replay_type": list(replay_type) if replay_type else None,
+        "start_ep": start_ep,
+        "raw_cookies": raw_cookies,
+        "destination_dir": destination_dir,
+        "list_only": list_only,
+    }
+    kwargs = apply_config_to_kwargs(config, "nfl_games", kwargs)
+
+    # Apply defaults for values still not set
+    season = kwargs.get("season", date.today().year)
+    week = kwargs.get("week", [wk for wk in range(1, 19)])
+    team = kwargs.get("team") or []
+    exclude = kwargs.get("exclude") or []
+    replay_type = kwargs.get("replay_type") or ["full_game"]
+    start_ep = kwargs.get("start_ep") or 0
+    raw_cookies = kwargs.get("raw_cookies") or "cookies.txt"
+    destination_dir = kwargs.get("destination_dir") or os.getcwd()
+    list_only = kwargs.get("list_only") or False
+
+
 
     click.echo(f"Season: {season}")
     click.echo(f"Week: {week}")
@@ -169,44 +241,61 @@ def nfl_games(
     replay_type = [DEFAULT_REPLAY_TYPES[r] for r in replay_type]
 
     if list_only:
-        games = nwd.get_and_extract_games_for_week(
-            season=season, week=week, teams=teams_to_fetch, replay_types=replay_type
-        )
+        games = []
+        for wk in week:
+            click.echo(f"Working on games for Week {wk}")
+            wk_games = nwd.get_and_extract_games_for_week(
+                season=season, week=wk, teams=teams_to_fetch, replay_types=replay_type
+            )
+            games.extend(wk_games)
+
         from pprint import pprint
-
         pprint(games, indent=4)
-    else:
 
-        nwd.download_all_for_week(
-            season=season,
-            week=week,
-            teams=teams_to_fetch,
-            replay_types=replay_type,
-            start_ep=start_ep,
-        )
+    else:
+        for wk in week:
+            click.echo(f"Working on games for Week {wk}")
+            nwd.download_all_for_week(
+                season=season,
+                week=wk,
+                teams=teams_to_fetch,
+                replay_types=replay_type,
+                start_ep=start_ep,
+            )
 
 
 @cli.command()
 @click.argument("series_name")
 @click.option(
     "--pretend",
-    default=False,
+    default=None,
     is_flag=True,
+    flag_value=True,
     help="If passed, don't perform actual updates. Preview only.",
 )
 @click.option("--release-year", type=int, help="The year that the show first aired.")
 @click.option(
     "--replace",
-    default=False,
+    default=None,
     is_flag=True,
+    flag_value=True,
     help="If passed, overwrite any file that already exists with the new name.",
 )
-def rename_series(series_name: str, pretend: bool, release_year: int, replace: bool):
+@click.pass_context
+def rename_series(ctx, series_name: str, pretend: bool, release_year: int, replace: bool):
     """
     A one-off command used to change file format names from SEE to <Series Name> (YYYY) - sSeEE - <episode_name>
 
     SERIES_NAME is the name of the TV series
     """
+    config = ctx.obj.get("config", {})
+    kwargs = {"pretend": pretend, "release_year": release_year, "replace": replace}
+    kwargs = apply_config_to_kwargs(config, "rename_series", kwargs)
+
+    pretend = kwargs.get("pretend", False)
+    release_year = kwargs.get("release_year")
+    replace = kwargs.get("replace", False)
+
     click.echo(f"Renaming episodes for {series_name}")
     base_dir = os.getenv("MEDIA_BASE_DIR")
 
@@ -234,36 +323,54 @@ def rename_series(series_name: str, pretend: bool, release_year: int, replace: b
 @click.option(
     "--orig-format",
     type=str,
-    default="mkv",
+    default=None,
     help="fbdl will attempt to convert all videos with the file extension provided here.",
 )
 @click.option(
-    "--new-format", type=str, default="mp4", help="The desired output file type."
+    "--new-format", type=str, default=None, help="The desired output file type."
 )
 @click.option(
     "--pretend",
-    default=False,
+    default=None,
     is_flag=True,
+    flag_value=True,
     help="If passed, don't perform actual updates. Preview only.",
 )
 @click.option(
     "--delete",
-    default=False,
+    default=None,
     is_flag=True,
+    flag_value=True,
     help="If passed, remove the mkv files after conversion.",
 )
+@click.pass_context
 def convert_format(
+    ctx,
     directory: str,
-    orig_format: str = "mkv",
-    new_format: str = "mp4",
-    pretend: bool = False,
-    delete: bool = False,
+    orig_format: str,
+    new_format: str,
+    pretend: bool,
+    delete: bool,
 ):
     """
     Convert mkv files stored in DIRECTORY to mp4 files. Other formats will be added eventually.
 
     DIRECTORY is the directory fbdl will search for mkv files to convert.
     """
+    config = ctx.obj.get("config", {})
+    kwargs = {
+        "orig_format": orig_format,
+        "new_format": new_format,
+        "pretend": pretend,
+        "delete": delete,
+    }
+    kwargs = apply_config_to_kwargs(config, "convert_format", kwargs)
+
+    orig_format = kwargs.get("orig_format") or "mkv"
+    new_format = kwargs.get("new_format") or "mp4"
+    pretend = kwargs.get("pretend", False)
+    delete = kwargs.get("delete", False)
+
     conv_dir = Path(directory)
     if not conv_dir.is_dir():
         raise FileNotFoundError(f"Directory {conv_dir} does not exist.")
@@ -278,20 +385,23 @@ def convert_format(
 @click.argument("directory", type=click.Path(exists=True))
 @click.argument("season", type=int)
 @click.argument("dates", type=click.Path(exists=True))
-@click.option("--league", type=str, help="One of nfl, ufl, cfl")
+@click.option("--league", type=str, default=None, help="One of nfl, ufl, cfl")
 @click.option(
     "--overwrite",
     type=bool,
-    default=False,
+    default=None,
     is_flag=True,
+    flag_value=True,
     help="Passing this flag tells fbdl to overwrite any existing .nfo files it may encounter for a given video.",
 )
+@click.pass_context
 def generate_nfo_files(
+    ctx,
     directory: str,
     season: int,
     dates: str,
-    league: str = "nfl",
-    overwrite: bool = False,
+    league: str,
+    overwrite: bool,
 ):
     """
     Construct .nfo files for games of the given league + season combo.
@@ -301,6 +411,13 @@ def generate_nfo_files(
     DATES is a JSON file mapping game numbers to the date they were played.
 
     """
+    config = ctx.obj.get("config", {})
+    kwargs = {"league": league, "overwrite": overwrite}
+    kwargs = apply_config_to_kwargs(config, "generate_nfo_files", kwargs)
+
+    league = kwargs.get("league") or "nfl"
+    overwrite = kwargs.get("overwrite", False)
+
     click.echo(f"Generating .nfo files for {league.upper()} season {season}.")
     click.echo(f"Looking for relevant video files in {directory}")
     with open(dates, "r") as infile:

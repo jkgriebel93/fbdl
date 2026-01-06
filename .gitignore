@@ -9,4 +9,4 @@ docs/_build
 cookies.txt
 nfl_headers.json
 example_game.json
-fbdl-conf.yaml
+fbdl.yaml
