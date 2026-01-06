@@ -20,6 +20,8 @@ COMMON_OPTION_MAPPINGS = {
         "output_directory": "output_directory",
     },
     "nfl_games": {
+        "nfl_username": "nfl_username",
+        "nfl_password": "nfl_password",
         "cookies_file": "raw_cookies",
         "output_directory": "destination_dir",
     },
