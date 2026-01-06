@@ -147,8 +147,10 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
     def __init__(
         self,
         firefox_profile_path: Union[str, Path],
-        cookie_file_path: Union[str, Path],
+        nfl_username: str,
+        nfl_password: str,
         destination_dir: Union[str, Path],
+        show_login: bool = False,
         add_yt_opts: Optional[Dict] = None,
     ) -> None:
         """
@@ -158,12 +160,18 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             This is needed because yt_dlp doesn't work with a raw cookies file.
         :type firefox_profile_path: str | Path
 
-        :param cookie_file_path: The Netscape format cookies file used for auth.
-        :type cookie_file_path: str | Path
+        :param nfl_username: Username or email address associated with your NFL.com account.
+        :type nfl_username: str
+
+        :param nfl_password: Your NFL.com password
+        :type nfl_password: str
 
         :param destination_dir: The directory to store the replays in.
             This needs some tweaking in order to properly handle different replay types.
         :type destination_dir: str | Path
+
+        :param show_login: If true, display browser window as automated login is happening
+        :type show_login: bool
 
         :param add_yt_opts: Any yt-dlp options that should override the base options,
             and apply to all download invocations by this object.
@@ -171,7 +179,11 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         """
         super().__init__(firefox_profile_path, destination_dir, add_yt_opts)
         self._replay_base_url = "https://www.nfl.com/plus/games/"
-        self.nfl_client = GriddyNFL(cookies_file=str(cookie_file_path))
+        self.nfl_client = GriddyNFL(
+            login_email=nfl_username,
+            login_password=nfl_password,
+            headless_login=(not show_login),
+        )
 
     def _should_extract(self, game: WeeklyGameDetail, teams: List[str]) -> bool:
         """
@@ -380,7 +392,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         :rtype: List[Dict]
         """
         print(f"Downloading {replay_types} for {season} week {week}")
-        raw_games_list = self.nfl_client.football.get_weekly_game_details(
+        raw_games_list = self.nfl_client.games.get_weekly_game_details(
             season=season, type_="REG", week=week, include_replays=True
         )
         print(f"Found {len(raw_games_list)} games for week {week}")

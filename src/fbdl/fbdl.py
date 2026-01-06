@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Tuple
 
 import click
+from pygments.lexer import default
 
 from .base import (
     DEFAULT_REPLAY_TYPES,
@@ -129,6 +130,22 @@ def nfl_show(ctx, input_file, output_directory, cookies):
 
 
 @cli.command()
+@click.option(
+    "--nfl-username",
+    type=str,
+    help="The username/email associated with your NFL.com account.",
+)
+@click.option(
+    "--nfl-password",
+    type=str,
+    help="The password associated with your NFL.com account.",
+)
+@click.option(
+    "--show-login",
+    type=bool,
+    is_flag=True,
+    help="When passed, show the browser window while performing automated login.",
+)
 @click.option("--season", type=int, help="Season games were played in")
 @click.option("--week", type=int, multiple=True, help="Week the games were played in")
 @click.option(
@@ -168,6 +185,9 @@ def nfl_show(ctx, input_file, output_directory, cookies):
 @click.pass_context
 def nfl_games(
     ctx,
+    nfl_username: str,
+    nfl_password: str,
+    show_login: bool,
     season: int,
     week: Tuple[int],
     team: Tuple[str],
@@ -189,6 +209,9 @@ def nfl_games(
 
     # Build kwargs, converting tuples to lists for config merging
     kwargs = {
+        "nfl_username": nfl_username if nfl_username else None,
+        "nfl_password": nfl_password if nfl_password else None,
+        "show_login": show_login if show_login else None,
         "season": season if season else None,
         "week": list(week) if week else None,
         "team": list(team) if team else None,
@@ -200,8 +223,10 @@ def nfl_games(
         "list_only": list_only,
     }
     kwargs = apply_config_to_kwargs(config, "nfl_games", kwargs)
-
     # Apply defaults for values still not set
+    nfl_username = kwargs.get("nfl_username", None)
+    nfl_password = kwargs.get("nfl_password", None)
+    show_login = kwargs.get("show_login", False)
     season = kwargs.get("season", date.today().year)
     week = kwargs.get("week", [wk for wk in range(1, 19)])
     team = kwargs.get("team") or []
@@ -212,6 +237,8 @@ def nfl_games(
     destination_dir = kwargs.get("destination_dir") or os.getcwd()
     list_only = kwargs.get("list_only") or False
 
+    click.echo(f"NFL Username: {nfl_username}")
+    click.echo(f"Show Login: {show_login}")
     click.echo(f"Season: {season}")
     click.echo(f"Week: {week}")
     click.echo(f"Team: {team}")
@@ -232,8 +259,10 @@ def nfl_games(
 
     nwd = NFLWeeklyDownloader(
         firefox_profile_path=profile_dir,
-        cookie_file_path=raw_cookies,
+        nfl_username=nfl_username,
+        nfl_password=nfl_password,
         destination_dir=destination_dir,
+        show_login=show_login,
         add_yt_opts=add_opts,
     )
 
