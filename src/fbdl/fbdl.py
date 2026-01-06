@@ -6,13 +6,8 @@ from typing import Tuple
 
 import click
 
-from .base import (
-    DEFAULT_REPLAY_TYPES,
-    TEAM_FULL_NAMES,
-    BaseDownloader,
-    FileOperationsUtil,
-    MetaDataCreator,
-)
+from .base import (DEFAULT_REPLAY_TYPES, TEAM_FULL_NAMES, BaseDownloader,
+                   FileOperationsUtil, MetaDataCreator)
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 from .utils import apply_config_to_kwargs, find_config, load_config
 

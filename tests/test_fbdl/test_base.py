@@ -5,17 +5,10 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from fbdl.base import (
-    BaseDownloader,
-    FileOperationsUtil,
-    MetaDataCreator,
-    convert_nfl_playoff_name_to_int,
-    convert_ufl_playoff_name_to_int,
-    get_week_int_as_string,
-    is_bowl_game,
-    is_playoff_week,
-    transform_file_name,
-)
+from fbdl.base import (BaseDownloader, FileOperationsUtil, MetaDataCreator,
+                       convert_nfl_playoff_name_to_int,
+                       convert_ufl_playoff_name_to_int, get_week_int_as_string,
+                       is_bowl_game, is_playoff_week, transform_file_name)
 
 
 class TestUtilFunctions:
