@@ -12,8 +12,8 @@ fi
 
 echo -e "Python files modified: $PY_FILES_CHANGED"
 
-PR_VERSION=$(grep -E '^version = ' pyproject.toml | head -1 | cut -d'"' -f2)
-MASTER_VERSION=$(git show origin/master:pyproject.toml | grep -E '^version = ' | head -1 | cut -d'"' -f2)
+PR_VERSION=$(grep -E '^version=' pyproject.toml | head -1 | cut -d'"' -f2)
+MASTER_VERSION=$(git show origin/master:pyproject.toml | grep -E '^version=' | head -1 | cut -d'"' -f2)
 
 echo -e "Master version: $MASTER_VERSION"
 echo -e "PR version: $PR_VERSION"
