@@ -1,13 +1,13 @@
 # Configuration file for the Sphinx documentation builder.
 #
-# Minimal, repo-local configuration to build docs for the fbdl project.
+# Minimal, repo-local configuration to build docs for the fbcm project.
 
 import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
-# Add the project src directory to sys.path so autodoc can import fbdl
+# Add the project src directory to sys.path so autodoc can import fbcm
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -15,10 +15,10 @@ if str(SRC) not in sys.path:
 
 # -- Project information -----------------------------------------------------
 
-project = "fbdl"
+project = "fbcm"
 # Keep version in sync with pyproject.toml
 release = "0.0.1"
-copyright = f"{datetime.now().year}, fbdl"
+copyright = f"{datetime.now().year}, fbcm"
 
 autodoc_default_options = {
     "members": True,

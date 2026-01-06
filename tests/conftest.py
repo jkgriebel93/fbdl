@@ -7,5 +7,5 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SRC_PATH = PROJECT_ROOT / "src"
 
-# Prepend to sys.path so `import fbdl` works in tests
+# Prepend to sys.path so `import fbcm` works in tests
 sys.path.insert(0, str(SRC_PATH))

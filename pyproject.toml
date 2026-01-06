@@ -1,5 +1,5 @@
 [project]
-name="fbdl"
+name="fbcm"
 version="0.1.0"
 description="Command line tools for downloading and archiving (American) football content"
 authors = [
@@ -25,7 +25,7 @@ dev = [
 ]
 
 [project.scripts]
-fbdl = "fbdl.fbdl:cli"
+fbcm = "fbcm.fbcm:cli"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

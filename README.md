@@ -1,8 +1,8 @@
-# fbdl
+# fbcm
 
 A command line application that primarily leverages `yt-dlp` to assist with archiving football content.
 
-This package installs a command named `fbdl` that provides several subcommands. Below are practical examples for each command defined in `src/fbdl/fbdl.py`.
+This package installs a command named `fbcm` that provides several subcommands. Below are practical examples for each command defined in `src/fbcm/fbcm.py`.
 
 ## Installation
 
@@ -15,15 +15,15 @@ Install locally (editable) for development:
 pip install -e .
 ```
 
-After installation, the `fbdl` command will be available in your shell.
+After installation, the `fbcm` command will be available in your shell.
 
 ## Configuration
 
-fbdl supports YAML configuration files to avoid repeating common options.
+fbcm supports YAML configuration files to avoid repeating common options.
 
 ### Config file locations (auto-discovered in order):
-1. `fbdl.yaml` in current working directory
-2. `~/.config/fbdl.yaml`
+1. `fbcm.yaml` in current working directory
+2. `~/.config/fbcm.yaml`
 3. Explicit path via `--config /path/to/config.yaml`
 
 ### Precedence
@@ -31,7 +31,7 @@ CLI arguments > Config file > Defaults
 
 ### Example config file
 
-See `fbdl.yaml.example` for a complete template. A minimal example:
+See `fbcm.yaml.example` for a complete template. A minimal example:
 
 ```yaml
 # Common options applied across commands
@@ -80,7 +80,7 @@ Command: `download-list`
 
 ```powershell
 # urls.txt contains one video URL per line
-fbdl download-list E:\\Downloads\\urls.txt --output-directory E:\\Media\\Misc --cookies-file E:\\Downloads\\cookies.txt
+fbcm download-list E:\\Downloads\\urls.txt --output-directory E:\\Media\\Misc --cookies-file E:\\Downloads\\cookies.txt
 ```
 
 - `input_file` is a text file with one URL per line.
@@ -93,10 +93,10 @@ Command: `update-metadata`
 
 ```powershell
 # Preview what would change (no writes)
-fbdl update-metadata E:\\Media\\NFL\\2024 --pretend --verbose
+fbcm update-metadata E:\\Media\\NFL\\2024 --pretend --verbose
 
 # Perform the updates
-fbdl update-metadata E:\\Media\\NFL\\2024
+fbcm update-metadata E:\\Media\\NFL\\2024
 ```
 
 ### 3) Download episodes from an NFL+ show
@@ -105,7 +105,7 @@ Command: `nfl-show`
 
 ```powershell
 # episode list JSON contains URL leaves for episodes (see show_lists directory for examples)
-fbdl nfl-show show_lists\\americas_game.json --cookies-file E:\\Downloads\\cookies.txt --output-directory "E:\\Media\\NFL Shows\\America's Game"
+fbcm nfl-show show_lists\\americas_game.json --cookies-file E:\\Downloads\\cookies.txt --output-directory "E:\\Media\\NFL Shows\\America's Game"
 ```
 
 - `input_file` is a JSON file containing a `seasons` array of arrays with episode URL leaves.
@@ -123,44 +123,44 @@ Command: `nfl-games`
 Using a credentials file (token-based auth):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --credentials-file E:\\Downloads\\nfl_tokens.json
+fbcm nfl-games --season 2024 --week 1 --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Using username/password (browser login):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --nfl-username user@example.com --nfl-password yourpassword
+fbcm nfl-games --season 2024 --week 1 --nfl-username user@example.com --nfl-password yourpassword
 ```
 
 Basic full-game downloads (all teams for a week):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --credentials-file E:\\Downloads\\nfl_tokens.json
+fbcm nfl-games --season 2024 --week 1 --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Download multiple weeks at once:
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --week 2 --week 3 --credentials-file E:\\Downloads\\nfl_tokens.json
+fbcm nfl-games --season 2024 --week 1 --week 2 --week 3 --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Filter to a team (you can repeat `--team` multiple times):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --team PIT --team DAL --credentials-file E:\\Downloads\\nfl_tokens.json
+fbcm nfl-games --season 2024 --week 1 --team PIT --team DAL --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Choose replay type (keys come from the tool's supported types, e.g. `full_game`, `condensed_game`, `all_22`):
 
 ```powershell
 # Download condensed replays only
-fbdl nfl-games --season 2024 --week 1 --replay-type condensed_game --credentials-file E:\\Downloads\\nfl_tokens.json
+fbcm nfl-games --season 2024 --week 1 --replay-type condensed_game --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Continue episode numbering (useful when combining multiple weeks):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 2 --start-ep 5 --credentials-file E:\\Downloads\\nfl_tokens.json
+fbcm nfl-games --season 2024 --week 2 --start-ep 5 --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Notes:
@@ -177,10 +177,10 @@ Command: `rename-series`
 
 ```powershell
 # Preview renames for the series; release year influences the series folder name only
-fbdl rename-series "America's Game" --release-year 2006 --pretend
+fbcm rename-series "America's Game" --release-year 2006 --pretend
 
 # Perform and allow overwriting existing files
-fbdl rename-series "America's Game" --release-year 2006 --replace
+fbcm rename-series "America's Game" --release-year 2006 --replace
 ```
 
 Requires `MEDIA_BASE_DIR` to be set; the tool looks for a directory named `Series Name (Year)` (if year provided), otherwise `Series Name`.
@@ -191,18 +191,18 @@ Command: `convert-format`
 
 ```powershell
 # Convert all mkv files to mp4 in the given directory, keep originals
-fbdl convert-format E:\\Media\\NFL\\All22 --orig-format mkv --new-format mp4
+fbcm convert-format E:\\Media\\NFL\\All22 --orig-format mkv --new-format mp4
 
 # Dry run
-fbdl convert-format E:\\Media\\NFL\\All22 --pretend
+fbcm convert-format E:\\Media\\NFL\\All22 --pretend
 
 # Convert and delete originals after successful conversion
-fbdl convert-format E:\\Media\\NFL\\All22 --delete
+fbcm convert-format E:\\Media\\NFL\\All22 --delete
 ```
 
 ## Tips
 
-- Use a config file (`fbdl.yaml`) to avoid repeating common options like cookies paths and output directories. See `fbdl.yaml.example` for a template.
+- Use a config file (`fbcm.yaml`) to avoid repeating common options like cookies paths and output directories. See `fbcm.yaml.example` for a template.
 - Many examples above reference the `show_lists` folder in this repo; it contains example JSON files for show downloads.
 - If you run into authentication errors with NFL+, export cookies in Netscape format from your browser and pass via the `--cookies-file` option.
 - For Windows paths in PowerShell, remember to escape backslashes when using them inside quoted strings in documentation; in the shell itself, normal backslashes are fine.

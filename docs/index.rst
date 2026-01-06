@@ -1,4 +1,4 @@
-fbdl documentation
+fbcm documentation
 ===================
 
 Custom tools for downloading (American) football content using yt-dlp.

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`fbdl` is a CLI tool for archiving football content (primarily NFL, also CFL and UFL). It wraps `yt-dlp` with specialized functionality for NFL Plus downloads, metadata generation, and media file management for Plex/Jellyfin compatibility.
+`fbcm` is a CLI tool for archiving football content (primarily NFL, also CFL and UFL). It wraps `yt-dlp` with specialized functionality for NFL Plus downloads, metadata generation, and media file management for Plex/Jellyfin compatibility.
 
 ## Build and Development Commands
 
@@ -19,10 +19,10 @@ pip install -e ".[dev]"
 pytest
 
 # Run a single test file
-pytest tests/test_fbdl/test_base.py
+pytest tests/test_fbcm/test_base.py
 
 # Run a specific test
-pytest tests/test_fbdl/test_base.py::test_function_name -v
+pytest tests/test_fbcm/test_base.py::test_function_name -v
 
 # Format code
 black src/
@@ -31,11 +31,11 @@ black src/
 ## Architecture
 
 ### CLI Entry Point
-- `src/fbdl/fbdl.py` - Click-based CLI with commands: `download-list`, `update-metadata`, `nfl-show`, `nfl-games`, `rename-series`, `convert-format`, `generate-nfo-files`
+- `src/fbcm/fbcm.py` - Click-based CLI with commands: `download-list`, `update-metadata`, `nfl-show`, `nfl-games`, `rename-series`, `convert-format`, `generate-nfo-files`
 
 ### Core Modules
-- `src/fbdl/base.py` - Contains `BaseDownloader` (yt-dlp wrapper), `FileOperationsUtil` (file renaming, format conversion, metadata updates), `MetaDataCreator` (NFO file generation), and league-specific helper functions for week/playoff calculations
-- `src/fbdl/nfl.py` - `NFLShowDownloader` for NFL Plus TV series, `NFLWeeklyDownloader` (inherits BaseDownloader + NFLBaseIE) for game replays using the griddy NFL client
+- `src/fbcm/base.py` - Contains `BaseDownloader` (yt-dlp wrapper), `FileOperationsUtil` (file renaming, format conversion, metadata updates), `MetaDataCreator` (NFO file generation), and league-specific helper functions for week/playoff calculations
+- `src/fbcm/nfl.py` - `NFLShowDownloader` for NFL Plus TV series, `NFLWeeklyDownloader` (inherits BaseDownloader + NFLBaseIE) for game replays using the griddy NFL client
 
 ### Key Data Structures
 - `base.py` contains team abbreviation mappings (`abbreviation_map`, `TEAM_FULL_NAMES`, `CITY_TO_ABBR`) used throughout for NFL/CFL/UFL team lookups
@@ -56,14 +56,14 @@ NFO metadata files (XML format) are generated alongside videos for Jellyfin/Plex
 
 ## Configuration File
 
-The CLI supports YAML config files (`fbdl.yaml`) with auto-discovery:
+The CLI supports YAML config files (`fbcm.yaml`) with auto-discovery:
 1. Current working directory
-2. `~/.config/fbdl.yaml`
+2. `~/.config/fbcm.yaml`
 3. Explicit `--config /path/to/config.yaml`
 
 Precedence: CLI args > Config file > Defaults
 
-See `fbdl.yaml.example` for the config file structure. Common options (`cookies_file`, `output_directory`, `pretend`, `verbose`) are mapped to command-specific parameter names via `src/fbdl/utils.py:COMMON_OPTION_MAPPINGS`.
+See `fbcm.yaml.example` for the config file structure. Common options (`cookies_file`, `output_directory`, `pretend`, `verbose`) are mapped to command-specific parameter names via `src/fbcm/utils.py:COMMON_OPTION_MAPPINGS`.
 
 ## Dependencies
 

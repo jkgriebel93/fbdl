@@ -3,34 +3,34 @@ API Reference
 
 This section documents the public Python API provided by the project.
 
-fbdl.base
+fbcm.base
 ---------
 
-.. automodule:: fbdl.base
+.. automodule:: fbcm.base
    :members:
    :undoc-members:
    :show-inheritance:
 
-fbdl.nfl
+fbcm.nfl
 --------
 
-.. automodule:: fbdl.nfl
+.. automodule:: fbcm.nfl
    :members:
    :undoc-members:
    :show-inheritance:
 
-fbdl.fbdl
+fbcm.fbcm
 ---------
 
-.. automodule:: fbdl.fbdl
+.. automodule:: fbcm.fbcm
    :members:
    :undoc-members:
    :show-inheritance:
 
-fbdl.mcmillen
+fbcm.mcmillen
 -------------
 
-.. automodule:: fbdl.mcmillen
+.. automodule:: fbcm.mcmillen
    :members:
    :undoc-members:
    :show-inheritance:

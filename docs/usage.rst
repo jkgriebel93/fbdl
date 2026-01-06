@@ -23,19 +23,19 @@ Building the docs (optional):
 Quick start
 -----------
 
-Once installed, the ``fbdl`` command is available:
+Once installed, the ``fbcm`` command is available:
 
 .. code-block:: powershell
 
-   fbdl --help
+   fbcm --help
 
 Common commands include:
 
-- ``fbdl download-list <INPUT_FILE> <OUTPUT_DIRECTORY> [--cookie-file cookies.txt]``
-- ``fbdl update-metadata <DIRECTORY_PATH> [--pretend] [--verbose]``
-- ``fbdl nfl-games <SEASON> <WEEK> [--team PIT] [--replay-type full_game] [--start-ep 0]``
-- ``fbdl rename-series <SERIES_NAME> [--release-year 2020] [--pretend] [--replace]``
-- ``fbdl convert-format <DIRECTORY> [--pretend] [--delete]``
+- ``fbcm download-list <INPUT_FILE> <OUTPUT_DIRECTORY> [--cookie-file cookies.txt]``
+- ``fbcm update-metadata <DIRECTORY_PATH> [--pretend] [--verbose]``
+- ``fbcm nfl-games <SEASON> <WEEK> [--team PIT] [--replay-type full_game] [--start-ep 0]``
+- ``fbcm rename-series <SERIES_NAME> [--release-year 2020] [--pretend] [--replace]``
+- ``fbcm convert-format <DIRECTORY> [--pretend] [--delete]``
 
 Environment variables
 ---------------------
