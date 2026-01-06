@@ -360,6 +360,29 @@ def transform_file_name(orig_file_stem: str) -> str:
     return new_stem
 
 
+def get_max_episode_number_in_dir(directory: Path) -> int:
+    season_ep_reg = r"[sS]\d+[eE]\d+"
+
+    max_ep = -1
+    for f in directory.iterdir():
+        if f.name.endswith(".nfo"):
+            continue
+
+        matches = re.findall(season_ep_reg, f.name)
+
+        if not matches:
+            raise ValueError(
+                f"No appropriate sXXeXX string found in file name: {f.name}"
+            )
+
+        season_episode = matches[0]
+        episode_num = int(season_episode.lower().split("e")[-1])
+        if episode_num > max_ep:
+            max_ep = episode_num
+
+    return max_ep
+
+
 class BaseDownloader:
     """
     A wrapper around YoutubeDL that allows for download a list of generic URLs stored in a file.

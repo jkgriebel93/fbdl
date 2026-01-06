@@ -15,9 +15,7 @@ from .base import (
     MEDIA_BASE_DIR,
     TEAM_FULL_NAMES,
     BaseDownloader,
-    abbreviation_map,
-    get_week_int_as_string,
-    is_playoff_week,
+    get_max_episode_number_in_dir,
 )
 
 logger = logging.getLogger(__name__)
@@ -440,7 +438,7 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         teams: Optional[List[str]] = None,
         replay_types: Optional[List[str]] = None,
         sleep_time: int = 15,
-        start_ep: int = 0,
+        start_ep: Optional[int] = None,
     ) -> None:
         """
         Combine the tasks of
@@ -469,6 +467,8 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         extracted_games = self.get_and_extract_games_for_week(
             season=season, week=week, teams=teams, replay_types=replay_types
         )
+        if start_ep is None:
+            start_ep = get_max_episode_number_in_dir(self.destination_dir)
 
         for idx, game in enumerate(extracted_games):
             ep_num = start_ep + idx + 1

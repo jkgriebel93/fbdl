@@ -232,7 +232,7 @@ def nfl_games(
     team = kwargs.get("team") or []
     exclude = kwargs.get("exclude") or []
     replay_type = kwargs.get("replay_type") or ["full_game"]
-    start_ep = kwargs.get("start_ep") or 0
+    start_ep = kwargs.get("start_ep") or None
     raw_cookies = kwargs.get("raw_cookies") or "cookies.txt"
     destination_dir = kwargs.get("destination_dir") or os.getcwd()
     list_only = kwargs.get("list_only") or False
