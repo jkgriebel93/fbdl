@@ -62,6 +62,7 @@ def download_list(ctx, input_file, output_directory, cookies_file: Path = None):
     )
     bd.download_from_file(Path(input_file))
 
+
 @cli.command()
 @click.argument("input_file")
 @click.option(
