@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Tuple
 
 import click
-from pygments.lexer import default
 
 from .base import (
     DEFAULT_REPLAY_TYPES,
@@ -62,42 +61,6 @@ def download_list(ctx, input_file, output_directory, cookies_file: Path = None):
         destination_dir=kwargs["output_directory"],
     )
     bd.download_from_file(Path(input_file))
-
-
-@cli.command()
-@click.argument("directory_path", type=click.Path(exists=True))
-@click.option(
-    "--pretend",
-    default=None,
-    is_flag=True,
-    flag_value=True,
-    help="Don't perform any updates; preview only.",
-)
-@click.option(
-    "--verbose",
-    default=None,
-    is_flag=True,
-    flag_value=True,
-    help="Enable extra logging.",
-)
-@click.pass_context
-def update_metadata(ctx, directory_path, pretend, verbose):
-    """
-    A largely one-off command to update embedded metadata for already downloaded NFL games based on the file's name.
-
-    DIRECTORY_PATH is the directory fbdl will search for mp4 files.
-    """
-    config = ctx.obj.get("config", {})
-    kwargs = {"pretend": pretend, "verbose": verbose}
-    kwargs = apply_config_to_kwargs(config, "update_metadata", kwargs)
-
-    md_updater = FileOperationsUtil(
-        directory_path,
-        kwargs.get("pretend", False),
-        kwargs.get("verbose", False),
-    )
-    md_updater.iter_and_update_children()
-
 
 @cli.command()
 @click.argument("input_file")
@@ -296,62 +259,6 @@ def nfl_games(
                 replay_types=replay_type,
                 start_ep=start_ep,
             )
-
-
-@cli.command()
-@click.argument("series_name")
-@click.option(
-    "--pretend",
-    default=None,
-    is_flag=True,
-    flag_value=True,
-    help="If passed, don't perform actual updates. Preview only.",
-)
-@click.option("--release-year", type=int, help="The year that the show first aired.")
-@click.option(
-    "--replace",
-    default=None,
-    is_flag=True,
-    flag_value=True,
-    help="If passed, overwrite any file that already exists with the new name.",
-)
-@click.pass_context
-def rename_series(
-    ctx, series_name: str, pretend: bool, release_year: int, replace: bool
-):
-    """
-    A one-off command used to change file format names from SEE to <Series Name> (YYYY) - sSeEE - <episode_name>
-
-    SERIES_NAME is the name of the TV series
-    """
-    config = ctx.obj.get("config", {})
-    kwargs = {"pretend": pretend, "release_year": release_year, "replace": replace}
-    kwargs = apply_config_to_kwargs(config, "rename_series", kwargs)
-
-    pretend = kwargs.get("pretend", False)
-    release_year = kwargs.get("release_year")
-    replace = kwargs.get("replace", False)
-
-    click.echo(f"Renaming episodes for {series_name}")
-    base_dir = os.getenv("MEDIA_BASE_DIR")
-
-    if not base_dir:
-        click.echo(
-            "No media base directory set. Set the MEDIA_BASE_DIR environment variable."
-        )
-        return
-
-    # Plex mandates that the release year be included in the
-    # Series directory name, but _not_ in the episode title.
-    if release_year:
-        series_dir = f"{series_name} ({release_year})"
-    else:
-        series_dir = series_name
-
-    series_directory = Path(base_dir, series_dir)
-
-    fops = FileOperationsUtil(directory_path=series_directory, pretend=pretend)
-    fops.rename_files(series_name=series_name, replace=replace)
 
 
 @cli.command()
