@@ -51,6 +51,7 @@ Common config keys are mapped to command-specific parameter names:
 | Config Key | Commands | Maps To |
 |------------|----------|---------|
 | `cookies_file` | download-list, nfl-show, nfl-games | --cookies-file |
+| `credentials_file` | nfl-games | --credentials-file |
 | `output_directory` | download-list, nfl-show, nfl-games | --output-directory |
 | `pretend` | update-metadata, rename-series, convert-format | --pretend |
 | `verbose` | update-metadata | --verbose |
@@ -115,42 +116,59 @@ fbdl nfl-show show_lists\\americas_game.json --cookies-file E:\\Downloads\\cooki
 
 Command: `nfl-games`
 
+**Authentication options** (use one, not both):
+- `--credentials-file` - A JSON file containing `accessToken`, `refreshToken`, and `expiresIn` fields
+- `--nfl-username` + `--nfl-password` - Your NFL.com login credentials (triggers browser-based login)
+
+Using a credentials file (token-based auth):
+
+```powershell
+fbdl nfl-games --season 2024 --week 1 --credentials-file E:\\Downloads\\nfl_tokens.json
+```
+
+Using username/password (browser login):
+
+```powershell
+fbdl nfl-games --season 2024 --week 1 --nfl-username user@example.com --nfl-password yourpassword
+```
+
 Basic full-game downloads (all teams for a week):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --cookies-file E:\\Downloads\\nfl_api_cookies.txt
+fbdl nfl-games --season 2024 --week 1 --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Download multiple weeks at once:
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --week 2 --week 3 --cookies-file E:\\Downloads\\nfl_api_cookies.txt
+fbdl nfl-games --season 2024 --week 1 --week 2 --week 3 --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Filter to a team (you can repeat `--team` multiple times):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 1 --team PIT --team DAL --cookies-file E:\\Downloads\\nfl_api_cookies.txt
+fbdl nfl-games --season 2024 --week 1 --team PIT --team DAL --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Choose replay type (keys come from the tool's supported types, e.g. `full_game`, `condensed_game`, `all_22`):
 
 ```powershell
 # Download condensed replays only
-fbdl nfl-games --season 2024 --week 1 --replay-type condensed_game --cookies-file E:\\Downloads\\nfl_api_cookies.txt
+fbdl nfl-games --season 2024 --week 1 --replay-type condensed_game --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Continue episode numbering (useful when combining multiple weeks):
 
 ```powershell
-fbdl nfl-games --season 2024 --week 2 --start-ep 5 --cookies-file E:\\Downloads\\nfl_api_cookies.txt
+fbdl nfl-games --season 2024 --week 2 --start-ep 5 --credentials-file E:\\Downloads\\nfl_tokens.json
 ```
 
 Notes:
 - If `--season` is omitted, defaults to the current year.
 - If `--week` is omitted, defaults to all regular season weeks (1-18).
 - This command reads `FIREFOX_PROFILE` and `DESTINATION_DIR` from the environment to configure yt-dlp and output directory.
-- `--cookies-file` should point to a txt file with cookies needed for the NFL API.
+- `--credentials-file` should contain a JSON object with `accessToken`, `refreshToken`, and `expiresIn` fields.
+- `--cookies-file` is used by yt-dlp for video downloads (separate from API authentication).
 - All options can be set via config file (see Configuration section above).
 
 ### 5) Rename a series to Plex-friendly format

@@ -4,6 +4,7 @@
 # Common options (applied to commands where applicable)
 # output_directory: /path/to/output
 # cookies_file: /path/to/cookies.txt
+# credentials_file: /path/to/nfl_tokens.json  # JSON with accessToken, refreshToken, expiresIn
 # pretend: false
 # verbose: false
 
@@ -28,7 +29,8 @@
 #     - full_game
 #   start_ep: 0
 #   list_only: false
-#   # Uses common: output_directory, cookies_file
+#   # Uses common: output_directory, cookies_file, credentials_file
+#   # Note: Use credentials_file OR nfl_username/nfl_password, not both
 
 # rename_series:
 #   release_year: null

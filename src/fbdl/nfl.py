@@ -145,9 +145,10 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
     def __init__(
         self,
         firefox_profile_path: Union[str, Path],
-        nfl_username: str,
-        nfl_password: str,
         destination_dir: Union[str, Path],
+        nfl_username: Optional[str] = None,
+        nfl_password: Optional[str] = None,
+        nfl_auth: Optional[Dict[str, Any]] = None,
         show_login: bool = False,
         add_yt_opts: Optional[Dict] = None,
     ) -> None:
@@ -158,15 +159,21 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
             This is needed because yt_dlp doesn't work with a raw cookies file.
         :type firefox_profile_path: str | Path
 
-        :param nfl_username: Username or email address associated with your NFL.com account.
-        :type nfl_username: str
-
-        :param nfl_password: Your NFL.com password
-        :type nfl_password: str
-
         :param destination_dir: The directory to store the replays in.
             This needs some tweaking in order to properly handle different replay types.
         :type destination_dir: str | Path
+
+        :param nfl_username: Username or email address associated with your NFL.com account.
+            Required if nfl_auth is not provided.
+        :type nfl_username: str | None
+
+        :param nfl_password: Your NFL.com password.
+            Required if nfl_auth is not provided.
+        :type nfl_password: str | None
+
+        :param nfl_auth: A dict containing accessToken, refreshToken, and expiresIn.
+            If provided, username/password are not needed.
+        :type nfl_auth: Dict[str, Any] | None
 
         :param show_login: If true, display browser window as automated login is happening
         :type show_login: bool
@@ -177,11 +184,15 @@ class NFLWeeklyDownloader(BaseDownloader, NFLBaseIE):
         """
         super().__init__(firefox_profile_path, destination_dir, add_yt_opts)
         self._replay_base_url = "https://www.nfl.com/plus/games/"
-        self.nfl_client = GriddyNFL(
-            login_email=nfl_username,
-            login_password=nfl_password,
-            headless_login=(not show_login),
-        )
+
+        if nfl_auth:
+            self.nfl_client = GriddyNFL(nfl_auth=nfl_auth)
+        else:
+            self.nfl_client = GriddyNFL(
+                login_email=nfl_username,
+                login_password=nfl_password,
+                headless_login=(not show_login),
+            )
 
     def _should_extract(self, game: WeeklyGameDetail, teams: List[str]) -> bool:
         """
