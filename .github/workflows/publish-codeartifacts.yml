@@ -75,4 +75,4 @@ jobs:
             --format pypi \
             --query repositoryEndpoint --output text)
           
-          twine upload dist/*
+          twine upload --verbose dist/*
