@@ -15,11 +15,10 @@ Requirements:
     playwright install firefox
 """
 
-import argparse
 import io
 import re
 import time
-from abc import ABC, abstractmethod
+from collections import defaultdict
 from pathlib import Path
 from dataclasses import dataclass, field
 from playwright.sync_api import sync_playwright, Playwright, Browser, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
@@ -35,6 +34,42 @@ from docx.oxml import OxmlElement
 
 
 POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
+
+# Position-specific stat categories and their fields
+POSITION_STAT_MAPPINGS = {
+    "QB": {
+        "Passing": ["CMP", "ATT", "CMP%", "YDS", "TD", "INT", "SACK", "QB Rtg"]
+    },
+    "RB": {
+        "Rushing": ["ATT", "YDS", "AVG", "TD"],
+        "Receiving": ["REC", "YDS", "AVG", "TD"]
+    },
+    "WR": {
+        "Receiving": ["REC", "YDS", "AVG", "TD"],
+        "Rushing": ["ATT", "YDS", "AVG", "TD"]
+    },
+    "TE": {
+        "Receiving": ["REC", "YDS", "AVG", "TD"],
+        "Rushing": ["ATT", "YDS", "AVG", "TD"]
+    },
+    "OL": {},
+    "DL": {
+        "Tackles": ["TOTAL", "SOLO", "FF", "SACKS"],
+        "Interceptions": ["INTS", "YDS", "TDS", "PDS"]
+    },
+    "EDGE": {
+        "Tackles": ["TOTAL", "SOLO", "FF", "SACKS"],
+        "Interceptions": ["INTS", "YDS", "TDS", "PDS"]
+    },
+    "LB": {
+        "Tackles": ["TOTAL", "SOLO", "FF", "SACKS"],
+        "Interceptions": ["INTS", "YDS", "TDS", "PDS"]
+    },
+    "DB": {
+        "Tackles": ["TOTAL", "SOLO", "FF", "SACKS"],
+        "Interceptions": ["INTS", "YDS", "TDS", "PDS"]
+    }
+}
 
 @dataclass
 class ProspectData:
@@ -63,13 +98,8 @@ class ProspectData:
     draft_projection: str = ""
     defense_rating: str = ""
 
-    # Stats
-    qb_rating: str = ""
-    yards: str = ""
-    comp_pct: str = ""
-    tds: str = ""
-    ints: str = ""
-    rush_avg: str = ""
+    # Stats - organized by category (e.g., {"Passing": {"CMP": "123", "ATT": "200"}, "Rushing": {...}})
+    stats: Dict[str, Dict[str, str]] = field(default_factory=dict)
     college_games: str = ""
     college_snaps: str = ""
 
@@ -112,26 +142,13 @@ class PageFetcher:
         '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     )
     DEFAULT_VIEWPORT = {'width': 1920, 'height': 1080}
-    PAGE_LOAD_TIMEOUT = 60000
     CONTENT_WAIT_TIME = 3000
-
-    IMAGE_SELECTORS = [
-        'img[src*="Imagn"]',
-        'img[src*="player"]',
-        'img[src*="Player"]',
-        'img[src*="headshot"]',
-        'img[src*="photo"]',
-        '.player-image img',
-        '.profile-image img',
-        'article img',
-        'main img',
-    ]
-
-    SKIP_IMAGE_PATTERNS = ['logo', 'icon', 'ad', 'sponsor', 'badge', 'button', '1x1']
 
     MAX_RETRIES = 3
 
-    def __init__(self, playwright: Playwright, headless: bool = False):
+    def __init__(self, playwright: Playwright, headless: bool = False,
+                 base_url: str = "https://www.nfldraftbuzz.com"):
+        self.base_url = base_url
         self.playwright = playwright
         self.headless = headless
         self.browser = self._launch_browser()
@@ -187,11 +204,9 @@ class PageFetcher:
         try:
             print(f"Navigating to: {url}")
             try:
-                page.goto(url, wait_until='networkidle', timeout=self.PAGE_LOAD_TIMEOUT)
+                page.goto(url)
             except PlaywrightTimeout:
                 print("Page load timeout, continuing with partial content...")
-
-            page.wait_for_timeout(self.CONTENT_WAIT_TIME)
 
             text_content = page.evaluate('() => document.body.innerText')
             if attempt_image_fetch:
@@ -217,16 +232,9 @@ class PageFetcher:
 
     def _find_image_url(self, page) -> Optional[str]:
         """Try to find image URL using predefined selectors."""
-        for selector in self.IMAGE_SELECTORS:
-            try:
-                img_element = page.query_selector(selector)
-                if img_element:
-                    src = img_element.get_attribute('src')
-                    if src and not self._should_skip_image(src):
-                        return src
-            except Exception:
-                continue
-        return None
+        img = page.locator("figure.player-info__photo img")
+        src = img.get_attribute("src")
+        return self._make_absolute_url(url=src, base_url=self.base_url)
 
     def _find_any_large_image(self, page) -> Optional[str]:
         """Fallback: try to find any large player image."""
@@ -262,7 +270,7 @@ class PageFetcher:
         return None, "jpeg"
 
     @staticmethod
-    def _make_absolute_url(url: str, base_url: str) -> str:
+    def _make_absolute_url(url: str, base_url: str = None) -> str:
         """Convert relative URL to absolute."""
         if url.startswith('//'):
             return 'https:' + url
@@ -390,20 +398,70 @@ class ProspectParser:
                 setattr(data, attr, value)
 
     def _parse_stats(self, text: str, data: ProspectData) -> None:
-        """Extract player statistics (primarily for QBs)."""
-        patterns = {
-            'qb_rating': r'QB RATING\s*\n?\s*([\d.]+)',
-            'yards': r'YDS\s*\n?\s*(\d+)',
-            'comp_pct': r'COMP %\s*\n?\s*([\d.]+)',
-            'tds': r'TDS\s*\n?\s*(\d+)',
-            'ints': r'INTS\s*\n?\s*(\d+)',
-            'rush_avg': r'RUSH AVG\s*\n?\s*([\d.]+)',
+        """Extract player statistics based on position."""
+        position = data.position
+        if not position or position not in POSITION_STAT_MAPPINGS:
+            return
+
+        stat_categories = POSITION_STAT_MAPPINGS[position]
+        if not stat_categories:
+            return  # OL has no stats
+
+        for category, stat_names in stat_categories.items():
+            category_stats = self._parse_stat_category(text, category, stat_names)
+            if category_stats:
+                data.stats[category] = category_stats
+
+    def _parse_stat_category(self, text: str, category: str, stat_names: List[str]) -> Dict[str, str]:
+        """Parse stats for a specific category (e.g., Passing, Rushing, etc.)."""
+        stats = {}
+
+        # Find the category section in text (e.g., "PASSING" or "RUSHING" or "TACKLES")
+        category_pattern = rf'{category.upper()}\s*\n([\s\S]*?)(?=(?:RUSHING|RECEIVING|PASSING|TACKLES|INTERCEPTIONS|RECRUITING|SCOUTING|DRAFT PROFILE|$))'
+        category_match = re.search(category_pattern, text, re.IGNORECASE)
+
+        if category_match:
+            section_text = category_match.group(1)
+        else:
+            section_text = text  # Fall back to searching entire text
+
+        # Parse each stat - look for the stat name followed by a numeric value
+        for stat_name in stat_names:
+            value = self._extract_stat_value(section_text, stat_name)
+            if value:
+                stats[stat_name] = value
+
+        return stats
+
+    def _extract_stat_value(self, text: str, stat_name: str) -> Optional[str]:
+        """Extract a single stat value from text."""
+        # Handle special stat name variations
+        stat_patterns = {
+            'CMP%': r'CMP\s*%\s*\n?\s*([\d.]+)',
+            'CMP': r'(?<!%)CMP(?!\s*%)\s*\n?\s*(\d+)',
+            'QB Rtg': r'QB\s*R(?:T|t)(?:G|g)\s*\n?\s*([\d.]+)',
+            'ATT': r'ATT\s*\n?\s*(\d+)',
+            'YDS': r'YDS\s*\n?\s*([\d,]+)',
+            'TD': r'(?<!%)TD(?!S)\s*\n?\s*(\d+)',
+            'TDS': r'TDS\s*\n?\s*(\d+)',
+            'INT': r'(?<!%)INT(?!S)\s*\n?\s*(\d+)',
+            'INTS': r'INTS\s*\n?\s*(\d+)',
+            'SACK': r'SACK(?!S)\s*\n?\s*(\d+)',
+            'SACKS': r'SACKS\s*\n?\s*([\d.]+)',
+            'REC': r'REC\s*\n?\s*(\d+)',
+            'AVG': r'AVG\s*\n?\s*([\d.]+)',
+            'TOTAL': r'TOTAL\s*\n?\s*(\d+)',
+            'SOLO': r'SOLO\s*\n?\s*(\d+)',
+            'FF': r'FF\s*\n?\s*(\d+)',
+            'PDS': r'PDS\s*\n?\s*(\d+)',
         }
 
-        for attr, pattern in patterns.items():
-            match = re.search(pattern, text)
-            if match:
-                setattr(data, attr, match.group(1))
+        pattern = stat_patterns.get(stat_name, rf'{re.escape(stat_name)}\s*\n?\s*([\d.]+)')
+        match = re.search(pattern, text)
+        if match:
+            value = match.group(1).replace(',', '')  # Remove commas from numbers
+            return value
+        return None
 
     def _parse_skill_ratings(self, text: str, data: ProspectData) -> None:
         """Extract skill ratings (percentiles)."""
@@ -634,26 +692,39 @@ class WordDocumentGenerator:
         self.doc.add_paragraph()
 
     def _add_statistics(self, data: ProspectData) -> None:
-        """Add statistics table (for QBs)."""
-        if data.position != "QB" or not any([data.qb_rating, data.yards, data.comp_pct]):
+        """Add statistics tables for all stat categories."""
+        if not data.stats:
             return
 
         self.doc.add_heading("STATISTICS", level=1)
 
-        stats_table = self.doc.add_table(rows=2, cols=6)
+        for category, stats in data.stats.items():
+            if not stats:
+                continue
+
+            self._add_stat_category_table(category, stats)
+
+    def _add_stat_category_table(self, category: str, stats: Dict[str, str]) -> None:
+        """Add a single stat category table (e.g., Passing, Rushing, etc.)."""
+        # Add category subheading
+        category_para = self.doc.add_paragraph()
+        category_run = category_para.add_run(category.upper())
+        category_run.font.bold = True
+        category_run.font.size = Pt(12)
+
+        # Get stat names and values in order
+        stat_names = list(stats.keys())
+        stat_values = [stats.get(name, "N/A") for name in stat_names]
+
+        if not stat_names:
+            return
+
+        # Create table with headers and values
+        stats_table = self.doc.add_table(rows=2, cols=len(stat_names))
         stats_table.alignment = WD_TABLE_ALIGNMENT.CENTER
 
-        stat_headers = ["QB Rating", "Yards", "Comp %", "TDs", "INTs", "Rush Avg"]
-        stat_values = [
-            data.qb_rating or "N/A",
-            data.yards or "N/A",
-            f"{data.comp_pct}%" if data.comp_pct else "N/A",
-            data.tds or "N/A",
-            data.ints or "N/A",
-            data.rush_avg or "N/A"
-        ]
-
-        for i, header in enumerate(stat_headers):
+        # Add headers
+        for i, header in enumerate(stat_names):
             cell = stats_table.rows[0].cells[i]
             cell.text = header
             cell.paragraphs[0].runs[0].bold = True
@@ -661,9 +732,10 @@ class WordDocumentGenerator:
             self._set_cell_shading(cell, self.STATS_HEADER_COLOR)
             cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
 
+        # Add values
         for i, value in enumerate(stat_values):
             cell = stats_table.rows[1].cells[i]
-            cell.text = value
+            cell.text = str(value) if value else "N/A"
             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
             self._set_cell_shading(cell, "E6FFE6")
 
@@ -828,22 +900,25 @@ class WordDocumentGenerator:
 class DraftBuzzScraper:
     """Main orchestrator for scraping NFL Draft Buzz prospect pages."""
 
-    def __init__(self, playwright: Playwright, fetcher: PageFetcher = None, parser: ProspectParser = None,
+    def __init__(self,
+                 playwright: Playwright,
+                 profile_root_dir: Path = None,
+                 fetcher: PageFetcher = None,
+                 parser: ProspectParser = None,
                  doc_generator: WordDocumentGenerator = None):
-        self.fetcher = fetcher or PageFetcher(playwright=playwright)
+        self.profile_root_dir = profile_root_dir
+        self.base_url = "https://www.nfldraftbuzz.com"
+        self.fetcher = fetcher or PageFetcher(playwright=playwright,
+                                              base_url=self.base_url)
         self.parser = parser or ProspectParser()
         self.doc_generator = doc_generator or WordDocumentGenerator()
-        self.base_url = "https://www.nfldraftbuzz.com"
 
-    def scrape_from_url(self, url: str, skip_image: bool = False) -> ProspectData:
+    def scrape_from_url(self, url: str, get_image: bool = True) -> ProspectData:
         """Scrape prospect data from a URL."""
         full_url = f"{self.base_url}{url}"
 
-        text_content, image_data, image_type = self.fetcher.fetch(full_url)
-
-        if skip_image:
-            image_data = None
-
+        text_content, image_data, image_type = self.fetcher.fetch(full_url,
+                                                                  attempt_image_fetch=get_image)
         print("Parsing prospect data...")
         data = self.parser.parse(text_content, image_data, image_type)
 
@@ -870,15 +945,8 @@ class DraftBuzzScraper:
     def generate_output_path(self, data: ProspectData) -> str:
         """Generate default output path from prospect name."""
         safe_name = re.sub(r'[^\w\s-]', '', data.name).replace(' ', '_')
-        return f"{safe_name}_Scouting_Report.docx"
-
-    def scrape_and_generate(self, slug, output_directory, generate_inline):
-        data = self.scrape_from_url(url=slug)
-
-        if generate_inline:
-            file_name = self.generate_output_path(data=data)
-            file_path = Path(output_directory, file_name)
-            self.generate_document(data=data, output_path=str(file_path))
+        padded_pos_rank = data.position_rank.zfill(2)
+        return f"{padded_pos_rank}_{safe_name}_Scouting_Report.docx"
 
     def print_summary(self, data: ProspectData) -> None:
         """Print summary of extracted data."""

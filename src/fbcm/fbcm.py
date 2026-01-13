@@ -367,7 +367,8 @@ def extract_draft_profiles(ctx,
             position_player_data = {}
             for prof_slug in position_profiles:
                 time.sleep(uniform(3.5, 4.5))
-                player_data = scraper.scrape_from_url(url=prof_slug)
+                player_data = scraper.scrape_from_url(url=prof_slug,
+                                                      get_image=True)
                 position_player_data[player_data.name] = player_data
 
                 if generate_inline:
