@@ -20,14 +20,12 @@ import io
 import re
 import time
 from abc import ABC, abstractmethod
-from collections import defaultdict
+from pathlib import Path
 from dataclasses import dataclass, field
-from playwright.sync_api import sync_playwright, Playwright, Browser
+from playwright.sync_api import sync_playwright, Playwright, Browser, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
 from random import uniform
 from typing import Optional, List, Dict, Tuple
 from urllib.parse import urljoin
-
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -131,10 +129,22 @@ class PageFetcher:
 
     SKIP_IMAGE_PATTERNS = ['logo', 'icon', 'ad', 'sponsor', 'badge', 'button', '1x1']
 
+    MAX_RETRIES = 3
+
     def __init__(self, playwright: Playwright, headless: bool = False):
+        self.playwright = playwright
         self.headless = headless
-        self.browser = playwright.firefox.launch(headless=headless,
-                                                 slow_mo=150)
+        self.browser = self._launch_browser()
+
+    def _launch_browser(self) -> Browser:
+        """Launch a new browser instance."""
+        return self.playwright.firefox.launch(headless=self.headless, slow_mo=150)
+
+    def _ensure_browser_connected(self) -> None:
+        """Ensure browser is connected, relaunch if necessary."""
+        if not self.browser.is_connected():
+            print("Browser disconnected, relaunching...")
+            self.browser = self._launch_browser()
 
     def fetch(self, url: str, attempt_image_fetch: bool = False) -> Tuple[str, Optional[bytes], str]:
         """
@@ -142,32 +152,56 @@ class PageFetcher:
 
         Args:
             url: The URL to fetch.
+            attempt_image_fetch: Whether to attempt downloading the player image.
 
         Returns:
             Tuple of (page_text, image_bytes, image_type).
-            :param attempt_image_fetch:
         """
-        print("Launching browser...")
+        last_error = None
 
-        # self.browser.new_context()
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                return self._fetch_with_page(url, attempt_image_fetch)
+            except PlaywrightError as e:
+                last_error = e
+                error_msg = str(e).lower()
+                if "target closed" in error_msg or "browser has been closed" in error_msg:
+                    print(f"Browser/target closed (attempt {attempt + 1}/{self.MAX_RETRIES}), relaunching...")
+                    try:
+                        self.browser.close()
+                    except Exception:
+                        pass  # Browser may already be closed
+                    self.browser = self._launch_browser()
+                    time.sleep(1)  # Brief pause before retry
+                else:
+                    raise  # Re-raise if it's a different Playwright error
+
+        raise last_error  # All retries exhausted
+
+    def _fetch_with_page(self, url: str, attempt_image_fetch: bool) -> Tuple[str, Optional[bytes], str]:
+        """Internal method to fetch a page. May raise PlaywrightError."""
+        self._ensure_browser_connected()
+        print("Opening new page...")
+
         page = self.browser.new_page()
-
-        print(f"Navigating to: {url}")
         try:
-            page.goto(url, wait_until='networkidle', timeout=self.PAGE_LOAD_TIMEOUT)
-        except PlaywrightTimeout:
-            print("Page load timeout, continuing with partial content...")
+            print(f"Navigating to: {url}")
+            try:
+                page.goto(url, wait_until='networkidle', timeout=self.PAGE_LOAD_TIMEOUT)
+            except PlaywrightTimeout:
+                print("Page load timeout, continuing with partial content...")
 
-        page.wait_for_timeout(self.CONTENT_WAIT_TIME)
+            page.wait_for_timeout(self.CONTENT_WAIT_TIME)
 
-        text_content = page.evaluate('() => document.body.innerText')
-        if attempt_image_fetch:
-            image_data, image_type = self._find_and_download_image(page, url)
-        else:
-            image_data = None
-            image_type = None
-        page.close()
-        return text_content, image_data, image_type
+            text_content = page.evaluate('() => document.body.innerText')
+            if attempt_image_fetch:
+                image_data, image_type = self._find_and_download_image(page, url)
+            else:
+                image_data = None
+                image_type = None
+            return text_content, image_data, image_type
+        finally:
+            page.close()
 
     def _find_and_download_image(self, page, base_url: str) -> Tuple[Optional[bytes], str]:
         """Find and download the player image from the page."""
@@ -838,6 +872,14 @@ class DraftBuzzScraper:
         safe_name = re.sub(r'[^\w\s-]', '', data.name).replace(' ', '_')
         return f"{safe_name}_Scouting_Report.docx"
 
+    def scrape_and_generate(self, slug, output_directory, generate_inline):
+        data = self.scrape_from_url(url=slug)
+
+        if generate_inline:
+            file_name = self.generate_output_path(data=data)
+            file_path = Path(output_directory, file_name)
+            self.generate_document(data=data, output_path=str(file_path))
+
     def print_summary(self, data: ProspectData) -> None:
         """Print summary of extracted data."""
         print("\nExtracted data summary:")
@@ -852,10 +894,35 @@ class DraftBuzzScraper:
 
 
 class ProspectProfileListExtractor:
+    MAX_RETRIES = 3
+
     def __init__(self, playwright: Playwright):
         self.playwright = playwright
-        self.browser = self.playwright.firefox.launch(headless=False)
+        self.browser = self._launch_browser()
         self.base_url = "https://www.nfldraftbuzz.com"
+
+    def _launch_browser(self) -> Browser:
+        """Launch a new browser instance."""
+        return self.playwright.firefox.launch(headless=False)
+
+    def _ensure_browser_connected(self) -> None:
+        """Ensure browser is connected, relaunch if necessary."""
+        if not self.browser.is_connected():
+            print("Browser disconnected, relaunching...")
+            self.browser = self._launch_browser()
+
+    def _navigate_with_retry(self, page, url: str) -> None:
+        """Navigate to URL with retry logic for browser crashes."""
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                page.goto(url)
+                return
+            except PlaywrightError as e:
+                error_msg = str(e).lower()
+                if "target closed" in error_msg or "browser has been closed" in error_msg:
+                    print(f"Browser/target closed during navigation (attempt {attempt + 1}/{self.MAX_RETRIES})")
+                    raise  # Let caller handle browser relaunch
+                raise
 
     def extract_prospect_hrefs(self, page):
         print(f"Extracting prospect hrefs for {page.url}")
@@ -868,21 +935,43 @@ class ProspectProfileListExtractor:
 
         path = f"/positions/{pos}/1/2026"
         full_url = f"{self.base_url}{path}"
-        page = self.browser.new_page()
-        page.goto(full_url)
 
+        page = self._create_page_with_retry(full_url)
         all_profiles.extend(self.extract_prospect_hrefs(page=page))
         links = page.locator('ul.pagination li.page-item a.page-link[href]')
         position_page_hrefs = links.evaluate_all("anchors => anchors.map(a => a.getAttribute('href'))")
 
         for path in position_page_hrefs:
             page.close()
-            page = self.browser.new_page()
             full_url = f"{self.base_url}{path}"
-            page.goto(full_url)
+            page = self._create_page_with_retry(full_url)
             time.sleep(uniform(4.5, 5.5))
 
             prospect_hrefs = self.extract_prospect_hrefs(page)
             all_profiles.extend(prospect_hrefs)
 
         return all_profiles
+
+    def _create_page_with_retry(self, url: str):
+        """Create a new page and navigate to URL with retry on browser crash."""
+        last_error = None
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                self._ensure_browser_connected()
+                page = self.browser.new_page()
+                page.goto(url)
+                return page
+            except PlaywrightError as e:
+                last_error = e
+                error_msg = str(e).lower()
+                if "target closed" in error_msg or "browser has been closed" in error_msg:
+                    print(f"Browser/target closed (attempt {attempt + 1}/{self.MAX_RETRIES}), relaunching...")
+                    try:
+                        self.browser.close()
+                    except Exception:
+                        pass
+                    self.browser = self._launch_browser()
+                    time.sleep(1)
+                else:
+                    raise
+        raise last_error

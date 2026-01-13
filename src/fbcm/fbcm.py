@@ -7,6 +7,7 @@ from random import uniform
 from typing import Tuple
 import click
 from playwright.sync_api import sync_playwright
+from playwright._impl._errors import TargetClosedError
 
 from .base import (
     DEFAULT_REPLAY_TYPES,
@@ -376,10 +377,6 @@ def extract_draft_profiles(ctx,
             all_data[pos] = position_player_data
 
             time.sleep(uniform(10, 20))
-
-
-
-
 
     # url = "https://www.nfldraftbuzz.com/Player/Fernando-Mendoza-QB-California"
     # from fbcm.draft_buzz import DraftBuzzScraper
