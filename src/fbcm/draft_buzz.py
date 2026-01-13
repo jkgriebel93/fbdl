@@ -35,42 +35,6 @@ from docx.oxml import OxmlElement
 
 POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
 
-# Position-specific stat categories and their fields
-POSITION_STAT_MAPPINGS = {
-    "QB": {
-        "Passing": ["CMP", "ATT", "CMP%", "YDS", "TD", "INT", "SACK", "QB Rtg"]
-    },
-    "RB": {
-        "Rushing": ["ATT", "YDS", "AVG", "TD"],
-        "Receiving": ["REC", "YDS", "AVG", "TD"]
-    },
-    "WR": {
-        "Receiving": ["REC", "YDS", "AVG", "TD"],
-        "Rushing": ["ATT", "YDS", "AVG", "TD"]
-    },
-    "TE": {
-        "Receiving": ["REC", "YDS", "AVG", "TD"],
-        "Rushing": ["ATT", "YDS", "AVG", "TD"]
-    },
-    "OL": {},
-    "DL": {
-        "Tackles": ["TOTAL", "SOLO", "FF", "SACKS"],
-        "Interceptions": ["INTS", "YDS", "TDS", "PDS"]
-    },
-    "EDGE": {
-        "Tackles": ["TOTAL", "SOLO", "FF", "SACKS"],
-        "Interceptions": ["INTS", "YDS", "TDS", "PDS"]
-    },
-    "LB": {
-        "Tackles": ["TOTAL", "SOLO", "FF", "SACKS"],
-        "Interceptions": ["INTS", "YDS", "TDS", "PDS"]
-    },
-    "DB": {
-        "Tackles": ["TOTAL", "SOLO", "FF", "SACKS"],
-        "Interceptions": ["INTS", "YDS", "TDS", "PDS"]
-    }
-}
-
 @dataclass
 class ProspectData:
     """Container for all prospect information."""
@@ -98,8 +62,13 @@ class ProspectData:
     draft_projection: str = ""
     defense_rating: str = ""
 
-    # Stats - organized by category (e.g., {"Passing": {"CMP": "123", "ATT": "200"}, "Rushing": {...}})
-    stats: Dict[str, Dict[str, str]] = field(default_factory=dict)
+    # Stats
+    qb_rating: str = ""
+    yards: str = ""
+    comp_pct: str = ""
+    tds: str = ""
+    ints: str = ""
+    rush_avg: str = ""
     college_games: str = ""
     college_snaps: str = ""
 
@@ -398,70 +367,20 @@ class ProspectParser:
                 setattr(data, attr, value)
 
     def _parse_stats(self, text: str, data: ProspectData) -> None:
-        """Extract player statistics based on position."""
-        position = data.position
-        if not position or position not in POSITION_STAT_MAPPINGS:
-            return
-
-        stat_categories = POSITION_STAT_MAPPINGS[position]
-        if not stat_categories:
-            return  # OL has no stats
-
-        for category, stat_names in stat_categories.items():
-            category_stats = self._parse_stat_category(text, category, stat_names)
-            if category_stats:
-                data.stats[category] = category_stats
-
-    def _parse_stat_category(self, text: str, category: str, stat_names: List[str]) -> Dict[str, str]:
-        """Parse stats for a specific category (e.g., Passing, Rushing, etc.)."""
-        stats = {}
-
-        # Find the category section in text (e.g., "PASSING" or "RUSHING" or "TACKLES")
-        category_pattern = rf'{category.upper()}\s*\n([\s\S]*?)(?=(?:RUSHING|RECEIVING|PASSING|TACKLES|INTERCEPTIONS|RECRUITING|SCOUTING|DRAFT PROFILE|$))'
-        category_match = re.search(category_pattern, text, re.IGNORECASE)
-
-        if category_match:
-            section_text = category_match.group(1)
-        else:
-            section_text = text  # Fall back to searching entire text
-
-        # Parse each stat - look for the stat name followed by a numeric value
-        for stat_name in stat_names:
-            value = self._extract_stat_value(section_text, stat_name)
-            if value:
-                stats[stat_name] = value
-
-        return stats
-
-    def _extract_stat_value(self, text: str, stat_name: str) -> Optional[str]:
-        """Extract a single stat value from text."""
-        # Handle special stat name variations
-        stat_patterns = {
-            'CMP%': r'CMP\s*%\s*\n?\s*([\d.]+)',
-            'CMP': r'(?<!%)CMP(?!\s*%)\s*\n?\s*(\d+)',
-            'QB Rtg': r'QB\s*R(?:T|t)(?:G|g)\s*\n?\s*([\d.]+)',
-            'ATT': r'ATT\s*\n?\s*(\d+)',
-            'YDS': r'YDS\s*\n?\s*([\d,]+)',
-            'TD': r'(?<!%)TD(?!S)\s*\n?\s*(\d+)',
-            'TDS': r'TDS\s*\n?\s*(\d+)',
-            'INT': r'(?<!%)INT(?!S)\s*\n?\s*(\d+)',
-            'INTS': r'INTS\s*\n?\s*(\d+)',
-            'SACK': r'SACK(?!S)\s*\n?\s*(\d+)',
-            'SACKS': r'SACKS\s*\n?\s*([\d.]+)',
-            'REC': r'REC\s*\n?\s*(\d+)',
-            'AVG': r'AVG\s*\n?\s*([\d.]+)',
-            'TOTAL': r'TOTAL\s*\n?\s*(\d+)',
-            'SOLO': r'SOLO\s*\n?\s*(\d+)',
-            'FF': r'FF\s*\n?\s*(\d+)',
-            'PDS': r'PDS\s*\n?\s*(\d+)',
+        """Extract player statistics (primarily for QBs)."""
+        patterns = {
+            'qb_rating': r'QB RATING\s*\n?\s*([\d.]+)',
+            'yards': r'YDS\s*\n?\s*(\d+)',
+            'comp_pct': r'COMP %\s*\n?\s*([\d.]+)',
+            'tds': r'TDS\s*\n?\s*(\d+)',
+            'ints': r'INTS\s*\n?\s*(\d+)',
+            'rush_avg': r'RUSH AVG\s*\n?\s*([\d.]+)',
         }
 
-        pattern = stat_patterns.get(stat_name, rf'{re.escape(stat_name)}\s*\n?\s*([\d.]+)')
-        match = re.search(pattern, text)
-        if match:
-            value = match.group(1).replace(',', '')  # Remove commas from numbers
-            return value
-        return None
+        for attr, pattern in patterns.items():
+            match = re.search(pattern, text)
+            if match:
+                setattr(data, attr, match.group(1))
 
     def _parse_skill_ratings(self, text: str, data: ProspectData) -> None:
         """Extract skill ratings (percentiles)."""
@@ -692,39 +611,26 @@ class WordDocumentGenerator:
         self.doc.add_paragraph()
 
     def _add_statistics(self, data: ProspectData) -> None:
-        """Add statistics tables for all stat categories."""
-        if not data.stats:
+        """Add statistics table (for QBs)."""
+        if data.position != "QB" or not any([data.qb_rating, data.yards, data.comp_pct]):
             return
 
         self.doc.add_heading("STATISTICS", level=1)
 
-        for category, stats in data.stats.items():
-            if not stats:
-                continue
-
-            self._add_stat_category_table(category, stats)
-
-    def _add_stat_category_table(self, category: str, stats: Dict[str, str]) -> None:
-        """Add a single stat category table (e.g., Passing, Rushing, etc.)."""
-        # Add category subheading
-        category_para = self.doc.add_paragraph()
-        category_run = category_para.add_run(category.upper())
-        category_run.font.bold = True
-        category_run.font.size = Pt(12)
-
-        # Get stat names and values in order
-        stat_names = list(stats.keys())
-        stat_values = [stats.get(name, "N/A") for name in stat_names]
-
-        if not stat_names:
-            return
-
-        # Create table with headers and values
-        stats_table = self.doc.add_table(rows=2, cols=len(stat_names))
+        stats_table = self.doc.add_table(rows=2, cols=6)
         stats_table.alignment = WD_TABLE_ALIGNMENT.CENTER
 
-        # Add headers
-        for i, header in enumerate(stat_names):
+        stat_headers = ["QB Rating", "Yards", "Comp %", "TDs", "INTs", "Rush Avg"]
+        stat_values = [
+            data.qb_rating or "N/A",
+            data.yards or "N/A",
+            f"{data.comp_pct}%" if data.comp_pct else "N/A",
+            data.tds or "N/A",
+            data.ints or "N/A",
+            data.rush_avg or "N/A"
+        ]
+
+        for i, header in enumerate(stat_headers):
             cell = stats_table.rows[0].cells[i]
             cell.text = header
             cell.paragraphs[0].runs[0].bold = True
@@ -732,10 +638,9 @@ class WordDocumentGenerator:
             self._set_cell_shading(cell, self.STATS_HEADER_COLOR)
             cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
 
-        # Add values
         for i, value in enumerate(stat_values):
             cell = stats_table.rows[1].cells[i]
-            cell.text = str(value) if value else "N/A"
+            cell.text = value
             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
             self._set_cell_shading(cell, "E6FFE6")
 
@@ -912,6 +817,7 @@ class DraftBuzzScraper:
                                               base_url=self.base_url)
         self.parser = parser or ProspectParser()
         self.doc_generator = doc_generator or WordDocumentGenerator()
+        self.position_rankings_used = defaultdict(list)
 
     def scrape_from_url(self, url: str, get_image: bool = True) -> ProspectData:
         """Scrape prospect data from a URL."""
@@ -942,10 +848,25 @@ class DraftBuzzScraper:
         print(f"Filename: {output_path}")
         self.doc_generator.generate(data, output_path)
 
+    def _get_prospect_position_rank(self, prospect_data: ProspectData):
+        current_rank = int(prospect_data.position_rank)
+        rank_is_valid = False
+        while not rank_is_valid:
+            if current_rank not in self.position_rankings_used[prospect_data.position]:
+                rank_is_valid = True
+                self.position_rankings_used[prospect_data.position].append(current_rank)
+            else:
+                print(f"Attempting to use rank that has already been assigned: {current_rank}")
+                print("Searching for new one")
+                current_rank += 1
+
+        return str(current_rank)
+
     def generate_output_path(self, data: ProspectData) -> str:
         """Generate default output path from prospect name."""
         safe_name = re.sub(r'[^\w\s-]', '', data.name).replace(' ', '_')
-        padded_pos_rank = data.position_rank.zfill(2)
+        rank = self._get_prospect_position_rank(prospect_data=data)
+        padded_pos_rank = rank.zfill(2)
         return f"{padded_pos_rank}_{safe_name}_Scouting_Report.docx"
 
     def print_summary(self, data: ProspectData) -> None:
