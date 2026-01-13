@@ -130,6 +130,12 @@ DEFAULT_REPLAY_TYPES = {
     "condensed_game": "Condensed Game",
     "full_game_alternative": "Full Game - Alternative Broadcasts",
 }
+OUTPUT_FORMATS = {
+    "json": "JSON",
+    "yaml": "YAML",
+    "csv": "CSV",
+    "docx": "Microsoft Word"
+}
 MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
 THROTTLED_RATE_LIMIT = os.getenv("THROTTLED_RATE_LIMIT", 1000000)
 

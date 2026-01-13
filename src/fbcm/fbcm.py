@@ -1,18 +1,22 @@
 import json
 import os
+import time
 from datetime import date
 from pathlib import Path
+from random import uniform
 from typing import Tuple
-
 import click
+from playwright.sync_api import sync_playwright
 
 from .base import (
     DEFAULT_REPLAY_TYPES,
+    OUTPUT_FORMATS,
     TEAM_FULL_NAMES,
     BaseDownloader,
     FileOperationsUtil,
     MetaDataCreator,
 )
+from .draft_buzz import POSITIONS, DraftBuzzScraper
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 from .utils import apply_config_to_kwargs, find_config, load_config
 
@@ -293,6 +297,95 @@ def nfl_games(
                 replay_types=replay_type,
                 start_ep=start_ep,
             )
+
+
+@cli.command()
+@click.option(
+    "--output-directory",
+    envvar="DESTINATION_DIR",
+    type=click.Path(exists=True),
+    help="Directory the downloaded games should be saved to.",
+)
+@click.option(
+    "--output-format",
+    default="json",
+    type=click.Choice(OUTPUT_FORMATS.keys(), case_sensitive=False),
+    help="Format to generate the draft profile(s) in."
+)
+@click.option(
+    "--player-slug",
+    type=str,
+    help="The slug used by nfldraftbuzz.com for the Player's profile."
+)
+@click.option(
+    "--position",
+    type=str,
+    multiple=True,
+    help="Extract draft profiles for the specified position"
+)
+@click.option("--input-file",
+              type=click.Path(exists=True),
+              help="A text file containing multiple player slugs "
+                   "(one per line) to extract profiles for.")
+@click.option("--generate-inline",
+              default=None,
+              is_flag=True,
+              flag_value=True,
+              help="When this flag is passed, the application will generate reports for each "
+                   "player as there are fetched, instead of at the end of the process."
+              )
+@click.pass_context
+def extract_draft_profiles(ctx,
+                           output_directory: str,
+                           output_format: str,
+                           player_slug: str,
+                           position: str,
+                           input_file: str,
+                           generate_inline: bool):
+    selected_positions = list(position)
+    if not selected_positions:
+        print("No positions selected. Defaulting to all.")
+        selected_positions = POSITIONS
+    print(f"Position: {selected_positions}")
+
+
+    with open(input_file, "r") as infile:
+        profile_urls = json.load(infile)
+
+    with sync_playwright() as playwright:
+        scraper = DraftBuzzScraper(playwright=playwright)
+
+        all_data = {}
+        for pos in selected_positions:
+            if pos not in profile_urls:
+                raise click.BadParameter(f"{pos} is not present in the input file.")
+
+            position_profiles = profile_urls[pos]
+            click.echo(f"Found {len(position_profiles)} {pos} profile URLs to extract.")
+
+            position_player_data = {}
+            for prof_slug in position_profiles:
+                time.sleep(uniform(3.5, 4.5))
+                player_data = scraper.scrape_from_url(url=prof_slug)
+                position_player_data[player_data.name] = player_data
+
+                if generate_inline:
+                    file_name = scraper.generate_output_path(data=player_data)
+                    file_path = Path(output_directory, pos, file_name)
+                    scraper.generate_document(data=player_data, output_path=str(file_path))
+            all_data[pos] = position_player_data
+
+            time.sleep(uniform(10, 20))
+
+
+
+
+
+    # url = "https://www.nfldraftbuzz.com/Player/Fernando-Mendoza-QB-California"
+    # from fbcm.draft_buzz import DraftBuzzScraper
+    # dbs = DraftBuzzScraper()
+    # prospect_data = dbs.scrape_from_url(url=url)
+    # print(prospect_data)
 
 
 @cli.command()
