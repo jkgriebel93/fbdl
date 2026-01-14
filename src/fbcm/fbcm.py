@@ -353,31 +353,34 @@ def extract_draft_profiles(ctx,
     with open(input_file, "r") as infile:
         profile_urls = json.load(infile)
 
+    mendoza_slug = profile_urls["QB"][1]
     with sync_playwright() as playwright:
         scraper = DraftBuzzScraper(playwright=playwright)
+        data = scraper.scrape_from_url(url=mendoza_slug, get_image=True)
+        print(data)
 
-        all_data = {}
-        for pos in selected_positions:
-            if pos not in profile_urls:
-                raise click.BadParameter(f"{pos} is not present in the input file.")
-
-            position_profiles = profile_urls[pos]
-            click.echo(f"Found {len(position_profiles)} {pos} profile URLs to extract.")
-
-            position_player_data = {}
-            for prof_slug in position_profiles:
-                time.sleep(uniform(3.5, 4.5))
-                player_data = scraper.scrape_from_url(url=prof_slug,
-                                                      get_image=True)
-                position_player_data[player_data.name] = player_data
-
-                if generate_inline:
-                    file_name = scraper.generate_output_path(data=player_data)
-                    file_path = Path(output_directory, pos, file_name)
-                    scraper.generate_document(data=player_data, output_path=str(file_path))
-            all_data[pos] = position_player_data
-
-            time.sleep(uniform(10, 20))
+        # all_data = {}
+        # for pos in selected_positions:
+        #     if pos not in profile_urls:
+        #         raise click.BadParameter(f"{pos} is not present in the input file.")
+        #
+        #     position_profiles = profile_urls[pos]
+        #     click.echo(f"Found {len(position_profiles)} {pos} profile URLs to extract.")
+        #
+        #     position_player_data = {}
+        #     for prof_slug in position_profiles:
+        #         time.sleep(uniform(3.5, 4.5))
+        #         player_data = scraper.scrape_from_url(url=prof_slug,
+        #                                               get_image=True)
+        #         position_player_data[player_data.name] = player_data
+        #
+        #         if generate_inline:
+        #             file_name = scraper.generate_output_path(data=player_data)
+        #             file_path = Path(output_directory, pos, file_name)
+        #             scraper.generate_document(data=player_data, output_path=str(file_path))
+        #     all_data[pos] = position_player_data
+        #
+        #     time.sleep(uniform(10, 20))
 
     # url = "https://www.nfldraftbuzz.com/Player/Fernando-Mendoza-QB-California"
     # from fbcm.draft_buzz import DraftBuzzScraper

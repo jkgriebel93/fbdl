@@ -21,6 +21,7 @@ import time
 from collections import defaultdict
 from pathlib import Path
 from dataclasses import dataclass, field
+from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright, Playwright, Browser, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
 from random import uniform
 from typing import Optional, List, Dict, Tuple
@@ -31,6 +32,14 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+
+from fbcm.models import (PassingStats,
+                         RushingStats,
+                         ReceivingStats,
+                        OffenseSkillPlayerStats,
+                         DefenseStats)
+
+type Stats = PassingStats | RushingStats | ReceivingStats | OffenseSkillPlayerStats | DefenseStats
 
 
 POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
@@ -63,12 +72,7 @@ class ProspectData:
     defense_rating: str = ""
 
     # Stats
-    qb_rating: str = ""
-    yards: str = ""
-    comp_pct: str = ""
-    tds: str = ""
-    ints: str = ""
-    rush_avg: str = ""
+    stats: Stats | None = None
     college_games: str = ""
     college_snaps: str = ""
 
@@ -164,6 +168,17 @@ class PageFetcher:
 
         raise last_error  # All retries exhausted
 
+    def fetch_soup(self, url) -> BeautifulSoup:
+        self._ensure_browser_connected()
+        page = self.browser.new_page()
+        try:
+            print(f"Navigating to: {url}")
+            page.goto(url=url)
+            return BeautifulSoup(page.content())
+        finally:
+            page.close()
+
+
     def _fetch_with_page(self, url: str, attempt_image_fetch: bool) -> Tuple[str, Optional[bytes], str]:
         """Internal method to fetch a page. May raise PlaywrightError."""
         self._ensure_browser_connected()
@@ -183,6 +198,7 @@ class PageFetcher:
             else:
                 image_data = None
                 image_type = None
+            # TODO: Returning both text_content and page.content is a temporary kludge
             return text_content, image_data, image_type
         finally:
             page.close()
@@ -272,8 +288,11 @@ class ProspectParser:
         ('Rush/Scramble', r'RUSH/SCRAMBLE:\s*\n?\s*(\d+)%'),
     ]
 
+    def __init__(self):
+        self.soup = None
+
     def parse(self, text: str, image_data: Optional[bytes] = None,
-              image_type: str = "jpeg") -> ProspectData:
+              image_type: str = "jpeg", html_str: str = None) -> ProspectData:
         """Parse page text and extract all prospect data."""
         data = ProspectData()
         data.image_data = image_data
@@ -365,6 +384,48 @@ class ProspectParser:
             if match:
                 value = match.group(1).strip() if attr == 'draft_projection' else match.group(1)
                 setattr(data, attr, value)
+
+    def _transform_passing_stats(self, season_stats):
+        season_stats["cmp_pct"] = season_stats.pop("cmp%")
+        season_stats["ints"] = season_stats.pop("int")
+        season_stats["qb_rtg"] = season_stats.pop("pro rat")
+        season_stats.pop("rat")
+        season_stats.pop("avg")
+
+        season_stats["year"] = season_stats.pop("year").split()[0]
+
+        for fld in ["cmp", "att", "yds", "td", "ints", "sack", "year"]:
+            season_stats[fld] = int(season_stats[fld])
+        for fld in ["cmp_pct", "qb_rtg"]:
+            season_stats[fld] = float(season_stats[fld])
+
+        return season_stats
+
+
+    def _extract_raw_table_dict(self, div) -> List[Dict]:
+        stats_table = div.find("table")
+        header_values = [th.get_text(strip=True).lower()
+                         for th in stats_table.thead.find_all("th")]
+        seasons = []
+        for row in stats_table.tbody.find_all("tr"):
+            cells = [td.get_text(strip=True) for td in row.find_all("td")]
+            season_stats = dict(zip(header_values, cells))
+            season_stats = self._transform_passing_stats(season_stats=season_stats)
+            seasons.append(season_stats)
+        seasons.sort(key=lambda d: d["year"], reverse=True)
+        return seasons
+
+    def _parse_stats_soup(self, position: str, soup: BeautifulSoup):
+        stats = None
+        match position:
+            case "QB":
+                table_div = soup.find(id="QBstats")
+                stats_dict = self._extract_raw_table_dict(div=table_div)[0]
+                stats = PassingStats(**stats_dict)
+            case _:
+                print(f"Could not match position {position} to any known group.")
+
+        return stats
 
     def _parse_stats(self, text: str, data: ProspectData) -> None:
         """Extract player statistics (primarily for QBs)."""
@@ -825,8 +886,17 @@ class DraftBuzzScraper:
 
         text_content, image_data, image_type = self.fetcher.fetch(full_url,
                                                                   attempt_image_fetch=get_image)
+        slug_parts = url.split("/")
+        player_stats_slug = f"/{slug_parts[1]}/stats/{slug_parts[-1]}"
+        full_url = f"{self.base_url}{player_stats_slug}"
+
         print("Parsing prospect data...")
         data = self.parser.parse(text_content, image_data, image_type)
+        print("Fetching stats page")
+        stats_soup = self.fetcher.fetch_soup(url=full_url)
+        print("Attempting to parse stats")
+        stats_data = self.parser._parse_stats_soup(position=data.position, soup=stats_soup)
+        print(f"Stats Data: {stats_data}")
 
         if not data.name:
             data.name = self.parser.extract_name_from_url(url) or "Unknown Player"
