@@ -215,62 +215,16 @@ class PageFetcher:
         return 'jpeg'
 
 
-class ProspectParser:
-    """Parses page text content and extracts prospect data."""
-
-    POSITIONS = {'QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'EDGE', 'LB', 'DB', 'CB', 'S', 'PK', 'P'}
-
-    SKILL_PATTERNS = [
-        ('Release Speed', r'RELEASE SPEED:\s*\n?\s*(\d+)%'),
-        ('Short Passing', r'SHORT PASSING:\s*\n?\s*(\d+)%'),
-        ('Medium Passing', r'MEDIUM PASSING:\s*\n?\s*(\d+)%'),
-        ('Long Passing', r'LONG PASSING:\s*\n?\s*(\d+)%'),
-        ('Rush/Scramble', r'RUSH/SCRAMBLE:\s*\n?\s*(\d+)%'),
-    ]
-
+class ProspectParserSoup:
+    """
+    Parses nfldraftbuzz.com prospect profiles using BeautifulSoup
+    """
     def __init__(self):
         self.soup = None
-        self.position = None
-
-    def parse(self, text: str, image_data: Optional[bytes] = None,
-              image_type: str = "jpeg", html_str: str = None) -> ProspectData:
-        """Parse page text and extract all prospect data."""
-        data = ProspectData()
-        data.image_data = image_data
-        data.image_type = image_type
-
-
-
-        self._parse_name(text, data)
-        self._parse_basic_info(text, data)
-        self._parse_ratings(text, data)
-        # self._parse_stats(text, data)
-        self._parse_skill_ratings(text, data)
-        self._parse_recruiting_grades(text, data)
-        self._parse_comparisons(text, data)
-        self._parse_scouting_content(text, data)
-        self._parse_consensus_rankings(text, data)
-
-        return data
-
-    def _parse_name(self, text: str, data: ProspectData) -> None:
-        """Extract player name from page text."""
-        pos_pattern = '|'.join(self.POSITIONS)
-        title_match = re.search(
-            rf'([A-Z]+)\s+([A-Z]+)\s+({pos_pattern})\s+[A-Z]+\s*\|\s*NFL DRAFT',
-            text
-        )
-        if title_match:
-            data.name = f"{title_match.group(1).title()} {title_match.group(2).title()}"
-            return
-
-        name_match = re.search(r'SIMULATOR\s*\n?\s*([A-Z]+)\s*\n\s*([A-Z]+)\s*\n?\s*HEIGHT', text)
-        if name_match:
-            data.name = f"{name_match.group(1).title()} {name_match.group(2).title()}"
-
-    def _parse_name_soup(self, soup: BeautifulSoup) -> Tuple[str, str]:
-        first_name = soup.find("span", class_="player-info__first-name").get_text(strip=True)
-        last_name = soup.find("span", class_="player-info__last-name").get_text(strip=True)
+    
+    def parse_name(self) -> Tuple[str, str]:
+        first_name = self.soup.find("span", class_="player-info__first-name").get_text(strip=True)
+        last_name = self.soup.find("span", class_="player-info__last-name").get_text(strip=True)
 
         return first_name, last_name
 
@@ -302,7 +256,7 @@ class ProspectParser:
 
         return position_group_str
 
-    def _parse_player_info_details_div(self, div) -> Dict:
+    def _parse_player_info_details_div(self, div: Tag) -> Dict:
         # This div contains the values for:
         # height, weight, college, position, player_class, hometown
         basic_info_dict = {}
@@ -365,56 +319,6 @@ class ProspectParser:
                          full_name=f"{first_name} {last_name}",
                          **basic_info_dict)
 
-    def _parse_basic_info(self, text: str, data: ProspectData) -> None:
-        # TODO: All but college_games and college_snaps are completed.
-        """Extract basic player information."""
-        patterns = {
-            'height': (r'HEIGHT\s*\n?\s*(\d+-\d+)', 'height'),
-            'weight': (r'WEIGHT\s*\n?\s*(\d+)', 'weight'),
-            'school': (r'COLLEGE\s*\n?\s*([A-Za-z\s]+?)\s*\n', 'school'),
-            'position': (rf'POSITION\s*\n?\s*({"|".join(self.POSITIONS)})', 'position'),
-            'player_class': (r'CLASS\s*\n?\s*(Freshman|Sophomore|Junior|Senior|RS\s*\w+)', 'player_class'),
-            'hometown': (r'HOME\s*TOWN\s*\n?\s*([A-Za-z\s,]+?)(?:\n|$)', 'hometown'),
-            'jersey': (r'JERSEY:\s*#(\d+)', 'jersey'),
-            'play_style': (r'PLAY STYLE:\s*([A-Z\s]+?)(?:\n|LAST)', 'play_style'),
-            'last_updated': (r'LAST UPDATED:\s*(\d+/\d+/\d+)', 'last_updated'),
-            'draft_year': (r'DRAFT YEAR:\s*(\d+)', 'draft_year'),
-            'college_games': (r'COLLEGE GAMES:\s*(\d+)', 'college_games'),
-            'college_snaps': (r'COLLEGE SNAPS:\s*(\d+)', 'college_snaps'),
-        }
-
-        for _, (pattern, attr) in patterns.items():
-            match = re.search(pattern, text, re.IGNORECASE if attr == 'player_class' else 0)
-            if match:
-                value = match.group(1).strip() if attr in ('school', 'hometown', 'play_style') else match.group(1)
-                setattr(data, attr, value)
-
-        print("ARMADILLO")
-        print(data)
-
-        self.position = data.position
-
-        # Age and DOB combined pattern
-        age_match = re.search(r'AGE:\s*([\d.]+)\s*DOB:\s*(\d+/\d+/\d+)', text)
-        if age_match:
-            data.age = age_match.group(1)
-            data.dob = age_match.group(2)
-
-        # Height/Weight with percentiles
-        hw_match = re.search(r'HEIGHT:\s*(\d+-\d+)\s*\((\d+)%\*?\)\s*WEIGHT:\s*(\d+)\s*\((\d+)%', text)
-        if hw_match:
-            data.height = f"{hw_match.group(1)} ({hw_match.group(2)}%)"
-            data.weight = f"{hw_match.group(3)} ({hw_match.group(4)}%)"
-
-        # Forty time with percentile
-        forty_match = re.search(r'FORTY TIME:\s*([\d.]+)\s*SECONDS\s*\((\d+)%', text)
-        if forty_match:
-            data.forty = f"{forty_match.group(1)} ({forty_match.group(2)}%)"
-        elif not data.forty:
-            forty_simple = re.search(r'(\d+\.\d+)\s*\n?\s*FORTY\s*YD\s*TIME', text)
-            if forty_simple:
-                data.forty = forty_simple.group(1)
-
     def _parse_ratings_soup(self, table: Tag):
         table_rows = table.find_all("tr")
         ovr_rtg_row = table_rows[0]
@@ -454,22 +358,6 @@ class ProspectParser:
         ratings = ratings_and_rankings[0]
         comparisons = ratings_and_rankings[1]
         return ratings, comparisons
-
-    def _parse_ratings(self, text: str, data: ProspectData) -> None:
-        """Extract player ratings."""
-        patterns = {
-            'overall_rating': r'(\d+\.\d+)\s*/100\s*\n?\s*PLAYER\s*RATING',
-            'position_rank': r'(\d+)\s*\n?\s*POSITION\s*RANK',
-            'overall_rank': r'OVERALL RANK:\s*#(\d+)',
-            'draft_projection': r'DRAFT PROJECTION:\s*([^\n]+)',
-            'defense_rating': r'DEFENSE RATING:\s*\n?\s*(\d+)%',
-        }
-
-        for attr, pattern in patterns.items():
-            match = re.search(pattern, text)
-            if match:
-                value = match.group(1).strip() if attr == 'draft_projection' else match.group(1)
-                setattr(data, attr, value)
 
     def _transform_passing_stats(self, season_stats):
         season_stats["cmp_pct"] = season_stats.pop("cmp%")
@@ -639,6 +527,126 @@ class ProspectParser:
             stats = self._extract_stats_object(div=table_div)[0]
 
         return stats
+
+
+class ProspectParser:
+    """Parses page text content and extracts prospect data."""
+
+    POSITIONS = {'QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'EDGE', 'LB', 'DB', 'CB', 'S', 'PK', 'P'}
+
+    SKILL_PATTERNS = [
+        ('Release Speed', r'RELEASE SPEED:\s*\n?\s*(\d+)%'),
+        ('Short Passing', r'SHORT PASSING:\s*\n?\s*(\d+)%'),
+        ('Medium Passing', r'MEDIUM PASSING:\s*\n?\s*(\d+)%'),
+        ('Long Passing', r'LONG PASSING:\s*\n?\s*(\d+)%'),
+        ('Rush/Scramble', r'RUSH/SCRAMBLE:\s*\n?\s*(\d+)%'),
+    ]
+
+    def __init__(self):
+        self.soup = None
+        self.position = None
+
+    def parse(self, text: str, image_data: Optional[bytes] = None,
+              image_type: str = "jpeg", html_str: str = None) -> ProspectData:
+        """Parse page text and extract all prospect data."""
+        data = ProspectData()
+        data.image_data = image_data
+        data.image_type = image_type
+
+
+
+        self._parse_name(text, data)
+        self._parse_basic_info(text, data)
+        self._parse_ratings(text, data)
+        # self._parse_stats(text, data)
+        self._parse_skill_ratings(text, data)
+        self._parse_recruiting_grades(text, data)
+        self._parse_comparisons(text, data)
+        self._parse_scouting_content(text, data)
+        self._parse_consensus_rankings(text, data)
+
+        return data
+
+    def _parse_name(self, text: str, data: ProspectData) -> None:
+        """Extract player name from page text."""
+        pos_pattern = '|'.join(self.POSITIONS)
+        title_match = re.search(
+            rf'([A-Z]+)\s+([A-Z]+)\s+({pos_pattern})\s+[A-Z]+\s*\|\s*NFL DRAFT',
+            text
+        )
+        if title_match:
+            data.name = f"{title_match.group(1).title()} {title_match.group(2).title()}"
+            return
+
+        name_match = re.search(r'SIMULATOR\s*\n?\s*([A-Z]+)\s*\n\s*([A-Z]+)\s*\n?\s*HEIGHT', text)
+        if name_match:
+            data.name = f"{name_match.group(1).title()} {name_match.group(2).title()}"
+
+    def _parse_basic_info(self, text: str, data: ProspectData) -> None:
+        # TODO: All but college_games and college_snaps are completed.
+        """Extract basic player information."""
+        patterns = {
+            'height': (r'HEIGHT\s*\n?\s*(\d+-\d+)', 'height'),
+            'weight': (r'WEIGHT\s*\n?\s*(\d+)', 'weight'),
+            'school': (r'COLLEGE\s*\n?\s*([A-Za-z\s]+?)\s*\n', 'school'),
+            'position': (rf'POSITION\s*\n?\s*({"|".join(self.POSITIONS)})', 'position'),
+            'player_class': (r'CLASS\s*\n?\s*(Freshman|Sophomore|Junior|Senior|RS\s*\w+)', 'player_class'),
+            'hometown': (r'HOME\s*TOWN\s*\n?\s*([A-Za-z\s,]+?)(?:\n|$)', 'hometown'),
+            'jersey': (r'JERSEY:\s*#(\d+)', 'jersey'),
+            'play_style': (r'PLAY STYLE:\s*([A-Z\s]+?)(?:\n|LAST)', 'play_style'),
+            'last_updated': (r'LAST UPDATED:\s*(\d+/\d+/\d+)', 'last_updated'),
+            'draft_year': (r'DRAFT YEAR:\s*(\d+)', 'draft_year'),
+            'college_games': (r'COLLEGE GAMES:\s*(\d+)', 'college_games'),
+            'college_snaps': (r'COLLEGE SNAPS:\s*(\d+)', 'college_snaps'),
+        }
+
+        for _, (pattern, attr) in patterns.items():
+            match = re.search(pattern, text, re.IGNORECASE if attr == 'player_class' else 0)
+            if match:
+                value = match.group(1).strip() if attr in ('school', 'hometown', 'play_style') else match.group(1)
+                setattr(data, attr, value)
+
+        print("ARMADILLO")
+        print(data)
+
+        self.position = data.position
+
+        # Age and DOB combined pattern
+        age_match = re.search(r'AGE:\s*([\d.]+)\s*DOB:\s*(\d+/\d+/\d+)', text)
+        if age_match:
+            data.age = age_match.group(1)
+            data.dob = age_match.group(2)
+
+        # Height/Weight with percentiles
+        hw_match = re.search(r'HEIGHT:\s*(\d+-\d+)\s*\((\d+)%\*?\)\s*WEIGHT:\s*(\d+)\s*\((\d+)%', text)
+        if hw_match:
+            data.height = f"{hw_match.group(1)} ({hw_match.group(2)}%)"
+            data.weight = f"{hw_match.group(3)} ({hw_match.group(4)}%)"
+
+        # Forty time with percentile
+        forty_match = re.search(r'FORTY TIME:\s*([\d.]+)\s*SECONDS\s*\((\d+)%', text)
+        if forty_match:
+            data.forty = f"{forty_match.group(1)} ({forty_match.group(2)}%)"
+        elif not data.forty:
+            forty_simple = re.search(r'(\d+\.\d+)\s*\n?\s*FORTY\s*YD\s*TIME', text)
+            if forty_simple:
+                data.forty = forty_simple.group(1)
+
+    def _parse_ratings(self, text: str, data: ProspectData) -> None:
+        """Extract player ratings."""
+        patterns = {
+            'overall_rating': r'(\d+\.\d+)\s*/100\s*\n?\s*PLAYER\s*RATING',
+            'position_rank': r'(\d+)\s*\n?\s*POSITION\s*RANK',
+            'overall_rank': r'OVERALL RANK:\s*#(\d+)',
+            'draft_projection': r'DRAFT PROJECTION:\s*([^\n]+)',
+            'defense_rating': r'DEFENSE RATING:\s*\n?\s*(\d+)%',
+        }
+
+        for attr, pattern in patterns.items():
+            match = re.search(pattern, text)
+            if match:
+                value = match.group(1).strip() if attr == 'draft_projection' else match.group(1)
+                setattr(data, attr, value)
 
     def _parse_stats(self, text: str, data: ProspectData) -> None:
         """Extract player statistics (primarily for QBs)."""
