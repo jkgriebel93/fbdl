@@ -221,7 +221,32 @@ class ProspectParserSoup:
     """
     def __init__(self):
         self.soup = None
-    
+
+    ##### Utility Methods #####
+    def _get_tag_with_title_containing(self, tag, search_str) -> Tag:
+        return tag.find("span", title=lambda t: t and search_str in t)
+
+    def _get_text_following_label(self, label_tag, expected_sibling_name: str = "span") -> str:
+        return label_tag.find_next_sibling(expected_sibling_name).get_text(strip=True)
+
+
+    ##### Basic Info Related #####
+    def parse_basic_info(self) -> BasicInfo:
+        basic_info_dict = {}
+
+        first_name, last_name = self.parse_name()
+
+        info_details_div = self.soup.find("div", class_="player-info-details")
+        basic_info_dict.update(self._parse_player_info_details_div(div=info_details_div))
+
+        basic_info_table_tag = self.soup.find("table", class_="basicInfoTable")
+        basic_info_dict.update(self._parse_basic_info_table(basic_info_table_tag))
+
+        return BasicInfo(first_name=first_name,
+                         last_name=last_name,
+                         full_name=f"{first_name} {last_name}",
+                         **basic_info_dict)
+
     def parse_name(self) -> Tuple[str, str]:
         first_name = self.soup.find("span", class_="player-info__first-name").get_text(strip=True)
         last_name = self.soup.find("span", class_="player-info__last-name").get_text(strip=True)
@@ -260,6 +285,7 @@ class ProspectParserSoup:
         # This div contains the values for:
         # height, weight, college, position, player_class, hometown
         basic_info_dict = {}
+
         for attr_div in div.find_all("div"):
             field_tag = attr_div.find("h6", class_="player-info-details__title")
             value_tag = attr_div.find("div", class_="player-info-details__value")
@@ -272,12 +298,6 @@ class ProspectParserSoup:
             basic_info_dict[field] = value
 
         return basic_info_dict
-
-    def _get_tag_with_title_containing(self, tag, search_str) -> Tag:
-        return tag.find("span", title=lambda t: t and search_str in t)
-
-    def _get_text_following_label(self, label_tag, expected_sibling_name: str = "span") -> str:
-        return label_tag.find_next_sibling(expected_sibling_name).get_text(strip=True)
 
     def _parse_basic_info_table(self, tag: Tag) -> Dict:
         # Includes jersery #, sub_position, last_updated, forty_time
@@ -303,61 +323,28 @@ class ProspectParserSoup:
             "forty": forty_value
         }
 
-    def _parse_basic_info_soup(self, soup) -> BasicInfo:
-        basic_info_dict = {}
 
-        first_name, last_name = self._parse_name_soup(soup=soup)
+    ##### Statistical Related #####
+    def parse_stats(self, soup: BeautifulSoup) -> Stats:
 
-        info_details_div = soup.find("div", class_="player-info-details")
-        basic_info_dict.update(self._parse_player_info_details_div(div=info_details_div))
+        stats = None
+        table_div = None
+        match self.position:
+            case "QB":
+                table_div = soup.find(id="QBstats")
+            case "RB" | "WR" | "TE":
+                table_div = soup.find(id="RB-Rush-stats")
+            case "OL":
+                pass
+            case "DL" | "EDGE" | "LB" | "DB":
+                table_div = soup.find(id="DBLBDL-stats")
+            case _:
+                print(f"Could not match position {self.position} to any known group.")
 
-        basic_info_table_tag = soup.find("table", class_="basicInfoTable")
-        basic_info_dict.update(self._parse_basic_info_table(basic_info_table_tag))
+        if table_div is not None:
+            stats = self._extract_stats_object(div=table_div)[0]
 
-        return BasicInfo(first_name=first_name,
-                         last_name=last_name,
-                         full_name=f"{first_name} {last_name}",
-                         **basic_info_dict)
-
-    def _parse_ratings_soup(self, table: Tag):
-        table_rows = table.find_all("tr")
-        ovr_rtg_row = table_rows[0]
-        opponent_rtg_row = table_rows[2]
-
-        skill_rtgs_rows = table_rows[4:7]
-
-        proj_rank_row = table_rows[7]
-
-        game_snap_count_row = table_rows[8]
-
-        espn_rtg_row = table_rows[9]
-        sports_247_rtg_row = table_rows[10]
-        rivals_rtg_row = table_rows[11]
-
-
-        ovr_rtg_label = table.find("th")
-        if "overall rating" not in ovr_rtg_label.get_text().lower():
-            raise ValueError(f"Unexpected label in first <th> element: {ovr_rtg_label.get_text}")
-
-        ovr_rtg = float(ovr_rtg_row.find("span")
-                        .get_text(strip=True)
-                        .replace(" / 100", ""))
-
-        opposition_rtg = self._extract_opposition_rtg(row=opponent_rtg_row)
-
-    def _extract_opposition_rtg(self, row: Tag) -> int:
-        meter_div = row.find("div", class_="meter")
-        rtg_as_str = meter_div["title"].split(":")[-1].strip().replace("%", "")
-        return int(rtg_as_str)
-
-    def _parse_ratings_and_comp_soup(self):
-        ratings_and_rankings = [table for table
-                                in self.soup.find_all("table", class_="starRatingTable")
-                                if not table.find("th", string=lambda s: "measurables" in s.lower())]
-
-        ratings = ratings_and_rankings[0]
-        comparisons = ratings_and_rankings[1]
-        return ratings, comparisons
+        return stats
 
     def _transform_passing_stats(self, season_stats):
         season_stats["cmp_pct"] = season_stats.pop("cmp%")
@@ -507,26 +494,47 @@ class ProspectParserSoup:
 
         return seasons
 
-    def _parse_stats_soup(self, soup: BeautifulSoup) -> Stats:
 
-        stats = None
-        table_div = None
-        match self.position:
-            case "QB":
-                table_div = soup.find(id="QBstats")
-            case "RB" | "WR" | "TE":
-                table_div = soup.find(id="RB-Rush-stats")
-            case "OL":
-                pass
-            case "DL" | "EDGE" | "LB" | "DB":
-                table_div = soup.find(id="DBLBDL-stats")
-            case _:
-                print(f"Could not match position {self.position} to any known group.")
+    ##### Ratings and Grades #####
+    def parse_ratings(self, table: Tag):
+        table_rows = table.find_all("tr")
+        ovr_rtg_row = table_rows[0]
+        opponent_rtg_row = table_rows[2]
 
-        if table_div is not None:
-            stats = self._extract_stats_object(div=table_div)[0]
+        skill_rtgs_rows = table_rows[4:7]
 
-        return stats
+        proj_rank_row = table_rows[7]
+
+        game_snap_count_row = table_rows[8]
+
+        espn_rtg_row = table_rows[9]
+        sports_247_rtg_row = table_rows[10]
+        rivals_rtg_row = table_rows[11]
+
+
+        ovr_rtg_label = table.find("th")
+        if "overall rating" not in ovr_rtg_label.get_text().lower():
+            raise ValueError(f"Unexpected label in first <th> element: {ovr_rtg_label.get_text}")
+
+        ovr_rtg = float(ovr_rtg_row.find("span")
+                        .get_text(strip=True)
+                        .replace(" / 100", ""))
+
+        opposition_rtg = self._extract_opposition_rtg(row=opponent_rtg_row)
+
+    def _extract_opposition_rtg(self, row: Tag) -> int:
+        meter_div = row.find("div", class_="meter")
+        rtg_as_str = meter_div["title"].split(":")[-1].strip().replace("%", "")
+        return int(rtg_as_str)
+
+    def _parse_ratings_and_comp_soup(self):
+        ratings_and_rankings = [table for table
+                                in self.soup.find_all("table", class_="starRatingTable")
+                                if not table.find("th", string=lambda s: "measurables" in s.lower())]
+
+        ratings = ratings_and_rankings[0]
+        comparisons = ratings_and_rankings[1]
+        return ratings, comparisons
 
 
 class ProspectParser:
