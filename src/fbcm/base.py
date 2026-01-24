@@ -139,6 +139,39 @@ OUTPUT_FORMATS = {
 MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
 THROTTLED_RATE_LIMIT = os.getenv("THROTTLED_RATE_LIMIT", 1000000)
 
+POSITION_TO_GROUP_MAP = {
+    "QB": "QB",
+    "HB": "RB",
+    "FB": "RB",
+    "RB": "RB",
+    "WR": "WR",
+    "TE": "TE",
+    "OT": "OL",
+    "LT": "OL",
+    "RT": "OL",
+    "OG": "OL",
+    "LG": "OL",
+    "RG": "OL",
+    "C": "OL",
+    "DT": "DL",
+    "NT": "DL",
+    "NG": "DL",
+    "LE": "EDGE",
+    "RE": "EDGE",
+    "DE": "EDGE",
+    "LB": "LB",
+    "LOLB": "LB",
+    "ROLB": "LB",
+    "OLB": "LB",
+    "MLB": "LB",
+    "ILB": "LB",
+    "CB": "DB",
+    "LCB": "CB",
+    "RCB": "CB",
+    "S": "DB",
+    "FS": "DB",
+    "SS": "DB"
+}
 
 def convert_nfl_playoff_name_to_int(year: int, week_name: str) -> int:
     """

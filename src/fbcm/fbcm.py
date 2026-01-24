@@ -353,11 +353,20 @@ def extract_draft_profiles(ctx,
     with open(input_file, "r") as infile:
         profile_urls = json.load(infile)
 
-    mendoza_slug = profile_urls["QB"][1]
+    test_urls = [pos_list[0]
+                 for pos, pos_list in profile_urls.items()
+                 if pos in selected_positions]
+
+    from collections import defaultdict
+    test_output_data = defaultdict(list)
     with sync_playwright() as playwright:
         scraper = DraftBuzzScraper(playwright=playwright)
-        data = scraper.scrape_from_url(url=mendoza_slug, get_image=True)
-        print(data)
+        for url in test_urls:
+            data = scraper.scrape_from_url(url=url, get_image=True)
+            test_output_data[data.position].append(data.to_dict())
+
+    with open("test_output_data.json", "w") as outfile:
+        json.dump(test_output_data, outfile, indent=4)
 
         # all_data = {}
         # for pos in selected_positions:

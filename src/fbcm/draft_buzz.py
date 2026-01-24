@@ -20,11 +20,10 @@ import re
 import time
 from collections import defaultdict
 from pathlib import Path
-from dataclasses import dataclass, field
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from playwright.sync_api import sync_playwright, Playwright, Browser, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
 from random import uniform
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Union
 from urllib.parse import urljoin
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
@@ -33,78 +32,20 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
+from fbcm.base import POSITION_TO_GROUP_MAP
 from fbcm.models import (PassingStats,
                          RushingStats,
                          ReceivingStats,
                         OffenseSkillPlayerStats,
-                         DefenseStats)
-
-type Stats = PassingStats | RushingStats | ReceivingStats | OffenseSkillPlayerStats | DefenseStats
+                         DefenseStats,
+                         ProspectData,
+                         TackleStats,
+                         InterceptionStats,
+                         Stats,
+                         BasicInfo)
 
 
 POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
-
-@dataclass
-class ProspectData:
-    """Container for all prospect information."""
-    name: str = ""
-    position: str = ""
-    school: str = ""
-    jersey: str = ""
-    play_style: str = ""
-    draft_year: str = ""
-    last_updated: str = ""
-
-    # Basic info
-    height: str = ""
-    weight: str = ""
-    forty: str = ""
-    age: str = ""
-    dob: str = ""
-    hometown: str = ""
-    player_class: str = ""
-
-    # Ratings
-    overall_rating: str = ""
-    position_rank: str = ""
-    overall_rank: str = ""
-    draft_projection: str = ""
-    defense_rating: str = ""
-
-    # Stats
-    stats: Stats | None = None
-    college_games: str = ""
-    college_snaps: str = ""
-
-    # Skill ratings (percentiles)
-    skill_ratings: Dict[str, str] = field(default_factory=dict)
-
-    # Recruiting grades
-    espn_rating: str = ""
-    rating_247: str = ""
-    rivals_rating: str = ""
-
-    # Player comparisons
-    comparisons: List[tuple] = field(default_factory=list)
-
-    # Scouting content
-    bio: str = ""
-    strengths: List[str] = field(default_factory=list)
-    weaknesses: List[str] = field(default_factory=list)
-    summary: str = ""
-
-    # Other scouts' rankings
-    avg_overall_rank: str = ""
-    avg_position_rank: str = ""
-
-    # Profile image
-    image_data: Optional[bytes] = None
-    image_type: str = "jpeg"
-
-    def to_dict(self) -> Dict[str, any]:
-        """Convert prospect data to a dictionary, excluding binary image data."""
-        return {key: value for key, value in vars(self).items()
-                if key not in ["image_data"]}
 
 
 class PageFetcher:
@@ -174,10 +115,9 @@ class PageFetcher:
         try:
             print(f"Navigating to: {url}")
             page.goto(url=url)
-            return BeautifulSoup(page.content())
+            return BeautifulSoup(page.content(), "lxml")
         finally:
             page.close()
-
 
     def _fetch_with_page(self, url: str, attempt_image_fetch: bool) -> Tuple[str, Optional[bytes], str]:
         """Internal method to fetch a page. May raise PlaywrightError."""
@@ -290,6 +230,7 @@ class ProspectParser:
 
     def __init__(self):
         self.soup = None
+        self.position = None
 
     def parse(self, text: str, image_data: Optional[bytes] = None,
               image_type: str = "jpeg", html_str: str = None) -> ProspectData:
@@ -298,10 +239,12 @@ class ProspectParser:
         data.image_data = image_data
         data.image_type = image_type
 
+
+
         self._parse_name(text, data)
         self._parse_basic_info(text, data)
         self._parse_ratings(text, data)
-        self._parse_stats(text, data)
+        # self._parse_stats(text, data)
         self._parse_skill_ratings(text, data)
         self._parse_recruiting_grades(text, data)
         self._parse_comparisons(text, data)
@@ -325,7 +268,105 @@ class ProspectParser:
         if name_match:
             data.name = f"{name_match.group(1).title()} {name_match.group(2).title()}"
 
+    def _parse_name_soup(self, soup: BeautifulSoup) -> Tuple[str, str]:
+        first_name = soup.find("span", class_="player-info__first-name").get_text(strip=True)
+        last_name = soup.find("span", class_="player-info__last-name").get_text(strip=True)
+
+        return first_name, last_name
+
+    def _parse_position(self, value: str) -> str:
+        position_group_str = ""
+        if "/" in value:
+            p1, p2 = value.split("/")
+            p1_group = POSITION_TO_GROUP_MAP.get(p1)
+            p2_group = POSITION_TO_GROUP_MAP.get(p2)
+
+            # Neither correspond to a known group
+            if not (p1_group or p2_group):
+                raise ValueError(f"Could not find a valid position group for position: {value}")
+
+            # Both correspond to a known group
+            if p1_group and p2_group:
+                position_group_str = f"{p1_group}/{p2_group}"
+            # Only one of the two values corresponds to a known group
+            # p1_group is the "real" one
+            elif p1_group:
+                position_group_str = p1_group
+            # If only one value corresponds to a real group, and it's not p1
+            # it must be p2
+            elif p2:
+                position_group_str = p2_group
+
+        else:
+            position_group_str = POSITION_TO_GROUP_MAP[value]
+
+        return position_group_str
+
+    def _parse_player_info_details_div(self, div) -> Dict:
+        # This div contains the values for:
+        # height, weight, college, position, player_class, hometown
+        basic_info_dict = {}
+        for attr_div in div.find_all("div"):
+            field_tag = attr_div.find("h6", class_="player-info-details__title")
+            value_tag = attr_div.find("div", class_="player-info-details__value")
+
+            field = field_tag.get_text(strip=True).lower()
+            value = value_tag.get_text(strip=True).lower()
+
+            if field == "position":
+                value = self._parse_position(value=value)
+            basic_info_dict[field] = value
+
+        return basic_info_dict
+
+    def _get_tag_with_title_containing(self, tag, search_str) -> Tag:
+        return tag.find("span", title=lambda t: t and search_str in t)
+
+    def _get_text_following_label(self, label_tag, expected_sibling_name: str = "span") -> str:
+        return label_tag.find_next_sibling(expected_sibling_name).get_text(strip=True)
+
+    def _parse_basic_info_table(self, tag: Tag) -> Dict:
+        # Includes jersery #, sub_position, last_updated, forty_time
+        jersey_num = tag.find(text=re.compile(r"#\d+")).get_text(strip=True)
+
+        sub_position_label = self._get_tag_with_title_containing(tag, "Sub-Position")
+        sub_position_value = self._get_text_following_label(sub_position_label)
+
+        last_updated_label = self._get_tag_with_title_containing(tag, "Last Updated")
+        last_updated_value = self._get_text_following_label(last_updated_label)
+
+        draft_yr_label = self._get_tag_with_title_containing(tag, "Draft Year")
+        draft_yr_value = self._get_text_following_label(draft_yr_label)
+
+        forty_label = self._get_tag_with_title_containing(tag, "40 yard dash time")
+        forty_value = self._get_text_following_label(forty_label)
+
+        return {
+            "jersey": jersey_num,
+            "play_style": sub_position_value,
+            "last_updated": last_updated_value,
+            "draft_year": draft_yr_value,
+            "forty": forty_value
+        }
+
+    def _parse_basic_info_soup(self, soup) -> BasicInfo:
+        basic_info_dict = {}
+
+        first_name, last_name = self._parse_name_soup(soup=soup)
+
+        info_details_div = soup.find("div", class_="player-info-details")
+        basic_info_dict.update(self._parse_player_info_details_div(div=info_details_div))
+
+        basic_info_table_tag = soup.find("table", class_="basicInfoTable")
+        basic_info_dict.update(self._parse_basic_info_table(basic_info_table_tag))
+
+        return BasicInfo(first_name=first_name,
+                         last_name=last_name,
+                         full_name=f"{first_name} {last_name}",
+                         **basic_info_dict)
+
     def _parse_basic_info(self, text: str, data: ProspectData) -> None:
+        # TODO: All but college_games and college_snaps are completed.
         """Extract basic player information."""
         patterns = {
             'height': (r'HEIGHT\s*\n?\s*(\d+-\d+)', 'height'),
@@ -348,6 +389,11 @@ class ProspectParser:
                 value = match.group(1).strip() if attr in ('school', 'hometown', 'play_style') else match.group(1)
                 setattr(data, attr, value)
 
+        print("ARMADILLO")
+        print(data)
+
+        self.position = data.position
+
         # Age and DOB combined pattern
         age_match = re.search(r'AGE:\s*([\d.]+)\s*DOB:\s*(\d+/\d+/\d+)', text)
         if age_match:
@@ -368,6 +414,46 @@ class ProspectParser:
             forty_simple = re.search(r'(\d+\.\d+)\s*\n?\s*FORTY\s*YD\s*TIME', text)
             if forty_simple:
                 data.forty = forty_simple.group(1)
+
+    def _parse_ratings_soup(self, table: Tag):
+        table_rows = table.find_all("tr")
+        ovr_rtg_row = table_rows[0]
+        opponent_rtg_row = table_rows[2]
+
+        skill_rtgs_rows = table_rows[4:7]
+
+        proj_rank_row = table_rows[7]
+
+        game_snap_count_row = table_rows[8]
+
+        espn_rtg_row = table_rows[9]
+        sports_247_rtg_row = table_rows[10]
+        rivals_rtg_row = table_rows[11]
+
+
+        ovr_rtg_label = table.find("th")
+        if "overall rating" not in ovr_rtg_label.get_text().lower():
+            raise ValueError(f"Unexpected label in first <th> element: {ovr_rtg_label.get_text}")
+
+        ovr_rtg = float(ovr_rtg_row.find("span")
+                        .get_text(strip=True)
+                        .replace(" / 100", ""))
+
+        opposition_rtg = self._extract_opposition_rtg(row=opponent_rtg_row)
+
+    def _extract_opposition_rtg(self, row: Tag) -> int:
+        meter_div = row.find("div", class_="meter")
+        rtg_as_str = meter_div["title"].split(":")[-1].strip().replace("%", "")
+        return int(rtg_as_str)
+
+    def _parse_ratings_and_comp_soup(self):
+        ratings_and_rankings = [table for table
+                                in self.soup.find_all("table", class_="starRatingTable")
+                                if not table.find("th", string=lambda s: "measurables" in s.lower())]
+
+        ratings = ratings_and_rankings[0]
+        comparisons = ratings_and_rankings[1]
+        return ratings, comparisons
 
     def _parse_ratings(self, text: str, data: ProspectData) -> None:
         """Extract player ratings."""
@@ -394,36 +480,163 @@ class ProspectParser:
 
         season_stats["year"] = season_stats.pop("year").split()[0]
 
+        from pprint import pprint
         for fld in ["cmp", "att", "yds", "td", "ints", "sack", "year"]:
-            season_stats[fld] = int(season_stats[fld])
+            try:
+                season_stats[fld] = int(season_stats[fld] or 0)
+            except ValueError as e:
+                print(f"Invalid value for field {fld}: {season_stats[fld]}")
+                print("Full season_stats_dict")
+                pprint(season_stats, indent=4)
+                raise e
+
         for fld in ["cmp_pct", "qb_rtg"]:
-            season_stats[fld] = float(season_stats[fld])
+            try:
+                season_stats[fld] = float(season_stats[fld] or 0.0)
+            except ValueError as e:
+                print(f"Invalid value for field {fld}: {season_stats[fld]}")
+                print("Full season_stats_dict")
+                pprint(season_stats, indent=4)
+                raise e
 
         return season_stats
 
+    def _transform_stats(self, season_stats):
+        match self.position:
+            case "QB":
+                return self._transform_passing_stats(season_stats=season_stats)
+            case "RB":
+                pass
+            case "WR":
+                pass
+            case "TE":
+                pass
+            case "OL":
+                pass
+            case "DL":
+                pass
+            case "EDGE":
+                pass
+            case "LB":
+                pass
+            case "DB":
+                pass
+        return season_stats
 
-    def _extract_raw_table_dict(self, div) -> List[Dict]:
+    def _extract_stats_object(self, div):
         stats_table = div.find("table")
         header_values = [th.get_text(strip=True).lower()
-                         for th in stats_table.thead.find_all("th")]
+                         for th in stats_table.thead.find_all("th", class_="player-season-avg__stat")
+                         if th.get_text(strip=True)]
         seasons = []
+
         for row in stats_table.tbody.find_all("tr"):
             cells = [td.get_text(strip=True) for td in row.find_all("td")]
-            season_stats = dict(zip(header_values, cells))
-            season_stats = self._transform_passing_stats(season_stats=season_stats)
-            seasons.append(season_stats)
-        seasons.sort(key=lambda d: d["year"], reverse=True)
+
+            if self.position == "QB":
+                season_stats = dict(zip(header_values, cells))
+                season_stats = self._transform_stats(season_stats=season_stats)
+                stats_obj = PassingStats(**season_stats)
+            elif self.position in ["RB"]:
+                season_stats = {
+                    "year": cells[0],
+                    "rushing": {
+                        "att": int(cells[1]),
+                        "yds": int(cells[2]),
+                        "avg": float(cells[3]),
+                        "td": int(cells[4])
+                    },
+                    "receiving": {
+                        "rec": int(cells[5]),
+                        "yds": int(cells[6]),
+                        "avg": float(cells[7]),
+                        "td": int(cells[8])
+                    }
+                }
+                rushing_stats = RushingStats(year=season_stats["year"],
+                                             **season_stats["rushing"])
+                receiving_stats = ReceivingStats(year=season_stats["year"],
+                                                 **season_stats["receiving"])
+                stats_obj = OffenseSkillPlayerStats(year=season_stats["year"],
+                                                    rushing=rushing_stats,
+                                                    receiving=receiving_stats)
+            elif self.position in ["WR", "TE"]:
+                season_stats = {
+                    "year": cells[0],
+                    "receiving": {
+                        "rec": int(cells[1]),
+                        "yds": int(cells[2]),
+                        "avg": float(cells[3]),
+                        "td": int(cells[4])
+                    },
+                    "rushing": {
+                        "att": int(cells[5]),
+                        "yds": int(cells[6]),
+                        "avg": float(cells[7]),
+                        "td": int(cells[8])
+                    }
+                }
+                rushing_stats = RushingStats(year=season_stats["year"],
+                                             **season_stats["rushing"])
+                receiving_stats = ReceivingStats(year=season_stats["year"],
+                                                 **season_stats["receiving"])
+                stats_obj = OffenseSkillPlayerStats(year=season_stats["year"],
+                                                    rushing=rushing_stats,
+                                                    receiving=receiving_stats)
+            elif self.position == "OL":
+                stats_obj = None
+            elif self.position in ["DL", "EDGE", "LB", "DB"]:
+                season_stats = {
+                    "year": int(cells[0].split()[0]),
+                    "tackle": {
+                        "total": int(cells[1]),
+                        "solo": int(cells[2]),
+                        "ff": int(cells[3]),
+                        "sacks": float(cells[4])
+                    },
+                    "interception": {
+                        "ints": int(cells[5]),
+                        "yds": int(cells[6]),
+                        "td": int(cells[7]),
+                        "pds": int(cells[8])
+                    }
+                }
+                tackle_stats = TackleStats(year=season_stats["year"],
+                                           **season_stats["tackle"])
+                interception_stats = InterceptionStats(year=season_stats["year"],
+                                                       **season_stats["interception"])
+                stats_obj = DefenseStats(year=season_stats["year"],
+                                         tackle=tackle_stats,
+                                         interception=interception_stats)
+
+            else:
+                raise ValueError(f"Could not match position {self.position} to "
+                                 f"a position with a defined stats mapping.")
+
+            seasons.append(stats_obj)
+
+        seasons.sort(key=lambda stats: stats.year, reverse=True)
+
         return seasons
 
-    def _parse_stats_soup(self, position: str, soup: BeautifulSoup):
+    def _parse_stats_soup(self, soup: BeautifulSoup) -> Stats:
+
         stats = None
-        match position:
+        table_div = None
+        match self.position:
             case "QB":
                 table_div = soup.find(id="QBstats")
-                stats_dict = self._extract_raw_table_dict(div=table_div)[0]
-                stats = PassingStats(**stats_dict)
+            case "RB" | "WR" | "TE":
+                table_div = soup.find(id="RB-Rush-stats")
+            case "OL":
+                pass
+            case "DL" | "EDGE" | "LB" | "DB":
+                table_div = soup.find(id="DBLBDL-stats")
             case _:
-                print(f"Could not match position {position} to any known group.")
+                print(f"Could not match position {self.position} to any known group.")
+
+        if table_div is not None:
+            stats = self._extract_stats_object(div=table_div)[0]
 
         return stats
 
@@ -673,7 +886,7 @@ class WordDocumentGenerator:
 
     def _add_statistics(self, data: ProspectData) -> None:
         """Add statistics table (for QBs)."""
-        if data.position != "QB" or not any([data.qb_rating, data.yards, data.comp_pct]):
+        if data.position != "QB" or not data.stats:
             return
 
         self.doc.add_heading("STATISTICS", level=1)
@@ -886,17 +1099,22 @@ class DraftBuzzScraper:
 
         text_content, image_data, image_type = self.fetcher.fetch(full_url,
                                                                   attempt_image_fetch=get_image)
-        slug_parts = url.split("/")
-        player_stats_slug = f"/{slug_parts[1]}/stats/{slug_parts[-1]}"
-        full_url = f"{self.base_url}{player_stats_slug}"
+
 
         print("Parsing prospect data...")
         data = self.parser.parse(text_content, image_data, image_type)
+
         print("Fetching stats page")
-        stats_soup = self.fetcher.fetch_soup(url=full_url)
+        slug_parts = url.split("/")
+        player_stats_slug = f"/{slug_parts[1]}/stats/{slug_parts[-1]}"
+        stats_full_url = f"{self.base_url}{player_stats_slug}"
+
+        stats_soup = self.fetcher.fetch_soup(url=stats_full_url)
         print("Attempting to parse stats")
-        stats_data = self.parser._parse_stats_soup(position=data.position, soup=stats_soup)
+        stats_data = self.parser._parse_stats_soup(soup=stats_soup)
+
         print(f"Stats Data: {stats_data}")
+        data.stats = stats_data
 
         if not data.name:
             data.name = self.parser.extract_name_from_url(url) or "Unknown Player"
