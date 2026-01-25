@@ -36,13 +36,24 @@ from fbcm.base import POSITION_TO_GROUP_MAP
 from fbcm.models import (PassingStats,
                          RushingStats,
                          ReceivingStats,
-                        OffenseSkillPlayerStats,
+                         OffenseSkillPlayerStats,
                          DefenseStats,
                          ProspectData,
                          TackleStats,
                          InterceptionStats,
                          Stats,
-                         BasicInfo)
+                         BasicInfo,
+                         RatingsAndRankings,
+                         Comparison,
+                         SkillRatings,
+                         PassingSkills,
+                         RunningBackSkills,
+                         PassCatcherSkills,
+                         OffensiveLinemanSkills,
+                         DefensiveLinemanSkills,
+                         LinebackerSkills,
+                         DefensiveBackSkills,
+                         ProspectDataSoup, ScoutingReport)
 
 
 POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
@@ -219,22 +230,26 @@ class ProspectParserSoup:
     """
     Parses nfldraftbuzz.com prospect profiles using BeautifulSoup
     """
-    def __init__(self):
-        self.soup = None
+    def __init__(self, soup: BeautifulSoup, position: str):
+        self.soup = soup
+        self.position = position
 
     ##### Utility Methods #####
     def _get_tag_with_title_containing(self, tag, search_str) -> Tag:
         return tag.find("span", title=lambda t: t and search_str in t)
 
+    def _get_tag_with_text(self, search_space, tag_name, text):
+        # Note that text should be lower case since we use lower()
+        return search_space.find(tag_name, string=lambda s: text in s.lower())
+
     def _get_text_following_label(self, label_tag, expected_sibling_name: str = "span") -> str:
         return label_tag.find_next_sibling(expected_sibling_name).get_text(strip=True)
-
 
     ##### Basic Info Related #####
     def parse_basic_info(self) -> BasicInfo:
         basic_info_dict = {}
 
-        first_name, last_name = self.parse_name()
+        first_name, last_name = self._parse_name()
 
         info_details_div = self.soup.find("div", class_="player-info-details")
         basic_info_dict.update(self._parse_player_info_details_div(div=info_details_div))
@@ -242,12 +257,121 @@ class ProspectParserSoup:
         basic_info_table_tag = self.soup.find("table", class_="basicInfoTable")
         basic_info_dict.update(self._parse_basic_info_table(basic_info_table_tag))
 
+        basic_info_dict["class_"] = basic_info_dict.pop("class")
+        basic_info_dict["hometown"] = basic_info_dict.pop("home town")
+
         return BasicInfo(first_name=first_name,
                          last_name=last_name,
                          full_name=f"{first_name} {last_name}",
                          **basic_info_dict)
 
-    def parse_name(self) -> Tuple[str, str]:
+    def parse_ratings(self, table: Tag) -> RatingsAndRankings:
+        self._perform_rating_checks(table=table)
+
+        table_rows = table.find_all("tr")
+        overall = self._extract_ovr_rtg(row=table_rows[0])
+        opposition = self._extract_opposition_rtg(row=table_rows[2])
+
+        proj_rank_row = self._get_projection_ranks_row(rows=table_rows)
+        proj_ranks = self._extract_proj_and_rankings(row=proj_rank_row)
+
+        game_snap_count_row = table_rows[8]
+
+        outlet_ratings = self._extract_outlet_ratings(table=table)
+
+        rate_ranks = RatingsAndRankings(
+            overall_rating=overall,
+            opposition_rating=opposition,
+            **proj_ranks,
+            **outlet_ratings
+        )
+
+        return rate_ranks
+
+    def parse_skills(self, table: Tag) -> SkillRatings:
+        rows = table.find_all("tr")[4:]
+        skill_rtgs_rows = self._gather_skill_rtg_rows(rows=rows)
+        skill_ratings_dict = self._extract_skill_ratings(rows=skill_rtgs_rows)
+        return self._construct_skill_ratings_obj(ratings=skill_ratings_dict)
+
+    def parse_comparisons(self, table: Tag) -> List[Comparison]:
+        comparisons = []
+        comp_rows = table.find("tbody").find_all("tr")
+
+        for row in comp_rows:
+            text_parts = row.get_text().split()
+            comp_name = f"{text_parts[0]} {text_parts[1]}"
+            comp_school = text_parts[3]
+            comp_score = int(text_parts[-1].replace("%", ""))
+
+            comparisons.append(Comparison(name=comp_name,
+                                          school=comp_school,
+                                          similarity=comp_score))
+
+        return comparisons
+
+    def parse_scouting_report(self) -> ScoutingReport:
+        intro_div = self.soup.find("div", class_="playerDescIntro")
+        strengths_div = self.soup.find("div", class_="playerDescPro")
+        weaknesses_div, summary_div = self.soup.find_all("div", class_="playerDescNeg")
+
+        strengths = [line for line in strengths_div.get_text().splitlines()
+                     if line and "scouting report" not in line.lower()]
+        weaknesses = [line for line in weaknesses_div.get_text().splitlines()
+                      if line and "scouting report" not in line.lower()]
+
+        return ScoutingReport(bio=intro_div.get_text(strip=True),
+                              strengths=strengths,
+                              weaknesses=weaknesses,
+                              summary=summary_div.get_text(strip=True))
+
+    def extract_image_url(self) -> str:
+        figure_tag = self.soup.find("figure",
+                                    class_="player-info__photo")
+        image_path = figure_tag.find("img")["src"]
+        return f"https://www.nfldraftbuzz.com{image_path}"
+
+    def parse_stats(self, soup: BeautifulSoup) -> Stats:
+
+        stats = None
+        table_div = None
+        match self.position:
+            case "QB":
+                table_div = soup.find(id="QBstats")
+            case "RB" | "WR" | "TE":
+                table_div = soup.find(id="RB-Rush-stats")
+            case "OL":
+                pass
+            case "DL" | "EDGE" | "LB" | "DB":
+                table_div = soup.find(id="DBLBDL-stats")
+            case _:
+                print(f"Could not match position {self.position} to any known group.")
+
+        if table_div is not None:
+            stats = self._extract_stats_object(div=table_div)[0]
+
+        return stats
+
+    def parse(self):
+        basic_info = self.parse_basic_info()
+        rtgs_table, comps_table = self._extract_ratings_comps_tables()
+
+        ratings = self.parse_ratings(table=rtgs_table)
+        skills = self.parse_skills(table=rtgs_table)
+        comparisons = self.parse_comparisons(table=comps_table)
+        scouting_report = self.parse_scouting_report()
+
+        return ProspectDataSoup(
+            basic_info=basic_info,
+            ratings=ratings,
+            skills=skills,
+            comparisons=comparisons,
+            scouting_report=scouting_report,
+            stats=None
+        )
+
+    ##### Basic Info #####
+    def _parse_name(self) -> Tuple[str, str]:
         first_name = self.soup.find("span", class_="player-info__first-name").get_text(strip=True)
         last_name = self.soup.find("span", class_="player-info__last-name").get_text(strip=True)
 
@@ -277,7 +401,7 @@ class ProspectParserSoup:
                 position_group_str = p2_group
 
         else:
-            position_group_str = POSITION_TO_GROUP_MAP[value]
+            position_group_str = POSITION_TO_GROUP_MAP[value.upper()]
 
         return position_group_str
 
@@ -286,7 +410,7 @@ class ProspectParserSoup:
         # height, weight, college, position, player_class, hometown
         basic_info_dict = {}
 
-        for attr_div in div.find_all("div"):
+        for attr_div in div.find_all("div", class_="player-info-details__item"):
             field_tag = attr_div.find("h6", class_="player-info-details__title")
             value_tag = attr_div.find("div", class_="player-info-details__value")
 
@@ -323,29 +447,7 @@ class ProspectParserSoup:
             "forty": forty_value
         }
 
-
     ##### Statistical Related #####
-    def parse_stats(self, soup: BeautifulSoup) -> Stats:
-
-        stats = None
-        table_div = None
-        match self.position:
-            case "QB":
-                table_div = soup.find(id="QBstats")
-            case "RB" | "WR" | "TE":
-                table_div = soup.find(id="RB-Rush-stats")
-            case "OL":
-                pass
-            case "DL" | "EDGE" | "LB" | "DB":
-                table_div = soup.find(id="DBLBDL-stats")
-            case _:
-                print(f"Could not match position {self.position} to any known group.")
-
-        if table_div is not None:
-            stats = self._extract_stats_object(div=table_div)[0]
-
-        return stats
-
     def _transform_passing_stats(self, season_stats):
         season_stats["cmp_pct"] = season_stats.pop("cmp%")
         season_stats["ints"] = season_stats.pop("int")
@@ -494,40 +596,136 @@ class ProspectParserSoup:
 
         return seasons
 
-
     ##### Ratings and Grades #####
-    def parse_ratings(self, table: Tag):
-        table_rows = table.find_all("tr")
-        ovr_rtg_row = table_rows[0]
-        opponent_rtg_row = table_rows[2]
-
-        skill_rtgs_rows = table_rows[4:7]
-
-        proj_rank_row = table_rows[7]
-
-        game_snap_count_row = table_rows[8]
-
-        espn_rtg_row = table_rows[9]
-        sports_247_rtg_row = table_rows[10]
-        rivals_rtg_row = table_rows[11]
-
-
+    def _perform_rating_checks(self, table: Tag):
         ovr_rtg_label = table.find("th")
         if "overall rating" not in ovr_rtg_label.get_text().lower():
             raise ValueError(f"Unexpected label in first <th> element: {ovr_rtg_label.get_text}")
 
-        ovr_rtg = float(ovr_rtg_row.find("span")
+    def _extract_ovr_rtg(self, row: Tag) -> float:
+        ovr_rtg = float(row.find("span")
                         .get_text(strip=True)
                         .replace(" / 100", ""))
-
-        opposition_rtg = self._extract_opposition_rtg(row=opponent_rtg_row)
+        return ovr_rtg
 
     def _extract_opposition_rtg(self, row: Tag) -> int:
         meter_div = row.find("div", class_="meter")
         rtg_as_str = meter_div["title"].split(":")[-1].strip().replace("%", "")
         return int(rtg_as_str)
 
-    def _parse_ratings_and_comp_soup(self):
+    def _extract_skill_ratings(self, rows: List[Tag]) -> Dict:
+        skills = {}
+        for row in rows:
+            skill_name, rating = (row.get_text(strip=True).lower()
+                                  .replace(" ", "_").replace("%", "").split(":"))
+
+
+            if "/" in rating:
+                rating = rating.split("/")[0]
+            rating = float(rating.replace("_", ""))
+
+            skills[skill_name.replace("/", "_")] = int(rating)
+
+        return skills
+
+    def _extract_proj_and_rankings(self, row) -> Dict:
+        projection_label = self._get_tag_with_text(search_space=row,
+                                                   tag_name="span",
+                                                   text="draft projection")
+        projection = self._get_text_following_label(label_tag=projection_label)
+
+        ovr_rank_label = self._get_tag_with_text(search_space=row,
+                                           tag_name="span",
+                                           text="overall rank")
+        ovr_rank = self._get_text_following_label(label_tag=ovr_rank_label)
+
+        pos_rank_label = self._get_tag_with_text(search_space=row,
+                                                 tag_name="span",
+                                                 text="position rank")
+        pos_rank = self._get_text_following_label(label_tag=pos_rank_label)
+
+        return {
+            "draft_projection": projection,
+            "overall_rank": ovr_rank,
+            "position_rank": pos_rank
+        }
+
+    def _get_projection_ranks_row(self, rows: List[Tag]) -> Optional[Tag]:
+        for row in rows:
+            if "draft projection" in row.get_text().lower():
+                return row
+        return None
+
+    def _gather_skill_rtg_rows(self, rows: List[Tag], sentinel_val: str = "draft projection") -> List[Tag]:
+        skill_rows = []
+        for row in rows:
+            if sentinel_val in row.get_text().lower():
+                break
+            skill_rows.append(row)
+
+        return skill_rows
+
+    def _construct_skill_ratings_obj(self, ratings: Dict) -> SkillRatings:
+        skills = None
+        match self.position:
+            case "QB":
+                skills = PassingSkills(**ratings)
+            case "RB":
+                skills = RunningBackSkills(**ratings)
+            case "WR" | "TE":
+                skills = PassCatcherSkills(**ratings)
+            case "OL":
+                skills = OffensiveLinemanSkills(**ratings)
+            case "DL" | "EDGE":
+                skills = DefensiveLinemanSkills(**ratings)
+            case "LB":
+                skills = LinebackerSkills(**ratings)
+            case "DB":
+                skills = DefensiveBackSkills(**ratings)
+            case _:
+                raise ValueError(f"Could not find skill ratings for position: {self.position}")
+        return skills
+
+    ##### Outlet ratings ####
+    def _extract_outlet_ratings(self, table: Tag) -> Dict[str, Optional[float]]:
+        return {
+            "espn": self._extract_espn(table=table),
+            "rivals": self._extract_rivals(table=table),
+            "rtg_247": self._extract_247(table=table)
+        }
+
+    def _extract_rivals(self, table: Tag) -> Optional[float]:
+        rivals_row = self._get_tag_with_text(search_space=table,
+                                             tag_name="span",
+                                             text="rivals")
+        if rivals_row:
+            rivals_rtg = float(rivals_row.get_text(strip=True).split(":")[-1].split()[0])
+        else:
+            rivals_rtg = None
+
+        return rivals_rtg
+
+    def _extract_247(self, table: Tag) -> Optional[float]:
+        rtg = None
+        sports_247_rtg_row = self._get_tag_with_text(search_space=table,
+                                                     tag_name="span",
+                                                     text="247")
+        if sports_247_rtg_row:
+            rtg = float(sports_247_rtg_row.get_text(strip=True).split()[-1].split("/")[0])
+
+        return rtg
+
+    def _extract_espn(self, table: Tag) -> Optional[float]:
+        rtg = None
+        espn_rtg_row = self._get_tag_with_text(search_space=table,
+                                                 tag_name="span",
+                                                 text="espn")
+        if espn_rtg_row:
+            rtg = float(espn_rtg_row.get_text(strip=True).split()[-1].split("/")[0])
+
+        return rtg
+
+    def _extract_ratings_comps_tables(self):
         ratings_and_rankings = [table for table
                                 in self.soup.find_all("table", class_="starRatingTable")
                                 if not table.find("th", string=lambda s: "measurables" in s.lower())]
@@ -1099,26 +1297,23 @@ class DraftBuzzScraper:
                  playwright: Playwright,
                  profile_root_dir: Path = None,
                  fetcher: PageFetcher = None,
-                 parser: ProspectParser = None,
                  doc_generator: WordDocumentGenerator = None):
         self.profile_root_dir = profile_root_dir
         self.base_url = "https://www.nfldraftbuzz.com"
         self.fetcher = fetcher or PageFetcher(playwright=playwright,
                                               base_url=self.base_url)
-        self.parser = parser or ProspectParser()
+        self.parser = None
         self.doc_generator = doc_generator or WordDocumentGenerator()
         self.position_rankings_used = defaultdict(list)
 
-    def scrape_from_url(self, url: str, get_image: bool = True) -> ProspectData:
+    def scrape_from_url(self, url: str, position: str) -> ProspectDataSoup:
         """Scrape prospect data from a URL."""
-        full_url = f"{self.base_url}{url}"
-
-        text_content, image_data, image_type = self.fetcher.fetch(full_url,
-                                                                  attempt_image_fetch=get_image)
-
-
         print("Parsing prospect data...")
-        data = self.parser.parse(text_content, image_data, image_type)
+        full_url = f"{self.base_url}{url}"
+        base_soup = self.fetcher.fetch_soup(url=full_url)
+        self.parser = ProspectParserSoup(soup=base_soup,
+                                         position=position)
+        prospect_data = self.parser.parse()
 
         print("Fetching stats page")
         slug_parts = url.split("/")
@@ -1127,24 +1322,10 @@ class DraftBuzzScraper:
 
         stats_soup = self.fetcher.fetch_soup(url=stats_full_url)
         print("Attempting to parse stats")
-        stats_data = self.parser._parse_stats_soup(soup=stats_soup)
+        stats_data = self.parser.parse_stats(soup=stats_soup)
+        prospect_data.stats = stats_data
 
-        print(f"Stats Data: {stats_data}")
-        data.stats = stats_data
-
-        if not data.name:
-            data.name = self.parser.extract_name_from_url(url) or "Unknown Player"
-
-        return data
-
-    def scrape_from_file(self, file_path: str) -> ProspectData:
-        """Scrape prospect data from a local text file."""
-        print(f"Reading from file: {file_path}")
-        with open(file_path, 'r', encoding='utf-8') as f:
-            text_content = f.read()
-
-        print("Parsing prospect data...")
-        return self.parser.parse(text_content)
+        return prospect_data
 
     def generate_document(self, data: ProspectData, output_path: str) -> None:
         """Generate a Word document from prospect data."""

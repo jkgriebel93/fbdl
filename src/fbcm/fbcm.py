@@ -349,7 +349,6 @@ def extract_draft_profiles(ctx,
         selected_positions = POSITIONS
     print(f"Position: {selected_positions}")
 
-
     with open(input_file, "r") as infile:
         profile_urls = json.load(infile)
 
@@ -396,6 +395,22 @@ def extract_draft_profiles(ctx,
     # dbs = DraftBuzzScraper()
     # prospect_data = dbs.scrape_from_url(url=url)
     # print(prospect_data)
+
+
+@cli.command()
+@click.pass_context
+def draft_sandbox(ctx):
+    click.echo("Draft profile sandbox...")
+    mendoza_slug = "/Player/Fernando-Mendoza-QB-California"
+
+    data = None
+    with sync_playwright() as playwright:
+        scraper = DraftBuzzScraper(playwright=playwright)
+        click.echo("Scraper initialized...Attempting Mendoza")
+        data = scraper.scrape_from_url(url=mendoza_slug, position="QB")
+
+    click.echo("Data fetched:")
+    click.echo(json.dumps(data.to_dict(), indent=4))
 
 
 @cli.command()
