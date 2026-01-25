@@ -7,7 +7,7 @@ from random import uniform
 from typing import Tuple
 import click
 from playwright.sync_api import sync_playwright
-from playwright._impl._errors import TargetClosedError
+from playwright._impl._errors import TargetClosedError, TimeoutError
 
 from .base import (
     DEFAULT_REPLAY_TYPES,
@@ -17,7 +17,7 @@ from .base import (
     FileOperationsUtil,
     MetaDataCreator,
 )
-from .draft_buzz import POSITIONS, DraftBuzzScraper
+from .draft_buzz import POSITIONS, DraftBuzzScraper, ProspectProfileListExtractor
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 from .utils import apply_config_to_kwargs, find_config, load_config
 
@@ -395,6 +395,24 @@ def extract_draft_profiles(ctx,
     # dbs = DraftBuzzScraper()
     # prospect_data = dbs.scrape_from_url(url=url)
     # print(prospect_data)
+
+
+@cli.command()
+@click.pass_context
+def update_draft_prospect_urls(ctx):
+    profile_lists = {}
+    with sync_playwright() as playwright:
+        pple = ProspectProfileListExtractor(playwright=playwright)
+
+        for position in POSITIONS:
+            try:
+                profile_lists[position] = pple.extract_prospect_urls_for_position(pos=position)
+            except TimeoutError:
+                print(f"Position {position} timed out. Sleeping, then moving on to next position.")
+                time.sleep(5)
+
+    with open("prospect_urls.json", "w") as outfile:
+        json.dump(profile_lists, outfile, indent=4)
 
 
 @cli.command()

@@ -1423,7 +1423,7 @@ class ProspectProfileListExtractor:
 
             prospect_hrefs = self.extract_prospect_hrefs(page)
             all_profiles.extend(prospect_hrefs)
-
+        page.close()
         return all_profiles
 
     def _create_page_with_retry(self, url: str):
@@ -1433,7 +1433,7 @@ class ProspectProfileListExtractor:
             try:
                 self._ensure_browser_connected()
                 page = self.browser.new_page()
-                page.goto(url)
+                page.goto(url, timeout=0)
                 return page
             except PlaywrightError as e:
                 last_error = e
