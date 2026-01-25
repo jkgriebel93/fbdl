@@ -106,7 +106,7 @@ class RunningBackSkills(BaseModel):
 
 @dataclass
 class PassCatcherSkills(BaseModel):
-    qb_rating_targeted: float | None = None
+    qb_rating_when_targeted: float | None = None
     hands: int | None = None
     short_receiving: int | None = None
     intermediate_routes: int | None = None
@@ -137,7 +137,7 @@ class LinebackerSkills(BaseModel):
 
 @dataclass
 class DefensiveBackSkills(BaseModel):
-    qb_rating_targeted: float | None = None
+    qb_rating_when_targeted: float | None = None
     tackling: int | None = None
     run_defense: int | None = None
     coverage: int | None = None
@@ -210,7 +210,7 @@ class ScoutingReport(BaseModel):
     bio: str = ""
     strengths: List[str] = field(default_factory=list)
     weaknesses: List[str] = field(default_factory=list)
-    summary: str = ""
+    summary: str | None = None
 
 
 @dataclass

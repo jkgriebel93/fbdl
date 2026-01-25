@@ -17,6 +17,7 @@ Requirements:
 
 import io
 import re
+import requests
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -275,7 +276,9 @@ class ProspectParserSoup:
 
     def _get_text_following_label(
         self, label_tag, expected_sibling_name: str = "span"
-    ) -> str:
+    ) -> str | None:
+        if label_tag is None:
+            return None
         return label_tag.find_next_sibling(expected_sibling_name).get_text(strip=True)
 
     ##### Basic Info Related #####
@@ -350,8 +353,17 @@ class ProspectParserSoup:
 
     def parse_scouting_report(self) -> ScoutingReport:
         intro_div = self.soup.find("div", class_="playerDescIntro")
+        if not intro_div:
+            return ScoutingReport()
+
         strengths_div = self.soup.find("div", class_="playerDescPro")
-        weaknesses_div, summary_div = self.soup.find_all("div", class_="playerDescNeg")
+        weak_summary_divs = self.soup.find_all("div", class_="playerDescNeg")
+        weaknesses_div = weak_summary_divs[0]
+
+        summary = None
+        if len(weak_summary_divs) > 1:
+            summary = weak_summary_divs[1].get_text(strip=True)
+
 
         strengths = [
             line
@@ -368,7 +380,7 @@ class ProspectParserSoup:
             bio=intro_div.get_text(strip=True),
             strengths=strengths,
             weaknesses=weaknesses,
-            summary=summary_div.get_text(strip=True),
+            summary=None
         )
 
     def extract_image_url(self) -> str:
@@ -401,11 +413,11 @@ class ProspectParserSoup:
         gp_label = self._get_tag_with_title_containing(
             tag=self.soup, search_str="College Games Played"
         )
-        games_played = int(self._get_text_following_label(label_tag=gp_label))
+        games_played = int(self._get_text_following_label(label_tag=gp_label) or "0")
         snaps_label = self._get_tag_with_title_containing(
             tag=self.soup, search_str="College Snap Count"
         )
-        snap_count = int(self._get_text_following_label(label_tag=snaps_label))
+        snap_count = int(self._get_text_following_label(label_tag=snaps_label) or "0")
 
         return {"games_played": games_played, "snap_count": snap_count}
 
@@ -415,7 +427,7 @@ class ProspectParserSoup:
 
         ratings = self.parse_ratings(table=rtgs_table)
         skills = self.parse_skills(table=rtgs_table)
-        comparisons = self.parse_comparisons(table=comps_table)
+        comparisons = self.parse_comparisons(table=comps_table) if comps_table else None
         scouting_report = self.parse_scouting_report()
 
         return ProspectDataSoup(
@@ -587,16 +599,16 @@ class ProspectParserSoup:
                     "year": cells[0],
                     **gp_and_snaps,
                     "rushing": {
-                        "att": int(cells[1]),
-                        "yds": int(cells[2]),
-                        "avg": float(cells[3]),
-                        "td": int(cells[4]),
+                        "att": int(cells[1] or "0"),
+                        "yds": int(cells[2] or "0"),
+                        "avg": float(cells[3] or "0"),
+                        "td": int(cells[4] or "0"),
                     },
                     "receiving": {
-                        "rec": int(cells[5]),
-                        "yds": int(cells[6]),
-                        "avg": float(cells[7]),
-                        "td": int(cells[8]),
+                        "rec": int(cells[5] or "0"),
+                        "yds": int(cells[6] or "0"),
+                        "avg": float(cells[7] or "0"),
+                        "td": int(cells[8] or "0"),
                     },
                 }
                 rushing_stats = RushingStats(
@@ -615,16 +627,16 @@ class ProspectParserSoup:
                     "year": cells[0],
                     **gp_and_snaps,
                     "receiving": {
-                        "rec": int(cells[1]),
-                        "yds": int(cells[2]),
-                        "avg": float(cells[3]),
-                        "td": int(cells[4]),
+                        "rec": int(cells[1] or "0"),
+                        "yds": int(cells[2] or "0"),
+                        "avg": float(cells[3] or "0"),
+                        "td": int(cells[4] or "0"),
                     },
                     "rushing": {
-                        "att": int(cells[5]),
-                        "yds": int(cells[6]),
-                        "avg": float(cells[7]),
-                        "td": int(cells[8]),
+                        "att": int(cells[5] or "0"),
+                        "yds": int(cells[6] or "0"),
+                        "avg": float(cells[7] or "0"),
+                        "td": int(cells[8] or "0"),
                     },
                 }
                 rushing_stats = RushingStats(
@@ -645,16 +657,16 @@ class ProspectParserSoup:
                     "year": int(cells[0].split()[0]),
                     **gp_and_snaps,
                     "tackle": {
-                        "total": int(cells[1]),
-                        "solo": int(cells[2]),
-                        "ff": int(cells[3]),
-                        "sacks": float(cells[4]),
+                        "total": int(cells[1] or "0"),
+                        "solo": int(cells[2] or "0"),
+                        "ff": int(cells[3] or "0"),
+                        "sacks": float(cells[4] or "0"),
                     },
                     "interception": {
-                        "ints": int(cells[5]),
-                        "yds": int(cells[6]),
-                        "td": int(cells[7]),
-                        "pds": int(cells[8]),
+                        "ints": int(cells[5] or "0"),
+                        "yds": int(cells[6] or "0"),
+                        "td": int(cells[7] or "0"),
+                        "pds": int(cells[8] or "0"),
                     },
                 }
                 tackle_stats = TackleStats(
@@ -668,7 +680,6 @@ class ProspectParserSoup:
                     tackle=tackle_stats,
                     interception=interception_stats,
                 )
-
             else:
                 raise ValueError(
                     f"Could not match position {self.position} to "
@@ -830,7 +841,10 @@ class ProspectParserSoup:
         ]
 
         ratings = ratings_and_rankings[0]
-        comparisons = ratings_and_rankings[1]
+        if len(ratings_and_rankings) > 1:
+            comparisons = ratings_and_rankings[1]
+        else:
+            comparisons = None
         return ratings, comparisons
 
     def _extract_average_ranks(self):
@@ -1207,8 +1221,11 @@ class DraftBuzzScraper:
         self.doc_generator = doc_generator or WordDocumentGenerator()
         self.position_rankings_used = defaultdict(list)
 
+        self.current_prospect_data: ProspectDataSoup | None = None
+
     def scrape_from_url(self, url: str, position: str) -> ProspectDataSoup:
         """Scrape prospect data from a URL."""
+        self.current_prospect_data = None
         print("Parsing prospect data...")
         full_url = f"{self.base_url}{url}"
         base_soup = self.fetcher.fetch_soup(url=full_url)
@@ -1225,7 +1242,20 @@ class DraftBuzzScraper:
         stats_data = self.parser.parse_stats(soup=stats_soup)
         prospect_data.stats = stats_data
 
+        self.current_prospect_data = prospect_data
         return prospect_data
+
+    def save_player_photo_to_disk(self):
+        print(f"Saving photo for {self.current_prospect_data.basic_info.full_name}")
+        print(f"Fetching image from {self.current_prospect_data.basic_info.photo_url}")
+
+        response = requests.get(self.current_prospect_data.basic_info.photo_url)
+        response.raise_for_status()
+        file_name = f"{self.current_prospect_data.basic_info.full_name}.png"
+
+        output_path = Path(self.profile_root_dir, "player_photos", file_name)
+        output_path.write_bytes(response.content)
+        print(f"Wrote image to disk at {output_path}")
 
     def generate_document(self, data: ProspectData, output_path: str) -> None:
         """Generate a Word document from prospect data."""

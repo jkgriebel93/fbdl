@@ -1,7 +1,8 @@
 import json
 import os
+import random
 import time
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from random import uniform
 from typing import Tuple
@@ -358,7 +359,16 @@ def extract_draft_profiles(
     with open(input_file, "r") as infile:
         profile_urls = json.load(infile)
 
-        all_data = {}
+    with sync_playwright() as playwright:
+        scraper = DraftBuzzScraper(playwright=playwright,
+                                   profile_root_dir=Path(output_directory))
+
+        completed_profiles = []
+        with open(f"{output_directory}/completed.json", "r") as infile:
+            completed_profiles = json.load(infile)
+
+        click.echo(f"Loaded {len(completed_profiles)} completed profiles.")
+
         for pos in selected_positions:
             if pos not in profile_urls:
                 raise click.BadParameter(f"{pos} is not present in the input file.")
@@ -367,23 +377,35 @@ def extract_draft_profiles(
             click.echo(f"Found {len(position_profiles)} {pos} profile URLs to extract.")
 
             position_player_data = {}
+
             for prof_slug in position_profiles:
+                if prof_slug in completed_profiles:
+                    click.echo(f"Already completed {prof_slug}. Skipping.")
+                    continue
+
                 click.echo(f"Processing player profile: {prof_slug}")
                 time.sleep(uniform(3.5, 4.5))
-        #         player_data = scraper.scrape_from_url(url=prof_slug,
-        #                                               get_image=True)
-        #         position_player_data[player_data.name] = player_data
-        #
 
-        #     all_data[pos] = position_player_data
-        #
-        #     time.sleep(uniform(10, 20))
+                try:
+                    player_data = scraper.scrape_from_url(url=prof_slug,
+                                                          position=pos)
+                    position_player_data[player_data.basic_info.full_name] = player_data.to_dict()
+                    scraper.save_player_photo_to_disk()
 
-    # url = "https://www.nfldraftbuzz.com/Player/Fernando-Mendoza-QB-California"
-    # from fbcm.draft_buzz import DraftBuzzScraper
-    # dbs = DraftBuzzScraper()
-    # prospect_data = dbs.scrape_from_url(url=url)
-    # print(prospect_data)
+                    completed_profiles.append(prof_slug)
+
+                except Exception as e:
+                    raise e
+            rn = datetime.now()
+            suffix = f"{rn.hour}_{rn.minute}_{rn.second}"
+            fname = f"{pos}_{suffix}.json"
+            with open(f"{output_directory}/{fname}", "w") as outfile:
+                json.dump(position_player_data, outfile, indent=4)
+
+            with open(f"{output_directory}/completed.json", "w") as outfile:
+                json.dump(completed_profiles, outfile, indent=4)
+
+            time.sleep(random.uniform(10, 15))
 
 
 @cli.command()
