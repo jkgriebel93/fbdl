@@ -134,7 +134,7 @@ OUTPUT_FORMATS = {
     "json": "JSON",
     "yaml": "YAML",
     "csv": "CSV",
-    "docx": "Microsoft Word"
+    "docx": "Microsoft Word",
 }
 MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
 THROTTLED_RATE_LIMIT = os.getenv("THROTTLED_RATE_LIMIT", 1000000)
@@ -170,8 +170,9 @@ POSITION_TO_GROUP_MAP = {
     "RCB": "CB",
     "S": "DB",
     "FS": "DB",
-    "SS": "DB"
+    "SS": "DB",
 }
+
 
 def convert_nfl_playoff_name_to_int(year: int, week_name: str) -> int:
     """

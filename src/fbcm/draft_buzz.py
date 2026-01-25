@@ -20,41 +20,48 @@ import re
 import time
 from collections import defaultdict
 from pathlib import Path
-from bs4 import BeautifulSoup, Tag
-from playwright.sync_api import sync_playwright, Playwright, Browser, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
 from random import uniform
-from typing import Optional, List, Dict, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
+
+from bs4 import BeautifulSoup, Tag
 from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.oxml.ns import qn
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Inches, Pt, RGBColor
+from playwright.sync_api import Browser
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
+from playwright.sync_api import sync_playwright
 
 from fbcm.base import POSITION_TO_GROUP_MAP
-from fbcm.models import (PassingStats,
-                         RushingStats,
-                         ReceivingStats,
-                         OffenseSkillPlayerStats,
-                         DefenseStats,
-                         ProspectData,
-                         TackleStats,
-                         InterceptionStats,
-                         Stats,
-                         BasicInfo,
-                         RatingsAndRankings,
-                         Comparison,
-                         SkillRatings,
-                         PassingSkills,
-                         RunningBackSkills,
-                         PassCatcherSkills,
-                         OffensiveLinemanSkills,
-                         DefensiveLinemanSkills,
-                         LinebackerSkills,
-                         DefensiveBackSkills,
-                         ProspectDataSoup, ScoutingReport)
-
+from fbcm.models import (
+    BasicInfo,
+    Comparison,
+    DefenseStats,
+    DefensiveBackSkills,
+    DefensiveLinemanSkills,
+    InterceptionStats,
+    LinebackerSkills,
+    OffenseSkillPlayerStats,
+    OffensiveLinemanSkills,
+    PassCatcherSkills,
+    PassingSkills,
+    PassingStats,
+    ProspectData,
+    ProspectDataSoup,
+    RatingsAndRankings,
+    ReceivingStats,
+    RunningBackSkills,
+    RushingStats,
+    ScoutingReport,
+    SkillRatings,
+    Stats,
+    TackleStats,
+)
 
 POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
 
@@ -63,16 +70,20 @@ class PageFetcher:
     """Handles fetching web pages using Playwright browser automation."""
 
     DEFAULT_USER_AGENT = (
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
-    DEFAULT_VIEWPORT = {'width': 1920, 'height': 1080}
+    DEFAULT_VIEWPORT = {"width": 1920, "height": 1080}
     CONTENT_WAIT_TIME = 3000
 
     MAX_RETRIES = 3
 
-    def __init__(self, playwright: Playwright, headless: bool = False,
-                 base_url: str = "https://www.nfldraftbuzz.com"):
+    def __init__(
+        self,
+        playwright: Playwright,
+        headless: bool = False,
+        base_url: str = "https://www.nfldraftbuzz.com",
+    ):
         self.base_url = base_url
         self.playwright = playwright
         self.headless = headless
@@ -88,7 +99,9 @@ class PageFetcher:
             print("Browser disconnected, relaunching...")
             self.browser = self._launch_browser()
 
-    def fetch(self, url: str, attempt_image_fetch: bool = False) -> Tuple[str, Optional[bytes], str]:
+    def fetch(
+        self, url: str, attempt_image_fetch: bool = False
+    ) -> Tuple[str, Optional[bytes], str]:
         """
         Fetch page content using Playwright browser automation.
 
@@ -107,8 +120,13 @@ class PageFetcher:
             except PlaywrightError as e:
                 last_error = e
                 error_msg = str(e).lower()
-                if "target closed" in error_msg or "browser has been closed" in error_msg:
-                    print(f"Browser/target closed (attempt {attempt + 1}/{self.MAX_RETRIES}), relaunching...")
+                if (
+                    "target closed" in error_msg
+                    or "browser has been closed" in error_msg
+                ):
+                    print(
+                        f"Browser/target closed (attempt {attempt + 1}/{self.MAX_RETRIES}), relaunching..."
+                    )
                     try:
                         self.browser.close()
                     except Exception:
@@ -130,7 +148,9 @@ class PageFetcher:
         finally:
             page.close()
 
-    def _fetch_with_page(self, url: str, attempt_image_fetch: bool) -> Tuple[str, Optional[bytes], str]:
+    def _fetch_with_page(
+        self, url: str, attempt_image_fetch: bool
+    ) -> Tuple[str, Optional[bytes], str]:
         """Internal method to fetch a page. May raise PlaywrightError."""
         self._ensure_browser_connected()
         print("Opening new page...")
@@ -143,7 +163,7 @@ class PageFetcher:
             except PlaywrightTimeout:
                 print("Page load timeout, continuing with partial content...")
 
-            text_content = page.evaluate('() => document.body.innerText')
+            text_content = page.evaluate("() => document.body.innerText")
             if attempt_image_fetch:
                 image_data, image_type = self._find_and_download_image(page, url)
             else:
@@ -154,7 +174,9 @@ class PageFetcher:
         finally:
             page.close()
 
-    def _find_and_download_image(self, page, base_url: str) -> Tuple[Optional[bytes], str]:
+    def _find_and_download_image(
+        self, page, base_url: str
+    ) -> Tuple[Optional[bytes], str]:
         """Find and download the player image from the page."""
         image_url = self._find_image_url(page)
 
@@ -175,11 +197,15 @@ class PageFetcher:
     def _find_any_large_image(self, page) -> Optional[str]:
         """Fallback: try to find any large player image."""
         try:
-            images = page.query_selector_all('img')
+            images = page.query_selector_all("img")
             for img in images:
-                src = img.get_attribute('src')
+                src = img.get_attribute("src")
                 if src and not self._should_skip_image(src):
-                    if 'nfldraftbuzz' in src or 'imagn' in src.lower() or 'player' in src.lower():
+                    if (
+                        "nfldraftbuzz" in src
+                        or "imagn" in src.lower()
+                        or "player" in src.lower()
+                    ):
                         return src
         except Exception:
             pass
@@ -190,7 +216,9 @@ class PageFetcher:
         src_lower = src.lower()
         return any(pattern in src_lower for pattern in self.SKIP_IMAGE_PATTERNS)
 
-    def _download_image(self, page, image_url: str, base_url: str) -> Tuple[Optional[bytes], str]:
+    def _download_image(
+        self, page, image_url: str, base_url: str
+    ) -> Tuple[Optional[bytes], str]:
         """Download image from URL."""
         print(f"Found player image: {image_url[:80]}...")
         try:
@@ -198,7 +226,9 @@ class PageFetcher:
             response = page.request.get(image_url)
             if response.ok:
                 image_data = response.body()
-                image_type = self._get_image_type(response.headers.get('content-type', ''))
+                image_type = self._get_image_type(
+                    response.headers.get("content-type", "")
+                )
                 print(f"Downloaded image: {len(image_data)} bytes ({image_type})")
                 return image_data, image_type
         except Exception as e:
@@ -208,28 +238,29 @@ class PageFetcher:
     @staticmethod
     def _make_absolute_url(url: str, base_url: str = None) -> str:
         """Convert relative URL to absolute."""
-        if url.startswith('//'):
-            return 'https:' + url
-        elif url.startswith('/'):
+        if url.startswith("//"):
+            return "https:" + url
+        elif url.startswith("/"):
             return urljoin(base_url, url)
         return url
 
     @staticmethod
     def _get_image_type(content_type: str) -> str:
         """Determine image type from content-type header."""
-        if 'png' in content_type:
-            return 'png'
-        elif 'gif' in content_type:
-            return 'gif'
-        elif 'webp' in content_type:
-            return 'webp'
-        return 'jpeg'
+        if "png" in content_type:
+            return "png"
+        elif "gif" in content_type:
+            return "gif"
+        elif "webp" in content_type:
+            return "webp"
+        return "jpeg"
 
 
 class ProspectParserSoup:
     """
     Parses nfldraftbuzz.com prospect profiles using BeautifulSoup
     """
+
     def __init__(self, soup: BeautifulSoup, position: str):
         self.soup = soup
         self.position = position
@@ -242,7 +273,9 @@ class ProspectParserSoup:
         # Note that text should be lower case since we use lower()
         return search_space.find(tag_name, string=lambda s: text in s.lower())
 
-    def _get_text_following_label(self, label_tag, expected_sibling_name: str = "span") -> str:
+    def _get_text_following_label(
+        self, label_tag, expected_sibling_name: str = "span"
+    ) -> str:
         return label_tag.find_next_sibling(expected_sibling_name).get_text(strip=True)
 
     ##### Basic Info Related #####
@@ -252,7 +285,9 @@ class ProspectParserSoup:
         first_name, last_name = self._parse_name()
 
         info_details_div = self.soup.find("div", class_="player-info-details")
-        basic_info_dict.update(self._parse_player_info_details_div(div=info_details_div))
+        basic_info_dict.update(
+            self._parse_player_info_details_div(div=info_details_div)
+        )
 
         basic_info_table_tag = self.soup.find("table", class_="basicInfoTable")
         basic_info_dict.update(self._parse_basic_info_table(basic_info_table_tag))
@@ -261,10 +296,12 @@ class ProspectParserSoup:
         basic_info_dict["hometown"] = basic_info_dict.pop("home town")
         basic_info_dict["photo_url"] = self.extract_image_url()
 
-        return BasicInfo(first_name=first_name,
-                         last_name=last_name,
-                         full_name=f"{first_name} {last_name}",
-                         **basic_info_dict)
+        return BasicInfo(
+            first_name=first_name,
+            last_name=last_name,
+            full_name=f"{first_name} {last_name}",
+            **basic_info_dict,
+        )
 
     def parse_ratings(self, table: Tag) -> RatingsAndRankings:
         self._perform_rating_checks(table=table)
@@ -284,7 +321,7 @@ class ProspectParserSoup:
             opposition_rating=opposition,
             **proj_ranks,
             **outlet_ratings,
-            **avg_ranks
+            **avg_ranks,
         )
 
         return rate_ranks
@@ -305,9 +342,9 @@ class ProspectParserSoup:
             comp_school = text_parts[3]
             comp_score = int(text_parts[-1].replace("%", ""))
 
-            comparisons.append(Comparison(name=comp_name,
-                                          school=comp_school,
-                                          similarity=comp_score))
+            comparisons.append(
+                Comparison(name=comp_name, school=comp_school, similarity=comp_score)
+            )
 
         return comparisons
 
@@ -316,19 +353,26 @@ class ProspectParserSoup:
         strengths_div = self.soup.find("div", class_="playerDescPro")
         weaknesses_div, summary_div = self.soup.find_all("div", class_="playerDescNeg")
 
-        strengths = [line for line in strengths_div.get_text().splitlines()
-                     if line and "scouting report" not in line.lower()]
-        weaknesses = [line for line in weaknesses_div.get_text().splitlines()
-                      if line and "scouting report" not in line.lower()]
+        strengths = [
+            line
+            for line in strengths_div.get_text().splitlines()
+            if line and "scouting report" not in line.lower()
+        ]
+        weaknesses = [
+            line
+            for line in weaknesses_div.get_text().splitlines()
+            if line and "scouting report" not in line.lower()
+        ]
 
-        return ScoutingReport(bio=intro_div.get_text(strip=True),
-                              strengths=strengths,
-                              weaknesses=weaknesses,
-                              summary=summary_div.get_text(strip=True))
+        return ScoutingReport(
+            bio=intro_div.get_text(strip=True),
+            strengths=strengths,
+            weaknesses=weaknesses,
+            summary=summary_div.get_text(strip=True),
+        )
 
     def extract_image_url(self) -> str:
-        figure_tag = self.soup.find("figure",
-                                    class_="player-info__photo")
+        figure_tag = self.soup.find("figure", class_="player-info__photo")
         image_path = figure_tag.find("img")["src"]
         return f"https://www.nfldraftbuzz.com{image_path}"
 
@@ -354,17 +398,16 @@ class ProspectParserSoup:
         return stats
 
     def _extract_games_and_snaps(self) -> Dict:
-        gp_label = self._get_tag_with_title_containing(tag=self.soup,
-                                                       search_str="College Games Played")
+        gp_label = self._get_tag_with_title_containing(
+            tag=self.soup, search_str="College Games Played"
+        )
         games_played = int(self._get_text_following_label(label_tag=gp_label))
-        snaps_label = self._get_tag_with_title_containing(tag=self.soup,
-                                                          search_str="College Snap Count")
+        snaps_label = self._get_tag_with_title_containing(
+            tag=self.soup, search_str="College Snap Count"
+        )
         snap_count = int(self._get_text_following_label(label_tag=snaps_label))
 
-        return {
-            "games_played": games_played,
-            "snap_count": snap_count
-        }
+        return {"games_played": games_played, "snap_count": snap_count}
 
     def parse(self):
         basic_info = self.parse_basic_info()
@@ -381,13 +424,17 @@ class ProspectParserSoup:
             skills=skills,
             comparisons=comparisons,
             scouting_report=scouting_report,
-            stats=None
+            stats=None,
         )
 
     ##### Basic Info #####
     def _parse_name(self) -> Tuple[str, str]:
-        first_name = self.soup.find("span", class_="player-info__first-name").get_text(strip=True)
-        last_name = self.soup.find("span", class_="player-info__last-name").get_text(strip=True)
+        first_name = self.soup.find("span", class_="player-info__first-name").get_text(
+            strip=True
+        )
+        last_name = self.soup.find("span", class_="player-info__last-name").get_text(
+            strip=True
+        )
 
         return first_name, last_name
 
@@ -400,7 +447,9 @@ class ProspectParserSoup:
 
             # Neither correspond to a known group
             if not (p1_group or p2_group):
-                raise ValueError(f"Could not find a valid position group for position: {value}")
+                raise ValueError(
+                    f"Could not find a valid position group for position: {value}"
+                )
 
             # Both correspond to a known group
             if p1_group and p2_group:
@@ -458,7 +507,7 @@ class ProspectParserSoup:
             "play_style": sub_position_value,
             "last_updated": last_updated_value,
             "draft_year": draft_yr_value,
-            "forty": forty_value.split()[0]
+            "forty": forty_value.split()[0],
         }
 
     ##### Statistical Related #####
@@ -472,6 +521,7 @@ class ProspectParserSoup:
         season_stats["year"] = season_stats.pop("year").split()[0]
 
         from pprint import pprint
+
         for fld in ["cmp", "att", "yds", "td", "ints", "sack", "year"]:
             try:
                 season_stats[fld] = int(season_stats[fld] or 0)
@@ -516,9 +566,11 @@ class ProspectParserSoup:
 
     def _extract_stats_object(self, div):
         stats_table = div.find("table")
-        header_values = [th.get_text(strip=True).lower()
-                         for th in stats_table.thead.find_all("th", class_="player-season-avg__stat")
-                         if th.get_text(strip=True)]
+        header_values = [
+            th.get_text(strip=True).lower()
+            for th in stats_table.thead.find_all("th", class_="player-season-avg__stat")
+            if th.get_text(strip=True)
+        ]
         seasons = []
 
         gp_and_snaps = self._extract_games_and_snaps()
@@ -538,22 +590,26 @@ class ProspectParserSoup:
                         "att": int(cells[1]),
                         "yds": int(cells[2]),
                         "avg": float(cells[3]),
-                        "td": int(cells[4])
+                        "td": int(cells[4]),
                     },
                     "receiving": {
                         "rec": int(cells[5]),
                         "yds": int(cells[6]),
                         "avg": float(cells[7]),
-                        "td": int(cells[8])
-                    }
+                        "td": int(cells[8]),
+                    },
                 }
-                rushing_stats = RushingStats(year=season_stats["year"],
-                                             **season_stats["rushing"])
-                receiving_stats = ReceivingStats(year=season_stats["year"],
-                                                 **season_stats["receiving"])
-                stats_obj = OffenseSkillPlayerStats(year=season_stats["year"],
-                                                    rushing=rushing_stats,
-                                                    receiving=receiving_stats)
+                rushing_stats = RushingStats(
+                    year=season_stats["year"], **season_stats["rushing"]
+                )
+                receiving_stats = ReceivingStats(
+                    year=season_stats["year"], **season_stats["receiving"]
+                )
+                stats_obj = OffenseSkillPlayerStats(
+                    year=season_stats["year"],
+                    rushing=rushing_stats,
+                    receiving=receiving_stats,
+                )
             elif self.position in ["WR", "TE"]:
                 season_stats = {
                     "year": cells[0],
@@ -562,22 +618,26 @@ class ProspectParserSoup:
                         "rec": int(cells[1]),
                         "yds": int(cells[2]),
                         "avg": float(cells[3]),
-                        "td": int(cells[4])
+                        "td": int(cells[4]),
                     },
                     "rushing": {
                         "att": int(cells[5]),
                         "yds": int(cells[6]),
                         "avg": float(cells[7]),
-                        "td": int(cells[8])
-                    }
+                        "td": int(cells[8]),
+                    },
                 }
-                rushing_stats = RushingStats(year=season_stats["year"],
-                                             **season_stats["rushing"])
-                receiving_stats = ReceivingStats(year=season_stats["year"],
-                                                 **season_stats["receiving"])
-                stats_obj = OffenseSkillPlayerStats(year=season_stats["year"],
-                                                    rushing=rushing_stats,
-                                                    receiving=receiving_stats)
+                rushing_stats = RushingStats(
+                    year=season_stats["year"], **season_stats["rushing"]
+                )
+                receiving_stats = ReceivingStats(
+                    year=season_stats["year"], **season_stats["receiving"]
+                )
+                stats_obj = OffenseSkillPlayerStats(
+                    year=season_stats["year"],
+                    rushing=rushing_stats,
+                    receiving=receiving_stats,
+                )
             elif self.position == "OL":
                 stats_obj = gp_and_snaps
             elif self.position in ["DL", "EDGE", "LB", "DB"]:
@@ -588,26 +648,32 @@ class ProspectParserSoup:
                         "total": int(cells[1]),
                         "solo": int(cells[2]),
                         "ff": int(cells[3]),
-                        "sacks": float(cells[4])
+                        "sacks": float(cells[4]),
                     },
                     "interception": {
                         "ints": int(cells[5]),
                         "yds": int(cells[6]),
                         "td": int(cells[7]),
-                        "pds": int(cells[8])
-                    }
+                        "pds": int(cells[8]),
+                    },
                 }
-                tackle_stats = TackleStats(year=season_stats["year"],
-                                           **season_stats["tackle"])
-                interception_stats = InterceptionStats(year=season_stats["year"],
-                                                       **season_stats["interception"])
-                stats_obj = DefenseStats(year=season_stats["year"],
-                                         tackle=tackle_stats,
-                                         interception=interception_stats)
+                tackle_stats = TackleStats(
+                    year=season_stats["year"], **season_stats["tackle"]
+                )
+                interception_stats = InterceptionStats(
+                    year=season_stats["year"], **season_stats["interception"]
+                )
+                stats_obj = DefenseStats(
+                    year=season_stats["year"],
+                    tackle=tackle_stats,
+                    interception=interception_stats,
+                )
 
             else:
-                raise ValueError(f"Could not match position {self.position} to "
-                                 f"a position with a defined stats mapping.")
+                raise ValueError(
+                    f"Could not match position {self.position} to "
+                    f"a position with a defined stats mapping."
+                )
 
             seasons.append(stats_obj)
 
@@ -619,12 +685,12 @@ class ProspectParserSoup:
     def _perform_rating_checks(self, table: Tag):
         ovr_rtg_label = table.find("th")
         if "overall rating" not in ovr_rtg_label.get_text().lower():
-            raise ValueError(f"Unexpected label in first <th> element: {ovr_rtg_label.get_text}")
+            raise ValueError(
+                f"Unexpected label in first <th> element: {ovr_rtg_label.get_text}"
+            )
 
     def _extract_ovr_rtg(self, row: Tag) -> float:
-        ovr_rtg = float(row.find("span")
-                        .get_text(strip=True)
-                        .replace(" / 100", ""))
+        ovr_rtg = float(row.find("span").get_text(strip=True).replace(" / 100", ""))
         return ovr_rtg
 
     def _extract_opposition_rtg(self, row: Tag) -> int:
@@ -635,9 +701,13 @@ class ProspectParserSoup:
     def _extract_skill_ratings(self, rows: List[Tag]) -> Dict:
         skills = {}
         for row in rows:
-            skill_name, rating = (row.get_text(strip=True).lower()
-                                  .replace(" ", "_").replace("%", "").split(":"))
-
+            skill_name, rating = (
+                row.get_text(strip=True)
+                .lower()
+                .replace(" ", "_")
+                .replace("%", "")
+                .split(":")
+            )
 
             if "/" in rating:
                 rating = rating.split("/")[0]
@@ -648,25 +718,25 @@ class ProspectParserSoup:
         return skills
 
     def _extract_proj_and_rankings(self, row) -> Dict:
-        projection_label = self._get_tag_with_text(search_space=row,
-                                                   tag_name="span",
-                                                   text="draft projection")
+        projection_label = self._get_tag_with_text(
+            search_space=row, tag_name="span", text="draft projection"
+        )
         projection = self._get_text_following_label(label_tag=projection_label)
 
-        ovr_rank_label = self._get_tag_with_text(search_space=row,
-                                           tag_name="span",
-                                           text="overall rank")
+        ovr_rank_label = self._get_tag_with_text(
+            search_space=row, tag_name="span", text="overall rank"
+        )
         ovr_rank = self._get_text_following_label(label_tag=ovr_rank_label)
 
-        pos_rank_label = self._get_tag_with_text(search_space=row,
-                                                 tag_name="span",
-                                                 text="position rank")
+        pos_rank_label = self._get_tag_with_text(
+            search_space=row, tag_name="span", text="position rank"
+        )
         pos_rank = self._get_text_following_label(label_tag=pos_rank_label)
 
         return {
             "draft_projection": projection,
             "overall_rank": ovr_rank,
-            "position_rank": pos_rank
+            "position_rank": pos_rank,
         }
 
     def _get_projection_ranks_row(self, rows: List[Tag]) -> Optional[Tag]:
@@ -675,7 +745,9 @@ class ProspectParserSoup:
                 return row
         return None
 
-    def _gather_skill_rtg_rows(self, rows: List[Tag], sentinel_val: str = "draft projection") -> List[Tag]:
+    def _gather_skill_rtg_rows(
+        self, rows: List[Tag], sentinel_val: str = "draft projection"
+    ) -> List[Tag]:
         skill_rows = []
         for row in rows:
             if sentinel_val in row.get_text().lower():
@@ -702,7 +774,9 @@ class ProspectParserSoup:
             case "DB":
                 skills = DefensiveBackSkills(**ratings)
             case _:
-                raise ValueError(f"Could not find skill ratings for position: {self.position}")
+                raise ValueError(
+                    f"Could not find skill ratings for position: {self.position}"
+                )
         return skills
 
     ##### Outlet ratings ####
@@ -710,15 +784,17 @@ class ProspectParserSoup:
         return {
             "espn": self._extract_espn(table=table),
             "rivals": self._extract_rivals(table=table),
-            "rtg_247": self._extract_247(table=table)
+            "rtg_247": self._extract_247(table=table),
         }
 
     def _extract_rivals(self, table: Tag) -> Optional[float]:
-        rivals_row = self._get_tag_with_text(search_space=table,
-                                             tag_name="span",
-                                             text="rivals")
+        rivals_row = self._get_tag_with_text(
+            search_space=table, tag_name="span", text="rivals"
+        )
         if rivals_row:
-            rivals_rtg = float(rivals_row.get_text(strip=True).split(":")[-1].split()[0])
+            rivals_rtg = float(
+                rivals_row.get_text(strip=True).split(":")[-1].split()[0]
+            )
         else:
             rivals_rtg = None
 
@@ -726,28 +802,32 @@ class ProspectParserSoup:
 
     def _extract_247(self, table: Tag) -> Optional[float]:
         rtg = None
-        sports_247_rtg_row = self._get_tag_with_text(search_space=table,
-                                                     tag_name="span",
-                                                     text="247")
+        sports_247_rtg_row = self._get_tag_with_text(
+            search_space=table, tag_name="span", text="247"
+        )
         if sports_247_rtg_row:
-            rtg = float(sports_247_rtg_row.get_text(strip=True).split()[-1].split("/")[0])
+            rtg = float(
+                sports_247_rtg_row.get_text(strip=True).split()[-1].split("/")[0]
+            )
 
         return rtg
 
     def _extract_espn(self, table: Tag) -> Optional[float]:
         rtg = None
-        espn_rtg_row = self._get_tag_with_text(search_space=table,
-                                                 tag_name="span",
-                                                 text="espn")
+        espn_rtg_row = self._get_tag_with_text(
+            search_space=table, tag_name="span", text="espn"
+        )
         if espn_rtg_row:
             rtg = float(espn_rtg_row.get_text(strip=True).split()[-1].split("/")[0])
 
         return rtg
 
     def _extract_ratings_comps_tables(self):
-        ratings_and_rankings = [table for table
-                                in self.soup.find_all("table", class_="starRatingTable")
-                                if not table.find("th", string=lambda s: "measurables" in s.lower())]
+        ratings_and_rankings = [
+            table
+            for table in self.soup.find_all("table", class_="starRatingTable")
+            if not table.find("th", string=lambda s: "measurables" in s.lower())
+        ]
 
         ratings = ratings_and_rankings[0]
         comparisons = ratings_and_rankings[1]
@@ -755,231 +835,11 @@ class ProspectParserSoup:
 
     def _extract_average_ranks(self):
         rankings_div = self.soup.find("div", class_="rankingBox")
-        avg_ovr, avg_pos = rankings_div.find_all("div",
-                                                 class_="rankVal")
+        avg_ovr, avg_pos = rankings_div.find_all("div", class_="rankVal")
         return {
             "avg_overall_rank": float(avg_ovr.get_text(strip=True)),
-            "avg_position_rank": float(avg_pos.get_text(strip=True))
+            "avg_position_rank": float(avg_pos.get_text(strip=True)),
         }
-
-
-
-class ProspectParser:
-    """Parses page text content and extracts prospect data."""
-
-    POSITIONS = {'QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'EDGE', 'LB', 'DB', 'CB', 'S', 'PK', 'P'}
-
-    SKILL_PATTERNS = [
-        ('Release Speed', r'RELEASE SPEED:\s*\n?\s*(\d+)%'),
-        ('Short Passing', r'SHORT PASSING:\s*\n?\s*(\d+)%'),
-        ('Medium Passing', r'MEDIUM PASSING:\s*\n?\s*(\d+)%'),
-        ('Long Passing', r'LONG PASSING:\s*\n?\s*(\d+)%'),
-        ('Rush/Scramble', r'RUSH/SCRAMBLE:\s*\n?\s*(\d+)%'),
-    ]
-
-    def __init__(self):
-        self.soup = None
-        self.position = None
-
-    def parse(self, text: str, image_data: Optional[bytes] = None,
-              image_type: str = "jpeg", html_str: str = None) -> ProspectData:
-        """Parse page text and extract all prospect data."""
-        data = ProspectData()
-        data.image_data = image_data
-        data.image_type = image_type
-
-
-
-        self._parse_name(text, data)
-        self._parse_basic_info(text, data)
-        self._parse_ratings(text, data)
-        # self._parse_stats(text, data)
-        self._parse_skill_ratings(text, data)
-        self._parse_recruiting_grades(text, data)
-        self._parse_comparisons(text, data)
-        self._parse_scouting_content(text, data)
-        self._parse_consensus_rankings(text, data)
-
-        return data
-
-    def _parse_name(self, text: str, data: ProspectData) -> None:
-        """Extract player name from page text."""
-        pos_pattern = '|'.join(self.POSITIONS)
-        title_match = re.search(
-            rf'([A-Z]+)\s+([A-Z]+)\s+({pos_pattern})\s+[A-Z]+\s*\|\s*NFL DRAFT',
-            text
-        )
-        if title_match:
-            data.name = f"{title_match.group(1).title()} {title_match.group(2).title()}"
-            return
-
-        name_match = re.search(r'SIMULATOR\s*\n?\s*([A-Z]+)\s*\n\s*([A-Z]+)\s*\n?\s*HEIGHT', text)
-        if name_match:
-            data.name = f"{name_match.group(1).title()} {name_match.group(2).title()}"
-
-    def _parse_basic_info(self, text: str, data: ProspectData) -> None:
-        # TODO: All but college_games and college_snaps are completed.
-        """Extract basic player information."""
-        patterns = {
-            'height': (r'HEIGHT\s*\n?\s*(\d+-\d+)', 'height'),
-            'weight': (r'WEIGHT\s*\n?\s*(\d+)', 'weight'),
-            'school': (r'COLLEGE\s*\n?\s*([A-Za-z\s]+?)\s*\n', 'school'),
-            'position': (rf'POSITION\s*\n?\s*({"|".join(self.POSITIONS)})', 'position'),
-            'player_class': (r'CLASS\s*\n?\s*(Freshman|Sophomore|Junior|Senior|RS\s*\w+)', 'player_class'),
-            'hometown': (r'HOME\s*TOWN\s*\n?\s*([A-Za-z\s,]+?)(?:\n|$)', 'hometown'),
-            'jersey': (r'JERSEY:\s*#(\d+)', 'jersey'),
-            'play_style': (r'PLAY STYLE:\s*([A-Z\s]+?)(?:\n|LAST)', 'play_style'),
-            'last_updated': (r'LAST UPDATED:\s*(\d+/\d+/\d+)', 'last_updated'),
-            'draft_year': (r'DRAFT YEAR:\s*(\d+)', 'draft_year'),
-            'college_games': (r'COLLEGE GAMES:\s*(\d+)', 'college_games'),
-            'college_snaps': (r'COLLEGE SNAPS:\s*(\d+)', 'college_snaps'),
-        }
-
-        for _, (pattern, attr) in patterns.items():
-            match = re.search(pattern, text, re.IGNORECASE if attr == 'player_class' else 0)
-            if match:
-                value = match.group(1).strip() if attr in ('school', 'hometown', 'play_style') else match.group(1)
-                setattr(data, attr, value)
-
-        print("ARMADILLO")
-        print(data)
-
-        self.position = data.position
-
-        # Age and DOB combined pattern
-        age_match = re.search(r'AGE:\s*([\d.]+)\s*DOB:\s*(\d+/\d+/\d+)', text)
-        if age_match:
-            data.age = age_match.group(1)
-            data.dob = age_match.group(2)
-
-        # Height/Weight with percentiles
-        hw_match = re.search(r'HEIGHT:\s*(\d+-\d+)\s*\((\d+)%\*?\)\s*WEIGHT:\s*(\d+)\s*\((\d+)%', text)
-        if hw_match:
-            data.height = f"{hw_match.group(1)} ({hw_match.group(2)}%)"
-            data.weight = f"{hw_match.group(3)} ({hw_match.group(4)}%)"
-
-        # Forty time with percentile
-        forty_match = re.search(r'FORTY TIME:\s*([\d.]+)\s*SECONDS\s*\((\d+)%', text)
-        if forty_match:
-            data.forty = f"{forty_match.group(1)} ({forty_match.group(2)}%)"
-        elif not data.forty:
-            forty_simple = re.search(r'(\d+\.\d+)\s*\n?\s*FORTY\s*YD\s*TIME', text)
-            if forty_simple:
-                data.forty = forty_simple.group(1)
-
-    def _parse_ratings(self, text: str, data: ProspectData) -> None:
-        """Extract player ratings."""
-        patterns = {
-            'overall_rating': r'(\d+\.\d+)\s*/100\s*\n?\s*PLAYER\s*RATING',
-            'position_rank': r'(\d+)\s*\n?\s*POSITION\s*RANK',
-            'overall_rank': r'OVERALL RANK:\s*#(\d+)',
-            'draft_projection': r'DRAFT PROJECTION:\s*([^\n]+)',
-            'defense_rating': r'DEFENSE RATING:\s*\n?\s*(\d+)%',
-        }
-
-        for attr, pattern in patterns.items():
-            match = re.search(pattern, text)
-            if match:
-                value = match.group(1).strip() if attr == 'draft_projection' else match.group(1)
-                setattr(data, attr, value)
-
-    def _parse_stats(self, text: str, data: ProspectData) -> None:
-        """Extract player statistics (primarily for QBs)."""
-        patterns = {
-            'qb_rating': r'QB RATING\s*\n?\s*([\d.]+)',
-            'yards': r'YDS\s*\n?\s*(\d+)',
-            'comp_pct': r'COMP %\s*\n?\s*([\d.]+)',
-            'tds': r'TDS\s*\n?\s*(\d+)',
-            'ints': r'INTS\s*\n?\s*(\d+)',
-            'rush_avg': r'RUSH AVG\s*\n?\s*([\d.]+)',
-        }
-
-        for attr, pattern in patterns.items():
-            match = re.search(pattern, text)
-            if match:
-                setattr(data, attr, match.group(1))
-
-    def _parse_skill_ratings(self, text: str, data: ProspectData) -> None:
-        """Extract skill ratings (percentiles)."""
-        for skill_name, pattern in self.SKILL_PATTERNS:
-            match = re.search(pattern, text)
-            if match:
-                data.skill_ratings[skill_name] = match.group(1)
-
-    def _parse_recruiting_grades(self, text: str, data: ProspectData) -> None:
-        """Extract recruiting grades from various services."""
-        espn_match = re.search(r'ESPN RATING:\s*([\d/]+)', text)
-        if espn_match:
-            data.espn_rating = espn_match.group(1)
-
-        rating247_match = re.search(r'247 RATING:\s*([\d/]+)', text)
-        if rating247_match:
-            data.rating_247 = rating247_match.group(1)
-
-        rivals_match = re.search(r'RIVALS RATING:\s*([\d.]+\s*\([^)]+\))', text)
-        if rivals_match:
-            data.rivals_rating = rivals_match.group(1)
-
-    def _parse_comparisons(self, text: str, data: ProspectData) -> None:
-        """Extract player comparisons."""
-        comp_pattern = r'([A-Z][a-z]+)\s+([A-Z]+)\s*-\s*([A-Z\s]+?)\s*\n?\s*(\d+)%'
-        for match in re.finditer(comp_pattern, text):
-            name = f"{match.group(1)} {match.group(2)}"
-            school = match.group(3).strip()
-            similarity = match.group(4)
-            data.comparisons.append((name, school, similarity))
-
-    def _parse_scouting_content(self, text: str, data: ProspectData) -> None:
-        """Extract scouting report content."""
-        # Bio
-        bio_match = re.search(r'DRAFT PROFILE: BIO\s*\n(.+?)(?=SCOUTING REPORT: STRENGTHS)', text, re.DOTALL)
-        if bio_match:
-            data.bio = bio_match.group(1).strip()
-
-        # Strengths
-        strengths_match = re.search(
-            r'SCOUTING REPORT: STRENGTHS\s*\n(.+?)(?=SCOUTING REPORT: WEAKNESSES)', text, re.DOTALL
-        )
-        if strengths_match:
-            data.strengths = self._split_scouting_points(strengths_match.group(1))
-
-        # Weaknesses
-        weaknesses_match = re.search(
-            r'SCOUTING REPORT: WEAKNESSES\s*\n(.+?)(?=SCOUTING REPORT: SUMMARY)', text, re.DOTALL
-        )
-        if weaknesses_match:
-            data.weaknesses = self._split_scouting_points(weaknesses_match.group(1))
-
-        # Summary
-        summary_match = re.search(r'SCOUTING REPORT: SUMMARY\s*\n(.+?)(?=NEXT:|HOW OTHER)', text, re.DOTALL)
-        if summary_match:
-            data.summary = summary_match.group(1).strip()
-
-    @staticmethod
-    def _split_scouting_points(text: str) -> List[str]:
-        """Split scouting text into individual points."""
-        points = [s.strip() for s in re.split(r'\.\s+(?=[A-Z])', text.strip()) if s.strip()]
-        return [s if s.endswith('.') else s + '.' for s in points]
-
-    def _parse_consensus_rankings(self, text: str, data: ProspectData) -> None:
-        """Extract consensus rankings from other scouts."""
-        avg_overall_match = re.search(r'ALL SCOUTS AVERAGE\s*OVERALL RANK\s*\n?\s*([\d.]+)', text)
-        if avg_overall_match:
-            data.avg_overall_rank = avg_overall_match.group(1)
-
-        avg_pos_match = re.search(r'ALL SCOUTS AVERAGE\s*POSITION RANK\s*\n?\s*([\d.]+)', text)
-        if avg_pos_match:
-            data.avg_position_rank = avg_pos_match.group(1)
-
-    def extract_name_from_url(self, url: str) -> Optional[str]:
-        """Extract player name from URL as fallback."""
-        url_match = re.search(r'/Player/([^/]+)', url)
-        if url_match:
-            name_parts = url_match.group(1).replace('-', ' ').split()
-            name_parts = [p for p in name_parts if p.upper() not in self.POSITIONS]
-            if len(name_parts) >= 2:
-                return ' '.join(name_parts[:2])
-        return None
 
 
 class WordDocumentGenerator:
@@ -1018,8 +878,8 @@ class WordDocumentGenerator:
 
     def _setup_styles(self) -> None:
         """Set up document styles."""
-        style = self.doc.styles['Normal']
-        style.font.name = 'Calibri'
+        style = self.doc.styles["Normal"]
+        style.font.name = "Calibri"
         style.font.size = Pt(11)
 
     def _add_title(self, data: ProspectData) -> None:
@@ -1103,12 +963,17 @@ class WordDocumentGenerator:
         ratings_table = self.doc.add_table(rows=2, cols=4)
         ratings_table.alignment = WD_TABLE_ALIGNMENT.CENTER
 
-        headers = ["Overall Rating", "Position Rank", "Overall Rank", "Draft Projection"]
+        headers = [
+            "Overall Rating",
+            "Position Rank",
+            "Overall Rank",
+            "Draft Projection",
+        ]
         values = [
             f"{data.overall_rating}/100" if data.overall_rating else "N/A",
             f"#{data.position_rank} ({data.position})" if data.position_rank else "N/A",
             f"#{data.overall_rank}" if data.overall_rank else "N/A",
-            data.draft_projection or "N/A"
+            data.draft_projection or "N/A",
         ]
 
         for i, header in enumerate(headers):
@@ -1144,7 +1009,7 @@ class WordDocumentGenerator:
             f"{data.comp_pct}%" if data.comp_pct else "N/A",
             data.tds or "N/A",
             data.ints or "N/A",
-            data.rush_avg or "N/A"
+            data.rush_avg or "N/A",
         ]
 
         for i, header in enumerate(stat_headers):
@@ -1183,7 +1048,9 @@ class WordDocumentGenerator:
         for i, (skill, rating) in enumerate(data.skill_ratings.items(), 1):
             skills_table.rows[i].cells[0].text = skill
             skills_table.rows[i].cells[1].text = f"{rating}%"
-            skills_table.rows[i].cells[1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            skills_table.rows[i].cells[1].paragraphs[
+                0
+            ].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         self.doc.add_paragraph()
 
@@ -1229,7 +1096,9 @@ class WordDocumentGenerator:
             comp_table.rows[i].cells[0].text = name
             comp_table.rows[i].cells[1].text = school
             comp_table.rows[i].cells[2].text = f"{similarity}%"
-            comp_table.rows[i].cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            comp_table.rows[i].cells[2].paragraphs[
+                0
+            ].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         self.doc.add_paragraph()
 
@@ -1249,7 +1118,7 @@ class WordDocumentGenerator:
 
         self.doc.add_heading("SCOUTING REPORT: STRENGTHS", level=1)
         for strength in data.strengths:
-            p = self.doc.add_paragraph(style='List Bullet')
+            p = self.doc.add_paragraph(style="List Bullet")
             p.add_run(strength)
         self.doc.add_paragraph()
 
@@ -1260,7 +1129,7 @@ class WordDocumentGenerator:
 
         self.doc.add_heading("SCOUTING REPORT: WEAKNESSES", level=1)
         for weakness in data.weaknesses:
-            p = self.doc.add_paragraph(style='List Bullet')
+            p = self.doc.add_paragraph(style="List Bullet")
             p.add_run(weakness)
         self.doc.add_paragraph()
 
@@ -1305,7 +1174,7 @@ class WordDocumentGenerator:
 
     def _add_text_paragraphs(self, text: str) -> None:
         """Add text split into paragraphs."""
-        paragraphs = text.split('\n\n')
+        paragraphs = text.split("\n\n")
         for para_text in paragraphs:
             if para_text.strip():
                 p = self.doc.add_paragraph(para_text.strip())
@@ -1314,23 +1183,26 @@ class WordDocumentGenerator:
     @staticmethod
     def _set_cell_shading(cell, color: str) -> None:
         """Set background color for a table cell."""
-        shading = OxmlElement('w:shd')
-        shading.set(qn('w:fill'), color)
+        shading = OxmlElement("w:shd")
+        shading.set(qn("w:fill"), color)
         cell._tc.get_or_add_tcPr().append(shading)
 
 
 class DraftBuzzScraper:
     """Main orchestrator for scraping NFL Draft Buzz prospect pages."""
 
-    def __init__(self,
-                 playwright: Playwright,
-                 profile_root_dir: Path = None,
-                 fetcher: PageFetcher = None,
-                 doc_generator: WordDocumentGenerator = None):
+    def __init__(
+        self,
+        playwright: Playwright,
+        profile_root_dir: Path = None,
+        fetcher: PageFetcher = None,
+        doc_generator: WordDocumentGenerator = None,
+    ):
         self.profile_root_dir = profile_root_dir
         self.base_url = "https://www.nfldraftbuzz.com"
-        self.fetcher = fetcher or PageFetcher(playwright=playwright,
-                                              base_url=self.base_url)
+        self.fetcher = fetcher or PageFetcher(
+            playwright=playwright, base_url=self.base_url
+        )
         self.parser = None
         self.doc_generator = doc_generator or WordDocumentGenerator()
         self.position_rankings_used = defaultdict(list)
@@ -1340,8 +1212,7 @@ class DraftBuzzScraper:
         print("Parsing prospect data...")
         full_url = f"{self.base_url}{url}"
         base_soup = self.fetcher.fetch_soup(url=full_url)
-        self.parser = ProspectParserSoup(soup=base_soup,
-                                         position=position)
+        self.parser = ProspectParserSoup(soup=base_soup, position=position)
         prospect_data = self.parser.parse()
 
         print("Fetching stats page")
@@ -1370,7 +1241,9 @@ class DraftBuzzScraper:
                 rank_is_valid = True
                 self.position_rankings_used[prospect_data.position].append(current_rank)
             else:
-                print(f"Attempting to use rank that has already been assigned: {current_rank}")
+                print(
+                    f"Attempting to use rank that has already been assigned: {current_rank}"
+                )
                 print("Searching for new one")
                 current_rank += 1
 
@@ -1378,7 +1251,7 @@ class DraftBuzzScraper:
 
     def generate_output_path(self, data: ProspectData) -> str:
         """Generate default output path from prospect name."""
-        safe_name = re.sub(r'[^\w\s-]', '', data.name).replace(' ', '_')
+        safe_name = re.sub(r"[^\w\s-]", "", data.name).replace(" ", "_")
         rank = self._get_prospect_position_rank(prospect_data=data)
         padded_pos_rank = rank.zfill(2)
         return f"{padded_pos_rank}_{safe_name}_Scouting_Report.docx"
@@ -1422,15 +1295,22 @@ class ProspectProfileListExtractor:
                 return
             except PlaywrightError as e:
                 error_msg = str(e).lower()
-                if "target closed" in error_msg or "browser has been closed" in error_msg:
-                    print(f"Browser/target closed during navigation (attempt {attempt + 1}/{self.MAX_RETRIES})")
+                if (
+                    "target closed" in error_msg
+                    or "browser has been closed" in error_msg
+                ):
+                    print(
+                        f"Browser/target closed during navigation (attempt {attempt + 1}/{self.MAX_RETRIES})"
+                    )
                     raise  # Let caller handle browser relaunch
                 raise
 
     def extract_prospect_hrefs(self, page):
         print(f"Extracting prospect hrefs for {page.url}")
-        rows = page.locator('#positionRankTable tbody tr')
-        data_hrefs = rows.evaluate_all("rows => rows.map(row => row.getAttribute('data-href'))")
+        rows = page.locator("#positionRankTable tbody tr")
+        data_hrefs = rows.evaluate_all(
+            "rows => rows.map(row => row.getAttribute('data-href'))"
+        )
         return data_hrefs
 
     def extract_prospect_urls_for_position(self, pos: str) -> List[str]:
@@ -1441,8 +1321,10 @@ class ProspectProfileListExtractor:
 
         page = self._create_page_with_retry(full_url)
         all_profiles.extend(self.extract_prospect_hrefs(page=page))
-        links = page.locator('ul.pagination li.page-item a.page-link[href]')
-        position_page_hrefs = links.evaluate_all("anchors => anchors.map(a => a.getAttribute('href'))")
+        links = page.locator("ul.pagination li.page-item a.page-link[href]")
+        position_page_hrefs = links.evaluate_all(
+            "anchors => anchors.map(a => a.getAttribute('href'))"
+        )
 
         for path in position_page_hrefs:
             page.close()
@@ -1467,8 +1349,13 @@ class ProspectProfileListExtractor:
             except PlaywrightError as e:
                 last_error = e
                 error_msg = str(e).lower()
-                if "target closed" in error_msg or "browser has been closed" in error_msg:
-                    print(f"Browser/target closed (attempt {attempt + 1}/{self.MAX_RETRIES}), relaunching...")
+                if (
+                    "target closed" in error_msg
+                    or "browser has been closed" in error_msg
+                ):
+                    print(
+                        f"Browser/target closed (attempt {attempt + 1}/{self.MAX_RETRIES}), relaunching..."
+                    )
                     try:
                         self.browser.close()
                     except Exception:

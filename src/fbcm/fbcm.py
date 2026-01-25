@@ -5,9 +5,10 @@ from datetime import date
 from pathlib import Path
 from random import uniform
 from typing import Tuple
+
 import click
-from playwright.sync_api import sync_playwright
 from playwright._impl._errors import TargetClosedError, TimeoutError
+from playwright.sync_api import sync_playwright
 
 from .base import (
     DEFAULT_REPLAY_TYPES,
@@ -311,38 +312,43 @@ def nfl_games(
     "--output-format",
     default="json",
     type=click.Choice(OUTPUT_FORMATS.keys(), case_sensitive=False),
-    help="Format to generate the draft profile(s) in."
+    help="Format to generate the draft profile(s) in.",
 )
 @click.option(
     "--player-slug",
     type=str,
-    help="The slug used by nfldraftbuzz.com for the Player's profile."
+    help="The slug used by nfldraftbuzz.com for the Player's profile.",
 )
 @click.option(
     "--position",
     type=str,
     multiple=True,
-    help="Extract draft profiles for the specified position"
+    help="Extract draft profiles for the specified position",
 )
-@click.option("--input-file",
-              type=click.Path(exists=True),
-              help="A text file containing multiple player slugs "
-                   "(one per line) to extract profiles for.")
-@click.option("--generate-inline",
-              default=None,
-              is_flag=True,
-              flag_value=True,
-              help="When this flag is passed, the application will generate reports for each "
-                   "player as there are fetched, instead of at the end of the process."
-              )
+@click.option(
+    "--input-file",
+    type=click.Path(exists=True),
+    help="A text file containing multiple player slugs "
+    "(one per line) to extract profiles for.",
+)
+@click.option(
+    "--generate-inline",
+    default=None,
+    is_flag=True,
+    flag_value=True,
+    help="When this flag is passed, the application will generate reports for each "
+    "player as there are fetched, instead of at the end of the process.",
+)
 @click.pass_context
-def extract_draft_profiles(ctx,
-                           output_directory: str,
-                           output_format: str,
-                           player_slug: str,
-                           position: str,
-                           input_file: str,
-                           generate_inline: bool):
+def extract_draft_profiles(
+    ctx,
+    output_directory: str,
+    output_format: str,
+    player_slug: str,
+    position: str,
+    input_file: str,
+    generate_inline: bool,
+):
     selected_positions = list(position)
     if not selected_positions:
         print("No positions selected. Defaulting to all.")
@@ -352,7 +358,6 @@ def extract_draft_profiles(ctx,
     with open(input_file, "r") as infile:
         profile_urls = json.load(infile)
 
-
         all_data = {}
         for pos in selected_positions:
             if pos not in profile_urls:
@@ -361,17 +366,15 @@ def extract_draft_profiles(ctx,
             position_profiles = profile_urls[pos]
             click.echo(f"Found {len(position_profiles)} {pos} profile URLs to extract.")
 
-        #     position_player_data = {}
-        #     for prof_slug in position_profiles:
-        #         time.sleep(uniform(3.5, 4.5))
+            position_player_data = {}
+            for prof_slug in position_profiles:
+                click.echo(f"Processing player profile: {prof_slug}")
+                time.sleep(uniform(3.5, 4.5))
         #         player_data = scraper.scrape_from_url(url=prof_slug,
         #                                               get_image=True)
         #         position_player_data[player_data.name] = player_data
         #
-        #         if generate_inline:
-        #             file_name = scraper.generate_output_path(data=player_data)
-        #             file_path = Path(output_directory, pos, file_name)
-        #             scraper.generate_document(data=player_data, output_path=str(file_path))
+
         #     all_data[pos] = position_player_data
         #
         #     time.sleep(uniform(10, 20))
@@ -392,9 +395,13 @@ def update_draft_prospect_urls(ctx):
 
         for position in POSITIONS:
             try:
-                profile_lists[position] = pple.extract_prospect_urls_for_position(pos=position)
+                profile_lists[position] = pple.extract_prospect_urls_for_position(
+                    pos=position
+                )
             except TimeoutError:
-                print(f"Position {position} timed out. Sleeping, then moving on to next position.")
+                print(
+                    f"Position {position} timed out. Sleeping, then moving on to next position."
+                )
                 time.sleep(5)
 
     with open("prospect_urls.json", "w") as outfile:

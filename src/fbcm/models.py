@@ -1,13 +1,17 @@
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Optional, Any, TypeAlias
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, List, Optional, TypeAlias
+
 
 @dataclass
 class BaseModel:
     exclude_fields = []
 
     def to_dict(self) -> Dict[str, Any]:
-        return {key: value for key, value in asdict(self).items()
-                if key not in self.exclude_fields}
+        return {
+            key: value
+            for key, value in asdict(self).items()
+            if key not in self.exclude_fields
+        }
 
 
 @dataclass
@@ -73,7 +77,14 @@ class DefenseStats(BaseStats):
     interception: InterceptionStats | None = None
 
 
-Stats: TypeAlias = PassingStats | RushingStats | ReceivingStats | OffenseSkillPlayerStats | DefenseStats
+Stats: TypeAlias = (
+    PassingStats
+    | RushingStats
+    | ReceivingStats
+    | OffenseSkillPlayerStats
+    | DefenseStats
+)
+
 
 @dataclass
 class PassingSkills(BaseModel):
@@ -134,13 +145,15 @@ class DefensiveBackSkills(BaseModel):
     man_press: int | None = None
 
 
-SkillRatings: TypeAlias = (PassingSkills |
-                           RunningBackSkills |
-                           PassCatcherSkills |
-                           OffensiveLinemanSkills |
-                           DefensiveLinemanSkills |
-                           LinebackerSkills |
-                           DefensiveBackSkills)
+SkillRatings: TypeAlias = (
+    PassingSkills
+    | RunningBackSkills
+    | PassCatcherSkills
+    | OffensiveLinemanSkills
+    | DefensiveLinemanSkills
+    | LinebackerSkills
+    | DefensiveBackSkills
+)
 
 
 @dataclass
@@ -209,9 +222,11 @@ class ProspectDataSoup(BaseModel):
     stats: Stats | None = None
     scouting_report: ScoutingReport | None = None
 
+
 @dataclass
 class ProspectData(BaseModel):
     """Container for all prospect information."""
+
     name: str = ""
     position: str = ""
     school: str = ""
@@ -263,7 +278,9 @@ class ProspectData(BaseModel):
     avg_position_rank: str = ""
 
     # Profile image
-    image_data: Optional[bytes] = field(default=None, metadata={"exclude_from_asdict": True}, repr=False)
+    image_data: Optional[bytes] = field(
+        default=None, metadata={"exclude_from_asdict": True}, repr=False
+    )
     image_type: str = "jpeg"
 
     exclude_fields = ["image_data"]
