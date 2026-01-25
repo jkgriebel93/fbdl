@@ -189,6 +189,8 @@ class BasicInfo(BaseModel):
     dob: str = ""
     hometown: str = ""
 
+    photo_url: str | None = None
+
 
 @dataclass
 class ScoutingReport(BaseModel):

@@ -259,6 +259,7 @@ class ProspectParserSoup:
 
         basic_info_dict["class_"] = basic_info_dict.pop("class")
         basic_info_dict["hometown"] = basic_info_dict.pop("home town")
+        basic_info_dict["photo_url"] = self.extract_image_url()
 
         return BasicInfo(first_name=first_name,
                          last_name=last_name,
@@ -364,7 +365,6 @@ class ProspectParserSoup:
             "games_played": games_played,
             "snap_count": snap_count
         }
-
 
     def parse(self):
         basic_info = self.parse_basic_info()
