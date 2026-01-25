@@ -11,3 +11,6 @@ nfl_headers.json
 example_game.json
 fbcm.yaml
 creds.json
+player_photos/
+input_files/
+output_data/

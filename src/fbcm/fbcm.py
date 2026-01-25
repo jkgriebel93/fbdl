@@ -353,14 +353,14 @@ def extract_draft_profiles(ctx,
         profile_urls = json.load(infile)
 
 
-        # all_data = {}
-        # for pos in selected_positions:
-        #     if pos not in profile_urls:
-        #         raise click.BadParameter(f"{pos} is not present in the input file.")
-        #
-        #     position_profiles = profile_urls[pos]
-        #     click.echo(f"Found {len(position_profiles)} {pos} profile URLs to extract.")
-        #
+        all_data = {}
+        for pos in selected_positions:
+            if pos not in profile_urls:
+                raise click.BadParameter(f"{pos} is not present in the input file.")
+
+            position_profiles = profile_urls[pos]
+            click.echo(f"Found {len(position_profiles)} {pos} profile URLs to extract.")
+
         #     position_player_data = {}
         #     for prof_slug in position_profiles:
         #         time.sleep(uniform(3.5, 4.5))
