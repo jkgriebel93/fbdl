@@ -13,6 +13,8 @@ class BaseModel:
 @dataclass
 class BaseStats(BaseModel):
     year: int | None = None
+    games_played: int | None = None
+    snap_count: int | None = None
 
 
 @dataclass
@@ -145,7 +147,6 @@ SkillRatings: TypeAlias = (PassingSkills |
 class RatingsAndRankings(BaseModel):
     overall_rating: float | None = None
     opposition_rating: int | None = None
-    skill_ratings: SkillRatings | None = None
     espn: int | None = None
     rtg_247: int | None = None
     rivals: float | None = None
@@ -182,10 +183,11 @@ class BasicInfo(BaseModel):
     height: str = ""
     weight: str = ""
     forty: str = ""
+    # TODO: Find a source for age and DOB, DraftBuzz doesn't
+    # provide it, apparently
     age: str = ""
     dob: str = ""
     hometown: str = ""
-    player_class: str = ""
 
 
 @dataclass

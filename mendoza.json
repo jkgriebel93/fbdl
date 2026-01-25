@@ -1,0 +1,90 @@
+{
+    "basic_info": {
+        "first_name": "Fernando",
+        "last_name": "Mendoza",
+        "full_name": "Fernando Mendoza",
+        "position": "QB",
+        "college": "indiana",
+        "class_": "junior",
+        "jersey": "#15",
+        "play_style": "Mobile Pocket Passer",
+        "draft_year": "2026",
+        "last_updated": "01/23/2026",
+        "height": "6-5",
+        "weight": "225",
+        "forty": "4.85",
+        "age": "",
+        "dob": "",
+        "hometown": "miami, fl"
+    },
+    "ratings": {
+        "overall_rating": 90.0,
+        "opposition_rating": 75,
+        "espn": null,
+        "rtg_247": 80.0,
+        "rivals": 5.2,
+        "draft_projection": "1st - Top 5",
+        "overall_rank": "#4",
+        "position_rank": "#1 (QB)",
+        "avg_overall_rank": 8.0,
+        "avg_position_rank": 1.0
+    },
+    "skills": {
+        "release_speed": 92,
+        "short_passing": 90,
+        "medium_passing": 99,
+        "long_passing": 100,
+        "rush_scramble": 79
+    },
+    "comparisons": [
+        {
+            "name": "Jaxson Dart",
+            "school": "Ole",
+            "similarity": 85
+        },
+        {
+            "name": "Bo Nix",
+            "school": "Oregon",
+            "similarity": 78
+        },
+        {
+            "name": "Cam Ward",
+            "school": "Miami",
+            "similarity": 77
+        }
+    ],
+    "stats": {
+        "year": 2025,
+        "games_played": 35,
+        "snap_count": 2204,
+        "cmp": 273,
+        "att": 379,
+        "cmp_pct": 72.0,
+        "yds": 3535,
+        "td": 41,
+        "ints": 0,
+        "sack": 0,
+        "qb_rtg": 137.0
+    },
+    "scouting_report": {
+        "bio": "Draft Profile: BioNobody saw this coming. Fernando Mendoza was a three-star quarterback out of Christopher Columbus High School in Miami with a 5.2 Rivals grade who originally committed to Yale before flipping to California. The recruiting services had him as the 72nd-ranked quarterback in his class. Fast forward four years and the kid just won the Heisman Trophy, led Indiana to a 16-0 record and a national championship, and has Raiders owner Mark Davis and Tom Brady showing up on his sideline before the title game. Sometimes the recruiting rankings miss badly, and Mendoza is exhibit A.He redshirted his first year at Cal, then took over midway through his redshirt freshman season and threw for 1,708 yards with 14 touchdowns and 10 picks across eight starts. Not spectacular, but you could see the arm talent and the processing ability starting to show. His sophomore year brought real improvement: 3,004 yards, 16 touchdowns, only six interceptions, and a 68.7% completion rate that had him leaving Berkeley as the program's all-time leader in that category. He matched Aaron Rodgers with 10 career 250-yard passing games. When Kurt Cignetti came calling from Indiana, Mendoza followed his younger brother Alberto to Bloomington and proceeded to have one of the greatest single seasons in college football history.The 2025 numbers are absurd. Mendoza completed 72% of his passes for 3,535 yards with 41 touchdowns against just six interceptions. He added seven rushing scores. He set Indiana's single-game completion percentage record at 95% against Indiana State (19-of-20) and broke the program's single-season marks for touchdown passes and total touchdowns accounted for with 47. The Hoosiers became only the second team ever to finish 16-0. Mendoza won the Heisman, Maxwell, Walter Camp, and Davey O'Brien awards. He set Rose Bowl records for completion percentage and passer rating while carving up Alabama. Then he beat Oregon in the semifinal with five touchdown passes on 17-of-20 passing. And when the lights were brightest against Miami in the national championship, he threw for 186 yards and scored on a memorable 12-yard touchdown run that put the Hoosiers up by 10 in the fourth quarter to seal the 27-21 victory. At 6'5\" and 225 pounds, with a October 2003 birthday, he leaves college as the most decorated quarterback in Indiana history and one of the most accomplished in Big Ten history.",
+        "strengths": [
+            "Sees the field like a ten-year vet. He diagnoses coverages pre-snap, identifies the soft spot, and gets the ball out before most quarterbacks finish their first read.",
+            "Ball placement is a legitimate weapon. He puts throws on the upfield shoulder, hits back-shoulder fades with touch, and drops passes into buckets where only his guy can get it.",
+            "Arm talent is legit. He can zip fastballs into tight windows, drive the ball past linebackers' ear holes, and push it vertically with enough juice to challenge deep safeties.",
+            "Tough as nails in the pocket. He will stand in there with a free rusher bearing down and deliver strikes. Zero blitzes do not rattle this kid one bit.",
+            "Does not give the ball away. Six interceptions on 379 attempts is ridiculous. He takes the checkdown, throws it away, or eats the sack rather than forcing something stupid.",
+            "Moves well within the pocket without being a runner. He slides, climbs, resets his feet, and finds secondary options when the first read is not there.",
+            "Size is ideal at 6'5\" with a frame that can absorb hits and see over the line. Classic pocket passer build that offensive coordinators draw up in their dreams.",
+            "Clutch performer who played his best football in the biggest games. Beat Ohio State for the Big Ten title. Beat Alabama in the Rose Bowl. Beat Oregon in the semifinal. Beat Miami for the national championship. Delivers when it matters most."
+        ],
+        "weaknesses": [
+            "His forty is what it is, and Indiana did not showcase his legs much in 2025. But the Cal tape tells a different story. He ran designed quarterback runs and option plays for the Golden Bears and moved well on bootlegs and sprint outs. Not a burner, but sneaky enough to keep defenses honest.",
+            "Indiana's system kept him in the pocket, so we did not see much improvisation in 2025. The Cal tape shows more creativity extending plays and throwing on the run, but questions remain about how much of that translates against NFL speed.",
+            "Eye manipulation needs work. He tends to stare down his primary target instead of moving defenders with his eyes to open throwing lanes.",
+            "Footwork gets sloppy at times, especially when he's flushed from the pocket. Could use some refinement to maximize accuracy on off-platform throws.",
+            "How much of this is Mendoza and how much is Cignetti's system? The scheme was quarterback-friendly and created easy completions. That question will follow him until he proves it at the next level."
+        ],
+        "summary": "Scouting Report: SummaryHere is the deal with Mendoza: he is exactly what modern NFL offenses are looking for. Quick-game concepts, RPOs, timing routes, play-action shots down the field. He executes all of it at a high level. And while Indiana kept him mostly in the pocket, his Cal tape shows a more versatile player. He thrived in an RPO-based system with the Golden Bears, executing designed runs, throwing on the move from bootlegs and sprint outs, and extending plays with improvisation when needed.The processing speed is real. The accuracy is real. The arm talent is real. And the production against top competition is undeniable. This is not some guy who padded stats against MAC schools. He carved up Ohio State, Alabama, Oregon, and Miami when the stakes were highest. That 12-yard touchdown run to ice the national championship? That is the kind of play that separates good quarterbacks from winners.The athleticism concerns are fair but probably overblown. Not every franchise quarterback needs to be a running threat. Peyton Manning was not running zone-read. Tom Brady was not scrambling for first downs. Mendoza profiles as a classic pocket passer in the mold of a young Joe Flacco with better accuracy and faster processing. He needs a competent offensive line and a system that puts him in favorable situations, but show me a quarterback who does not need those things. The difference is Mendoza maximizes good situations better than almost anyone in this class.Teams drafting him know exactly what they are getting. A polished passer who dissects coverages, finds the open man, and puts the ball where it needs to be with anticipation and accuracy. The Cal tape shows he can do more when asked, and his seven rushing touchdowns in 2025 prove he knows how to finish drives with his legs when needed. His floor is a competent starter who protects the football and manages games efficiently. His ceiling is a Super Bowl quarterback who masters the mental side of the position and makes his supporting cast look better than they are."
+    }
+}

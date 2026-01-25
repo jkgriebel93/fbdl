@@ -428,7 +428,8 @@ def draft_sandbox(ctx):
         data = scraper.scrape_from_url(url=mendoza_slug, position="QB")
 
     click.echo("Data fetched:")
-    click.echo(json.dumps(data.to_dict(), indent=4))
+    with open("mendoza.json", "w") as outfile:
+        json.dump(data.to_dict(), outfile, indent=4)
 
 
 @cli.command()

@@ -274,8 +274,7 @@ class ProspectParserSoup:
 
         proj_rank_row = self._get_projection_ranks_row(rows=table_rows)
         proj_ranks = self._extract_proj_and_rankings(row=proj_rank_row)
-
-        game_snap_count_row = table_rows[8]
+        avg_ranks = self._extract_average_ranks()
 
         outlet_ratings = self._extract_outlet_ratings(table=table)
 
@@ -283,7 +282,8 @@ class ProspectParserSoup:
             overall_rating=overall,
             opposition_rating=opposition,
             **proj_ranks,
-            **outlet_ratings
+            **outlet_ratings,
+            **avg_ranks
         )
 
         return rate_ranks
@@ -351,6 +351,20 @@ class ProspectParserSoup:
             stats = self._extract_stats_object(div=table_div)[0]
 
         return stats
+
+    def _extract_games_and_snaps(self) -> Dict:
+        gp_label = self._get_tag_with_title_containing(tag=self.soup,
+                                                       search_str="College Games Played")
+        games_played = int(self._get_text_following_label(label_tag=gp_label))
+        snaps_label = self._get_tag_with_title_containing(tag=self.soup,
+                                                          search_str="College Snap Count")
+        snap_count = int(self._get_text_following_label(label_tag=snaps_label))
+
+        return {
+            "games_played": games_played,
+            "snap_count": snap_count
+        }
+
 
     def parse(self):
         basic_info = self.parse_basic_info()
@@ -444,7 +458,7 @@ class ProspectParserSoup:
             "play_style": sub_position_value,
             "last_updated": last_updated_value,
             "draft_year": draft_yr_value,
-            "forty": forty_value
+            "forty": forty_value.split()[0]
         }
 
     ##### Statistical Related #####
@@ -507,16 +521,19 @@ class ProspectParserSoup:
                          if th.get_text(strip=True)]
         seasons = []
 
+        gp_and_snaps = self._extract_games_and_snaps()
+
         for row in stats_table.tbody.find_all("tr"):
             cells = [td.get_text(strip=True) for td in row.find_all("td")]
 
             if self.position == "QB":
                 season_stats = dict(zip(header_values, cells))
                 season_stats = self._transform_stats(season_stats=season_stats)
-                stats_obj = PassingStats(**season_stats)
+                stats_obj = PassingStats(**season_stats, **gp_and_snaps)
             elif self.position in ["RB"]:
                 season_stats = {
                     "year": cells[0],
+                    **gp_and_snaps,
                     "rushing": {
                         "att": int(cells[1]),
                         "yds": int(cells[2]),
@@ -540,6 +557,7 @@ class ProspectParserSoup:
             elif self.position in ["WR", "TE"]:
                 season_stats = {
                     "year": cells[0],
+                    **gp_and_snaps,
                     "receiving": {
                         "rec": int(cells[1]),
                         "yds": int(cells[2]),
@@ -561,10 +579,11 @@ class ProspectParserSoup:
                                                     rushing=rushing_stats,
                                                     receiving=receiving_stats)
             elif self.position == "OL":
-                stats_obj = None
+                stats_obj = gp_and_snaps
             elif self.position in ["DL", "EDGE", "LB", "DB"]:
                 season_stats = {
                     "year": int(cells[0].split()[0]),
+                    **gp_and_snaps,
                     "tackle": {
                         "total": int(cells[1]),
                         "solo": int(cells[2]),
@@ -733,6 +752,16 @@ class ProspectParserSoup:
         ratings = ratings_and_rankings[0]
         comparisons = ratings_and_rankings[1]
         return ratings, comparisons
+
+    def _extract_average_ranks(self):
+        rankings_div = self.soup.find("div", class_="rankingBox")
+        avg_ovr, avg_pos = rankings_div.find_all("div",
+                                                 class_="rankVal")
+        return {
+            "avg_overall_rank": float(avg_ovr.get_text(strip=True)),
+            "avg_position_rank": float(avg_pos.get_text(strip=True))
+        }
+
 
 
 class ProspectParser:
