@@ -454,8 +454,8 @@ class ProspectParserSoup:
         position_group_str = ""
         if "/" in value:
             p1, p2 = value.split("/")
-            p1_group = POSITION_TO_GROUP_MAP.get(p1)
-            p2_group = POSITION_TO_GROUP_MAP.get(p2)
+            p1_group = POSITION_TO_GROUP_MAP.get(p1.upper())
+            p2_group = POSITION_TO_GROUP_MAP.get(p2.upper())
 
             # Neither correspond to a known group
             if not (p1_group or p2_group):

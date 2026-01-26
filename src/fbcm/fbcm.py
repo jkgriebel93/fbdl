@@ -395,7 +395,8 @@ def extract_draft_profiles(
                     completed_profiles.append(prof_slug)
 
                 except Exception as e:
-                    raise e
+                    print(e)
+                    break
             rn = datetime.now()
             suffix = f"{rn.hour}_{rn.minute}_{rn.second}"
             fname = f"{pos}_{suffix}.json"

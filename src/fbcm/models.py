@@ -122,17 +122,24 @@ class OffensiveLinemanSkills(BaseModel):
 
 @dataclass
 class DefensiveLinemanSkills(BaseModel):
-    tackling: int | None = None
-    pass_rush: int | None = None
-    run_defense: int | None = None
-
-
-@dataclass
-class LinebackerSkills(BaseModel):
+    qb_rating_when_targeted: float | None = None
     tackling: int | None = None
     pass_rush: int | None = None
     run_defense: int | None = None
     coverage: int | None = None
+    zone: int | None = None
+    man_press: int | None = None
+
+
+@dataclass
+class LinebackerSkills(BaseModel):
+    qb_rating_when_targeted: float | None = None
+    tackling: int | None = None
+    pass_rush: int | None = None
+    run_defense: int | None = None
+    coverage: int | None = None
+    zone: int | None = None
+    man_press: int | None = None
 
 
 @dataclass
