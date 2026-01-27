@@ -10,7 +10,8 @@ OUTPUT_FORMATS = {
 MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
 CONCURRENT_FRAGMENTS = os.getenv("CONCURRENT_FRAGMENTS", 1)
 THROTTLED_RATE_LIMIT = os.getenv("THROTTLED_RATE_LIMIT", 1000000)
-
+# TODO: Think harder about this name?
+PHOTO_BASE_DIR = os.getenv("PHOTO_BASE_DIR")
 
 # Franchise/Team information
 ABBREVIATION_MAP = {

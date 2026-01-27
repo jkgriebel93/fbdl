@@ -17,9 +17,11 @@ from .base import (
     MetaDataCreator,
 )
 from .constants import DEFAULT_REPLAY_TYPES, OUTPUT_FORMATS, POSITIONS, TEAM_FULL_NAMES
+from .models import ProspectDataSoup
 from .draft_buzz import DraftBuzzScraper, ProspectProfileListExtractor
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 from .utils import apply_config_to_kwargs, find_config, load_config
+from .word_gen import WordDocGenerator
 
 
 @click.group()
@@ -435,17 +437,16 @@ def update_draft_prospect_urls(ctx):
 @click.pass_context
 def draft_sandbox(ctx):
     click.echo("Draft profile sandbox...")
-    mendoza_slug = "/Player/Fernando-Mendoza-QB-California"
+    with open("output_data/QB.json", "r") as infile:
+        qb_data = json.load(infile)
 
-    data = None
-    with sync_playwright() as playwright:
-        scraper = DraftBuzzScraper(playwright=playwright)
-        click.echo("Scraper initialized...Attempting Mendoza")
-        data = scraper.scrape_from_url(url=mendoza_slug, position="QB")
-
-    click.echo("Data fetched:")
-    with open("mendoza.json", "w") as outfile:
-        json.dump(data.to_dict(), outfile, indent=4)
+    fm_data = qb_data["Fernando Mendoza"]
+    mendoza_obj = ProspectDataSoup.from_dict(fm_data)
+    wdg = WordDocGenerator(prospect=mendoza_obj,
+                           output_path="output_data",
+                           ring_image_base_dir="output_data",
+                           colors_path="input_files/school_colors.json")
+    wdg.generate_complete_document()
 
 
 @cli.command()

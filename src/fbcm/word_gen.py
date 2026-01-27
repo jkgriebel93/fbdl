@@ -254,12 +254,12 @@ class WordDocGenerator:
     def __init__(self,
                  prospect: ProspectDataSoup,
                  output_path: str,
-                 temp_dir: str,
+                 ring_image_base_dir: str,
                  colors_path: str):
         self.prospect = prospect
         self.output_path = output_path
-        # TODO: Rename temp_dir to something more accurate, e.g. ring_dir
-        self.temp_dir = temp_dir
+        self.ring_img_base_dir = ring_image_base_dir
+        self.ring_img_path = None
         self.color_handler = SchoolColors(colors_file=colors_path)
         self.colors = self.color_handler.get_school_colors(self.prospect.basic_info.college)
 
@@ -361,7 +361,9 @@ class WordDocGenerator:
             font=font,
         )
 
-        img.save(self.temp_dir, "PNG")
+        self.ring_img_path = f"{self.ring_img_base_dir}_{self.prospect.basic_info.full_name}_ring.png"
+        img.save(self.ring_img_path, "PNG")
+        return self.ring_img_path
 
     def _gen_header_table(self):
         # TODO: Split this into smaller methods
@@ -374,7 +376,7 @@ class WordDocGenerator:
         photo_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
         photo_para = photo_cell.paragraphs[0]
-        photo_para.add_run().add_picture(self.prospect.basic_info.photo_path, width=Inches(1.3))
+        photo_para.add_run().add_picture(str(self.prospect.basic_info.photo_path), width=Inches(1.3))
 
         name_cell = header_table.cell(0, 1)
         name_cell.width = Inches(4.0)
@@ -417,7 +419,9 @@ class WordDocGenerator:
 
         ring_para = ring_cell.paragraphs[0]
         ring_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        ring_para.add_run().add_picture(self.temp_dir, width=Inches(0.95))
+
+        ring_image_path = self._gen_rating_ring()
+        ring_para.add_run().add_picture(ring_image_path, width=Inches(0.95))
 
         label_para = ring_cell.add_paragraph()
         label_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -426,544 +430,468 @@ class WordDocGenerator:
         run.font.size = Pt(6.5)
         run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
 
-
     def _gen_rankings_bar(self):
-        pass
+        rankings_table = self.document.add_table(rows=1, cols=5)
+        rankings_table.autofit = False
+
+        rankings_data = [
+            ("DRAFT BUZZ", str(self.prospect.ratings.overall_rank), "OVERALL", self.colors.primary),
+            ("DRAFT BUZZ", str(self.prospect.ratings.position_rank), "POSITION", self.colors.dark),
+            ("DRAFT", str(self.prospect.ratings.draft_projection), "PROJECTION", self.colors.primary),
+            ("CONSENSUS", str(self.prospect.ratings.avg_overall_rank), "OVERALL", self.colors.dark),
+            ("CONSENSUS", str(self.prospect.ratings.avg_position_rank), "POSITION", self.colors.primary),
+        ]
+
+        for i, (source, value, label, bg_color) in enumerate(rankings_data):
+            cell = rankings_table.cell(0, i)
+            cell.width = Inches(1.35)
+            remove_cell_borders(cell)
+            set_cell_shading(cell, bg_color)
+            set_cell_margins(cell, top=140, bottom=100, left=80, right=80)
+            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+
+            # Source label
+            p1 = cell.paragraphs[0]
+            p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p1.paragraph_format.space_after = Pt(1)
+            run = p1.add_run(source)
+            run.font.size = Pt(6)
+            run.font.color.rgb = self.colors.light_rgb
+
+            # Value
+            p2 = cell.add_paragraph()
+            p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p2.paragraph_format.space_before = Pt(0)
+            p2.paragraph_format.space_after = Pt(1)
+            font_size = Pt(11) if label == "PROJECTION" else Pt(18)
+            run = p2.add_run(value)
+            run.font.size = font_size
+            run.font.bold = True
+            run.font.color.rgb = RGBColor(255, 255, 255)
+
+            # Category label
+            p3 = cell.add_paragraph()
+            p3.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p3.paragraph_format.space_before = Pt(0)
+            run = p3.add_run(label)
+            run.font.size = Pt(6.5)
+            run.font.color.rgb = self.colors.light_rgb
 
     def _gen_stats_bar(self):
-        pass
+        pos_config = POSITION_STATS.get(self.prospect.basic_info.position, {})
+        categories = list(pos_config.keys())
 
-    def _gen_skills_and_comps(self):
-        pass
+        if categories:
+            is_multiple = len(categories) > 1
 
-    def _gen_bio(self):
-        pass
+            if is_multiple:
+                total_stats = sum(len(pos_config[cat]) for cat in categories)
+                stats_table = self.document.add_table(rows=2, cols=total_stats)
+                stats_table.autofit = False
 
-    def _gen_strengths_weaknesses(self):
-        pass
+                col_idx = 0
+                for cat_idx, category in enumerate(categories):
+                    stat_labels = pos_config[category]
+                    num_stats = len(stat_labels)
+                    bg_color = self.colors.light if cat_idx == 0 else self.colors.medium
+                    label_color = "666666" if cat_idx == 0 else self.colors.primary
+                    label_rgb = self.color_handler.hex_to_rgb(label_color)
 
-    def _gen_scouting_summary(self):
-        pass
+                    # Merge header cells
+                    if num_stats > 1:
+                        start_cell = stats_table.cell(0, col_idx)
+                        end_cell = stats_table.cell(0, col_idx + num_stats - 1)
+                        start_cell.merge(end_cell)
 
+                    header_cell = stats_table.cell(0, col_idx)
+                    remove_cell_borders(header_cell)
+                    set_cell_shading(header_cell, bg_color)
+                    set_cell_margins(header_cell, top=80, bottom=40, left=40, right=40)
+                    header_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
-def generate_prospect_document(
-    prospect: ProspectData, output_path: str, temp_dir: str, default_photo: str = None
-):
-    """Generate a complete prospect profile document."""
-    doc = Document()
+                    p = header_cell.paragraphs[0]
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p.paragraph_format.space_after = Pt(0)
+                    run = p.add_run(category.upper())
+                    run.font.size = Pt(9)
+                    run.font.bold = True
+                    run.font.color.rgb = label_rgb
 
-    # ─── HEADER TABLE ────────────────────────────────────────────────────────
-    header_table = doc.add_table(rows=1, cols=3)
-    header_table.autofit = False
+                    # TODO: Use the object here, not the dict.
+                    # Using to_dict for now to simply get the implementation working
+                    cat_stats = self.prospect.stats.to_dict()
+                    for j, stat_label in enumerate(stat_labels):
+                        stat_cell = stats_table.cell(1, col_idx + j)
+                        stat_cell.width = Inches(6.75 / total_stats)
+                        remove_cell_borders(stat_cell)
+                        set_cell_shading(stat_cell, bg_color)
+                        set_cell_margins(stat_cell, top=80, bottom=60, left=40, right=40)
+                        stat_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
-    photo_cell = header_table.cell(0, 0)
-    photo_cell.width = Inches(1.5)
-    remove_cell_borders(photo_cell)
-    photo_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                        p1 = stat_cell.paragraphs[0]
+                        p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        p1.paragraph_format.space_after = Pt(2)
+                        run = p1.add_run(str(cat_stats.get(stat_label, "—")))
+                        run.font.size = Pt(14)
+                        run.font.bold = True
+                        run.font.color.rgb = self.colors.primary_rgb
 
-    photo_para = photo_cell.paragraphs[0]
-    photo_to_use = (
-        prospect.photo_path
-        if prospect.photo_path and os.path.exists(prospect.photo_path)
-        else default_photo
-    )
-    if photo_to_use and os.path.exists(photo_to_use):
-        photo_para.add_run().add_picture(photo_to_use, width=Inches(1.3))
+                        p2 = stat_cell.add_paragraph()
+                        p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        p2.paragraph_format.space_before = Pt(0)
+                        run = p2.add_run(stat_label)
+                        run.font.size = Pt(7)
+                        run.font.color.rgb = label_rgb
 
-    name_cell = header_table.cell(0, 1)
-    name_cell.width = Inches(4.0)
-    remove_cell_borders(name_cell)
-    name_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                    col_idx += num_stats
 
-    name_para = name_cell.paragraphs[0]
-    name_para.paragraph_format.space_after = Pt(0)
-    run = name_para.add_run(prospect.name)
-    run.font.size = Pt(28)
-    run.font.bold = True
-    run.font.color.rgb = primary_rgb
-
-    info_para = name_cell.add_paragraph()
-    info_para.paragraph_format.space_before = Pt(2)
-    info_para.paragraph_format.space_after = Pt(4)
-    run = info_para.add_run(
-        f"{prospect.position}  •  {prospect.school}  •  {prospect.play_style}"
-    )
-    run.font.size = Pt(11)
-    run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
-
-    measurables_para = name_cell.add_paragraph()
-    run = measurables_para.add_run(
-        f"{prospect.height}  •  {prospect.weight} lbs  •  {prospect.forty}s  •  {prospect.hometown}  •  {prospect.class_year}"
-    )
-    run.font.size = Pt(9)
-    run.font.color.rgb = RGBColor(0x77, 0x77, 0x77)
-
-    ring_cell = header_table.cell(0, 2)
-    ring_cell.width = Inches(1.25)
-    remove_cell_borders(ring_cell)
-    ring_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-
-    ring_para = ring_cell.paragraphs[0]
-    ring_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    if os.path.exists(ring_path):
-        ring_para.add_run().add_picture(ring_path, width=Inches(0.95))
-
-    label_para = ring_cell.add_paragraph()
-    label_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    label_para.paragraph_format.space_before = Pt(2)
-    run = label_para.add_run("PROSPECT RATING")
-    run.font.size = Pt(6.5)
-    run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
-
-    # Spacer
-    spacer = doc.add_paragraph()
-    spacer.paragraph_format.space_after = Pt(8)
-
-    # ─── RANKINGS BAR ────────────────────────────────────────────────────────
-    rankings_table = doc.add_table(rows=1, cols=5)
-    rankings_table.autofit = False
-
-    rankings_data = [
-        ("DRAFT BUZZ", prospect.draft_buzz_overall, "OVERALL", primary),
-        ("DRAFT BUZZ", prospect.draft_buzz_position, "POSITION", dark),
-        ("DRAFT", prospect.draft_projection, "PROJECTION", primary),
-        ("CONSENSUS", prospect.consensus_overall, "OVERALL", dark),
-        ("CONSENSUS", prospect.consensus_position, "POSITION", primary),
-    ]
-
-    for i, (source, value, label, bg_color) in enumerate(rankings_data):
-        cell = rankings_table.cell(0, i)
-        cell.width = Inches(1.35)
-        remove_cell_borders(cell)
-        set_cell_shading(cell, bg_color)
-        set_cell_margins(cell, top=140, bottom=100, left=80, right=80)
-        cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-
-        # Source label
-        p1 = cell.paragraphs[0]
-        p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p1.paragraph_format.space_after = Pt(1)
-        run = p1.add_run(source)
-        run.font.size = Pt(6)
-        run.font.color.rgb = light_rgb
-
-        # Value
-        p2 = cell.add_paragraph()
-        p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p2.paragraph_format.space_before = Pt(0)
-        p2.paragraph_format.space_after = Pt(1)
-        font_size = Pt(11) if label == "PROJECTION" else Pt(18)
-        run = p2.add_run(value)
-        run.font.size = font_size
-        run.font.bold = True
-        run.font.color.rgb = RGBColor(255, 255, 255)
-
-        # Category label
-        p3 = cell.add_paragraph()
-        p3.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p3.paragraph_format.space_before = Pt(0)
-        run = p3.add_run(label)
-        run.font.size = Pt(6.5)
-        run.font.color.rgb = light_rgb
-
-    # ─── STATS BAR ───────────────────────────────────────────────────────────
-    pos_config = POSITION_STATS.get(prospect.position, {})
-    categories = list(pos_config.keys())
-
-    if categories:
-        is_multiple = len(categories) > 1
-
-        if is_multiple:
-            total_stats = sum(len(pos_config[cat]) for cat in categories)
-            stats_table = doc.add_table(rows=2, cols=total_stats)
-            stats_table.autofit = False
-
-            col_idx = 0
-            for cat_idx, category in enumerate(categories):
+            else:
+                # Single category
+                category = categories[0]
                 stat_labels = pos_config[category]
-                num_stats = len(stat_labels)
-                bg_color = light if cat_idx == 0 else medium
-                label_color = "666666" if cat_idx == 0 else primary
-                label_rgb = hex_to_rgb(label_color)
+                cat_stats = self.prospect.stats.to_dict()
 
-                # Merge header cells
-                if num_stats > 1:
-                    start_cell = stats_table.cell(0, col_idx)
-                    end_cell = stats_table.cell(0, col_idx + num_stats - 1)
-                    start_cell.merge(end_cell)
+                stats_table = self.document.add_table(rows=1, cols=len(stat_labels))
+                stats_table.autofit = False
 
-                header_cell = stats_table.cell(0, col_idx)
-                remove_cell_borders(header_cell)
-                set_cell_shading(header_cell, bg_color)
-                set_cell_margins(header_cell, top=80, bottom=40, left=40, right=40)
-                header_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                for i, stat_label in enumerate(stat_labels):
+                    cell = stats_table.cell(0, i)
+                    cell.width = Inches(6.75 / len(stat_labels))
+                    remove_cell_borders(cell)
+                    set_cell_shading(cell, self.colors.light)
+                    set_cell_margins(cell, top=100, bottom=70, left=40, right=40)
+                    cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
-                p = header_cell.paragraphs[0]
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.space_after = Pt(0)
-                run = p.add_run(category.upper())
-                run.font.size = Pt(9)
-                run.font.bold = True
-                run.font.color.rgb = label_rgb
-
-                cat_stats = prospect.stats.get(category, {})
-                for j, stat_label in enumerate(stat_labels):
-                    stat_cell = stats_table.cell(1, col_idx + j)
-                    stat_cell.width = Inches(6.75 / total_stats)
-                    remove_cell_borders(stat_cell)
-                    set_cell_shading(stat_cell, bg_color)
-                    set_cell_margins(stat_cell, top=80, bottom=60, left=40, right=40)
-                    stat_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-
-                    p1 = stat_cell.paragraphs[0]
+                    p1 = cell.paragraphs[0]
                     p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    p1.paragraph_format.space_after = Pt(2)
+                    p1.paragraph_format.space_after = Pt(3)
                     run = p1.add_run(str(cat_stats.get(stat_label, "—")))
                     run.font.size = Pt(14)
                     run.font.bold = True
-                    run.font.color.rgb = primary_rgb
+                    run.font.color.rgb = self.colors.primary_rgb
 
-                    p2 = stat_cell.add_paragraph()
+                    p2 = cell.add_paragraph()
                     p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     p2.paragraph_format.space_before = Pt(0)
                     run = p2.add_run(stat_label)
                     run.font.size = Pt(7)
-                    run.font.color.rgb = label_rgb
-
-                col_idx += num_stats
+                    run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
 
         else:
-            # Single category
-            category = categories[0]
-            stat_labels = pos_config[category]
-            cat_stats = prospect.stats.get(category, {})
+            # OL - no stats
+            p = self.document.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(8)
+            run = p.add_run("(Statistics not tracked for Offensive Linemen)")
+            run.font.size = Pt(9)
+            run.font.italic = True
+            run.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
 
-            stats_table = doc.add_table(rows=1, cols=len(stat_labels))
-            stats_table.autofit = False
+    def _gen_skills_and_comps(self):
+        skills_table = self.document.add_table(rows=1, cols=2)
+        skills_table.autofit = False
 
-            for i, stat_label in enumerate(stat_labels):
-                cell = stats_table.cell(0, i)
-                cell.width = Inches(6.75 / len(stat_labels))
-                remove_cell_borders(cell)
-                set_cell_shading(cell, light)
-                set_cell_margins(cell, top=100, bottom=70, left=40, right=40)
-                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        skills_cell = skills_table.cell(0, 0)
+        skills_cell.width = Inches(3.8)
+        remove_cell_borders(skills_cell)
 
-                p1 = cell.paragraphs[0]
-                p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p1.paragraph_format.space_after = Pt(3)
-                run = p1.add_run(str(cat_stats.get(stat_label, "—")))
-                run.font.size = Pt(14)
-                run.font.bold = True
-                run.font.color.rgb = primary_rgb
-
-                p2 = cell.add_paragraph()
-                p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p2.paragraph_format.space_before = Pt(0)
-                run = p2.add_run(stat_label)
-                run.font.size = Pt(7)
-                run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
-
-    else:
-        # OL - no stats
-        p = doc.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.paragraph_format.space_before = Pt(8)
-        run = p.add_run("(Statistics not tracked for Offensive Linemen)")
-        run.font.size = Pt(9)
-        run.font.italic = True
-        run.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
-
-    # Spacer
-    doc.add_paragraph().paragraph_format.space_after = Pt(10)
-
-    # ─── SKILLS + COMPARISONS ────────────────────────────────────────────────
-    skills_table = doc.add_table(rows=1, cols=2)
-    skills_table.autofit = False
-
-    skills_cell = skills_table.cell(0, 0)
-    skills_cell.width = Inches(3.8)
-    remove_cell_borders(skills_cell)
-
-    skills_header = skills_cell.paragraphs[0]
-    skills_header.paragraph_format.space_after = Pt(4)
-    run = skills_header.add_run("SKILL RATINGS")
-    run.font.size = Pt(9)
-    run.font.bold = True
-    run.font.color.rgb = primary_rgb
-
-    for skill_name, skill_pct in prospect.skills.items():
-        if skill_pct is None:
-            continue
-        p = skills_cell.add_paragraph()
-        p.paragraph_format.space_after = Pt(2)
-
-        display_name = skill_name.replace("_", " ").title()
-        run = p.add_run(f"{display_name:<20} ")
-        run.font.name = "Consolas"
-        run.font.size = Pt(8)
-        run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
-
-        run = p.add_run(skill_bar(skill_pct))
-        run.font.name = "Consolas"
-        run.font.size = Pt(8)
-        run.font.color.rgb = primary_rgb
-
-        run = p.add_run(f" {skill_pct}%")
-        run.font.name = "Consolas"
-        run.font.size = Pt(8)
-        run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
-
-    comp_cell = skills_table.cell(0, 1)
-    comp_cell.width = Inches(3.0)
-    remove_cell_borders(comp_cell)
-
-    comp_header = comp_cell.paragraphs[0]
-    comp_header.paragraph_format.space_after = Pt(4)
-    run = comp_header.add_run("PLAYER COMPARISONS")
-    run.font.size = Pt(9)
-    run.font.bold = True
-    run.font.color.rgb = primary_rgb
-
-    for comp in prospect.comparisons[:3]:
-        p = comp_cell.add_paragraph()
-        p.paragraph_format.space_after = Pt(2)
-
-        run = p.add_run(f"{comp.get('name', '')} ")
+        skills_header = skills_cell.paragraphs[0]
+        skills_header.paragraph_format.space_after = Pt(4)
+        run = skills_header.add_run("SKILL RATINGS")
         run.font.size = Pt(9)
         run.font.bold = True
+        run.font.color.rgb = self.colors.primary_rgb
 
-        run = p.add_run(f"({comp.get('school', '')}) ")
-        run.font.size = Pt(9)
-        run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+        # TODO: Skills, comparisons, and recruiting should probably all be distinct methods
 
-        run = p.add_run(f"{comp.get('similarity', '')}%")
+        for skill_name, skill_pct in self.prospect.skills.to_dict().items():
+            if skill_pct is None:
+                continue
+            p = skills_cell.add_paragraph()
+            p.paragraph_format.space_after = Pt(2)
+
+            display_name = skill_name.replace("_", " ").title()
+            run = p.add_run(f"{display_name:<20} ")
+            run.font.name = "Consolas"
+            run.font.size = Pt(8)
+            run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+
+            run = p.add_run(skill_bar(skill_pct))
+            run.font.name = "Consolas"
+            run.font.size = Pt(8)
+            run.font.color.rgb = self.colors.primary_rgb
+
+            run = p.add_run(f" {skill_pct}%")
+            run.font.name = "Consolas"
+            run.font.size = Pt(8)
+            run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+
+        comp_cell = skills_table.cell(0, 1)
+        comp_cell.width = Inches(3.0)
+        remove_cell_borders(comp_cell)
+
+        comp_header = comp_cell.paragraphs[0]
+        comp_header.paragraph_format.space_after = Pt(4)
+        run = comp_header.add_run("PLAYER COMPARISONS")
         run.font.size = Pt(9)
         run.font.bold = True
-        run.font.color.rgb = primary_rgb
+        run.font.color.rgb = self.colors.primary_rgb
 
-    if prospect.recruiting:
-        p = comp_cell.add_paragraph()
-        p.paragraph_format.space_before = Pt(6)
-        p.paragraph_format.space_after = Pt(2)
-        run = p.add_run("RECRUITING")
-        run.font.size = Pt(9)
-        run.font.bold = True
-        run.font.color.rgb = primary_rgb
+        for comp in self.prospect.comparisons:
+            p = comp_cell.add_paragraph()
+            p.paragraph_format.space_after = Pt(2)
 
-        p = comp_cell.add_paragraph()
-        recruiting_text = "  •  ".join(
-            [f"{k}: {v}" for k, v in prospect.recruiting.items()]
-        )
-        run = p.add_run(recruiting_text)
-        run.font.size = Pt(9)
-        run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+            run = p.add_run(f"{comp.name} ")
+            run.font.size = Pt(9)
+            run.font.bold = True
 
-    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+            run = p.add_run(f"({comp.school}) ")
+            run.font.size = Pt(9)
+            run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
 
-    # ─── BACKGROUND ──────────────────────────────────────────────────────────
-    if prospect.bio:
-        header = doc.add_paragraph()
-        header.paragraph_format.space_after = Pt(4)
-        run = header.add_run("BACKGROUND")
+            run = p.add_run(f"{comp.similarity}%")
+            run.font.size = Pt(9)
+            run.font.bold = True
+            run.font.color.rgb = self.colors.primary_rgb
+
+        if self.prospect.ratings:
+            p = comp_cell.add_paragraph()
+            p.paragraph_format.space_before = Pt(6)
+            p.paragraph_format.space_after = Pt(2)
+            run = p.add_run("RECRUITING")
+            run.font.size = Pt(9)
+            run.font.bold = True
+            run.font.color.rgb = self.colors.primary_rgb
+
+            p = comp_cell.add_paragraph()
+
+            run = p.add_run(self.prospect.ratings.get_recruiting_str())
+            run.font.size = Pt(9)
+            run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+
+        self.document.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    def _gen_bio(self):
+        if self.prospect.scouting_report.bio:
+            header = self.document.add_paragraph()
+            header.paragraph_format.space_after = Pt(4)
+            run = header.add_run("BACKGROUND")
+            run.font.size = Pt(11)
+            run.font.bold = True
+            run.font.color.rgb = self.colors.primary_rgb
+
+            bio_text = self.prospect.scouting_report.bio.replace("Draft Profile: Bio", "").strip()
+
+            p = self.document.add_paragraph()
+            p.paragraph_format.space_after = Pt(6)
+            run = p.add_run(bio_text)
+            run.font.size = Pt(9)
+            run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+        self.document.add_paragraph().paragraph_format.space_after = Pt(4)
+
+    def _gen_strengths_weaknesses(self):
+        sw_table = self.document.add_table(rows=1, cols=2)
+        sw_table.autofit = False
+
+        str_cell = sw_table.cell(0, 0)
+        str_cell.width = Inches(3.375)
+        remove_cell_borders(str_cell)
+
+        str_header = str_cell.paragraphs[0]
+        str_header.paragraph_format.space_after = Pt(4)
+        run = str_header.add_run("STRENGTHS")
         run.font.size = Pt(11)
         run.font.bold = True
-        run.font.color.rgb = primary_rgb
-
-        bio_text = prospect.bio.replace("Draft Profile: Bio", "").strip()
-        if len(bio_text) > 1500:
-            bio_text = bio_text[:1500] + "..."
-
-        p = doc.add_paragraph()
-        p.paragraph_format.space_after = Pt(6)
-        run = p.add_run(bio_text)
-        run.font.size = Pt(9)
-        run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
-
-    doc.add_paragraph().paragraph_format.space_after = Pt(4)
-
-    # ─── STRENGTHS & WEAKNESSES ──────────────────────────────────────────────
-    sw_table = doc.add_table(rows=1, cols=2)
-    sw_table.autofit = False
-
-    str_cell = sw_table.cell(0, 0)
-    str_cell.width = Inches(3.375)
-    remove_cell_borders(str_cell)
-
-    str_header = str_cell.paragraphs[0]
-    str_header.paragraph_format.space_after = Pt(4)
-    run = str_header.add_run("STRENGTHS")
-    run.font.size = Pt(11)
-    run.font.bold = True
-    run.font.color.rgb = RGBColor(0x1D, 0x6A, 0x4D)
-
-    for strength in prospect.strengths[:6]:
-        p = str_cell.add_paragraph()
-        p.paragraph_format.space_after = Pt(3)
-        p.paragraph_format.left_indent = Inches(0.15)
-
-        run = p.add_run("+ ")
-        run.font.bold = True
-        run.font.size = Pt(9)
         run.font.color.rgb = RGBColor(0x1D, 0x6A, 0x4D)
 
-        run = p.add_run(strength[:200] if len(strength) > 200 else strength)
-        run.font.size = Pt(8)
-        run.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
+        for strength in self.prospect.scouting_report.strengths:
+            p = str_cell.add_paragraph()
+            p.paragraph_format.space_after = Pt(3)
+            p.paragraph_format.left_indent = Inches(0.15)
 
-    weak_cell = sw_table.cell(0, 1)
-    weak_cell.width = Inches(3.375)
-    remove_cell_borders(weak_cell)
+            run = p.add_run("+ ")
+            run.font.bold = True
+            run.font.size = Pt(9)
+            run.font.color.rgb = RGBColor(0x1D, 0x6A, 0x4D)
 
-    weak_header = weak_cell.paragraphs[0]
-    weak_header.paragraph_format.space_after = Pt(4)
-    run = weak_header.add_run("WEAKNESSES")
-    run.font.size = Pt(11)
-    run.font.bold = True
-    run.font.color.rgb = RGBColor(0xA6, 0x5D, 0x21)
+            run = p.add_run(strength)
+            run.font.size = Pt(8)
+            run.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
 
-    for weakness in prospect.weaknesses[:5]:
-        p = weak_cell.add_paragraph()
-        p.paragraph_format.space_after = Pt(3)
-        p.paragraph_format.left_indent = Inches(0.15)
+        weak_cell = sw_table.cell(0, 1)
+        weak_cell.width = Inches(3.375)
+        remove_cell_borders(weak_cell)
 
-        run = p.add_run("– ")
-        run.font.bold = True
-        run.font.size = Pt(9)
-        run.font.color.rgb = RGBColor(0xA6, 0x5D, 0x21)
-
-        run = p.add_run(weakness[:200] if len(weakness) > 200 else weakness)
-        run.font.size = Pt(8)
-        run.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
-
-    # ─── SCOUTING SUMMARY ────────────────────────────────────────────────────
-    if prospect.summary:
-        doc.add_paragraph().paragraph_format.space_after = Pt(4)
-
-        summary_table = doc.add_table(rows=1, cols=1)
-        summary_table.autofit = False
-
-        cell = summary_table.cell(0, 0)
-        cell.width = Inches(6.75)
-        set_cell_shading(cell, light)
-        set_cell_margins(cell, top=100, bottom=70, left=160, right=120)
-        add_left_border(cell, primary, 24)
-
-        header = cell.paragraphs[0]
-        header.paragraph_format.space_after = Pt(4)
-        run = header.add_run("SCOUTING SUMMARY")
+        weak_header = weak_cell.paragraphs[0]
+        weak_header.paragraph_format.space_after = Pt(4)
+        run = weak_header.add_run("WEAKNESSES")
         run.font.size = Pt(11)
         run.font.bold = True
-        run.font.color.rgb = primary_rgb
+        run.font.color.rgb = RGBColor(0xA6, 0x5D, 0x21)
 
-        p = cell.add_paragraph()
-        run = p.add_run(prospect.summary)
-        run.font.size = Pt(9)
-        run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+        for weakness in self.prospect.scouting_report.weaknesses:
+            p = weak_cell.add_paragraph()
+            p.paragraph_format.space_after = Pt(3)
+            p.paragraph_format.left_indent = Inches(0.15)
 
-    doc.save(output_path)
+            run = p.add_run("– ")
+            run.font.bold = True
+            run.font.size = Pt(9)
+            run.font.color.rgb = RGBColor(0xA6, 0x5D, 0x21)
 
-    if os.path.exists(ring_path):
-        os.remove(ring_path)
+            run = p.add_run(weakness)
+            run.font.size = Pt(8)
+            run.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
 
+    def _gen_scouting_summary(self):
+        if self.prospect.scouting_report.summary:
+            self.document.add_paragraph().paragraph_format.space_after = Pt(4)
+
+            summary_table = self.document.add_table(rows=1, cols=1)
+            summary_table.autofit = False
+
+            cell = summary_table.cell(0, 0)
+            cell.width = Inches(6.75)
+            set_cell_shading(cell, self.colors.light)
+            set_cell_margins(cell, top=100, bottom=70, left=160, right=120)
+            add_left_border(cell, self.colors.primary, 24)
+
+            header = cell.paragraphs[0]
+            header.paragraph_format.space_after = Pt(4)
+            run = header.add_run("SCOUTING SUMMARY")
+            run.font.size = Pt(11)
+            run.font.bold = True
+            run.font.color.rgb = self.colors.primary_rgb
+
+            p = cell.add_paragraph()
+            run = p.add_run(self.prospect.scouting_report.summary)
+            run.font.size = Pt(9)
+            run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+
+    def generate_complete_document(self):
+        self._gen_header_table()
+
+        spacer = self.document.add_paragraph()
+        spacer.paragraph_format.space_after = Pt(8)
+
+        self._gen_rankings_bar()
+        self._gen_stats_bar()
+
+        self.document.add_paragraph().paragraph_format.space_after = Pt(10)
+
+        self._gen_skills_and_comps()
+
+        self.document.add_paragraph().paragraph_format.space_after = Pt(8)
+
+        self._gen_bio()
+        self.document.add_paragraph().paragraph_format.space_after = Pt(4)
+
+        self._gen_strengths_weaknesses()
+        self._gen_scouting_summary()
+
+        full_doc_path = f"{self.output_path}/{self.prospect.basic_info.full_name}.docx"
+        self.document.save(full_doc_path)
+
+        if os.path.exists(self.ring_img_path):
+            os.remove(self.ring_img_path)
 
 # ─── MAIN BATCH PROCESSOR ────────────────────────────────────────────────────
 
 
-def batch_generate_profiles(
-    json_dir: str,
-    photos_dir: str,
-    output_dir: str,
-    colors_file: str,
-    positions: List[str] = None,
-    default_photo: str = None,
-):
-    """Generate prospect profiles for all positions."""
-    print("Loading school colors...")
-    colors_db = load_school_colors(colors_file)
-    print(f"  Loaded {len(colors_db)} schools")
+# def batch_generate_profiles(
+#     json_dir: str,
+#     photos_dir: str,
+#     output_dir: str,
+#     colors_file: str,
+#     positions: List[str] = None,
+#     default_photo: str = None,
+# ):
+#     """Generate prospect profiles for all positions."""
+#     print("Loading school colors...")
+#     colors_db = load_school_colors(colors_file)
+#     print(f"  Loaded {len(colors_db)} schools")
+#
+#     os.makedirs(output_dir, exist_ok=True)
+#     temp_dir = os.path.join(output_dir, ".temp")
+#     os.makedirs(temp_dir, exist_ok=True)
+#
+#     all_positions = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
+#     if positions:
+#         all_positions = [p.upper() for p in positions]
+#
+#     total_generated = 0
+#
+#     for position in all_positions:
+#         json_file = os.path.join(json_dir, f"{position}.json")
+#
+#         if not os.path.exists(json_file):
+#             print(f"Skipping {position}: No JSON file found")
+#             continue
+#
+#         print(f"\nProcessing {position}...")
+#
+#         with open(json_file, "r") as f:
+#             players_data = json.load(f)
+#
+#         pos_output_dir = os.path.join(output_dir, position)
+#         os.makedirs(pos_output_dir, exist_ok=True)
+#
+#         for rank, (player_name, player_data) in enumerate(players_data.items(), 1):
+#             try:
+#                 prospect = extract_prospect_data(
+#                     player_name, player_data, position, colors_db, photos_dir
+#                 )
+#
+#                 safe_name = (
+#                     player_name.replace(" ", "_").replace(".", "").replace("'", "")
+#                 )
+#                 output_file = os.path.join(
+#                     pos_output_dir, f"{rank:02d}_{safe_name}.docx"
+#                 )
+#
+#                 generate_prospect_document(
+#                     prospect, output_file, temp_dir, default_photo
+#                 )
+#
+#                 print(
+#                     f"  [{rank:3d}] {player_name} ({prospect.school}) - #{prospect.colors['primary']}"
+#                 )
+#                 total_generated += 1
+#
+#             except Exception as e:
+#                 print(f"  ERROR: {player_name} - {str(e)}")
+#                 import traceback
+#
+#                 traceback.print_exc()
+#
+#     import shutil
+#
+#     if os.path.exists(temp_dir):
+#         shutil.rmtree(temp_dir)
+#
+#     print(f"\n{'=' * 50}")
+#     print(f"COMPLETE: Generated {total_generated} prospect profiles")
+#     print(f"Output directory: {output_dir}")
 
-    os.makedirs(output_dir, exist_ok=True)
-    temp_dir = os.path.join(output_dir, ".temp")
-    os.makedirs(temp_dir, exist_ok=True)
 
-    all_positions = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
-    if positions:
-        all_positions = [p.upper() for p in positions]
-
-    total_generated = 0
-
-    for position in all_positions:
-        json_file = os.path.join(json_dir, f"{position}.json")
-
-        if not os.path.exists(json_file):
-            print(f"Skipping {position}: No JSON file found")
-            continue
-
-        print(f"\nProcessing {position}...")
-
-        with open(json_file, "r") as f:
-            players_data = json.load(f)
-
-        pos_output_dir = os.path.join(output_dir, position)
-        os.makedirs(pos_output_dir, exist_ok=True)
-
-        for rank, (player_name, player_data) in enumerate(players_data.items(), 1):
-            try:
-                prospect = extract_prospect_data(
-                    player_name, player_data, position, colors_db, photos_dir
-                )
-
-                safe_name = (
-                    player_name.replace(" ", "_").replace(".", "").replace("'", "")
-                )
-                output_file = os.path.join(
-                    pos_output_dir, f"{rank:02d}_{safe_name}.docx"
-                )
-
-                generate_prospect_document(
-                    prospect, output_file, temp_dir, default_photo
-                )
-
-                print(
-                    f"  [{rank:3d}] {player_name} ({prospect.school}) - #{prospect.colors['primary']}"
-                )
-                total_generated += 1
-
-            except Exception as e:
-                print(f"  ERROR: {player_name} - {str(e)}")
-                import traceback
-
-                traceback.print_exc()
-
-    import shutil
-
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-
-    print(f"\n{'=' * 50}")
-    print(f"COMPLETE: Generated {total_generated} prospect profiles")
-    print(f"Output directory: {output_dir}")
-
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Generate NFL Draft Prospect Profiles")
-    parser.add_argument("--json-dir", required=True)
-    parser.add_argument("--photos-dir", required=True)
-    parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--colors-file", required=True)
-    parser.add_argument("--positions", nargs="+")
-    parser.add_argument("--default-photo")
-
-    args = parser.parse_args()
-
-    batch_generate_profiles(
-        json_dir=args.json_dir,
-        photos_dir=args.photos_dir,
-        output_dir=args.output_dir,
-        colors_file=args.colors_file,
-        positions=args.positions,
-        default_photo=args.default_photo,
-    )
+# if __name__ == "__main__":
+#     import argparse
+#
+#     parser = argparse.ArgumentParser(description="Generate NFL Draft Prospect Profiles")
+#     parser.add_argument("--json-dir", required=True)
+#     parser.add_argument("--photos-dir", required=True)
+#     parser.add_argument("--output-dir", required=True)
+#     parser.add_argument("--colors-file", required=True)
+#     parser.add_argument("--positions", nargs="+")
+#     parser.add_argument("--default-photo")
+#
+#     args = parser.parse_args()
+#
+#     batch_generate_profiles(
+#         json_dir=args.json_dir,
+#         photos_dir=args.photos_dir,
+#         output_dir=args.output_dir,
+#         colors_file=args.colors_file,
+#         positions=args.positions,
+#         default_photo=args.default_photo,
+#     )
