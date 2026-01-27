@@ -17,6 +17,8 @@ dependencies = [
     "pyyaml>=6.0",
     "python-docx==1.2.0",
     "beautifulsoup4==4.14.3",
+    # TODO: Make these an optional dependency
+    "Pillow==12.1.0"
 ]
 
 [project.optional-dependencies]
