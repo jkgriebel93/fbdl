@@ -12,14 +12,12 @@ from playwright._impl._errors import TargetClosedError, TimeoutError
 from playwright.sync_api import sync_playwright
 
 from .base import (
-    DEFAULT_REPLAY_TYPES,
-    OUTPUT_FORMATS,
-    TEAM_FULL_NAMES,
     BaseDownloader,
     FileOperationsUtil,
     MetaDataCreator,
 )
-from .draft_buzz import POSITIONS, DraftBuzzScraper, ProspectProfileListExtractor
+from .constants import DEFAULT_REPLAY_TYPES, OUTPUT_FORMATS, POSITIONS, TEAM_FULL_NAMES
+from .draft_buzz import DraftBuzzScraper, ProspectProfileListExtractor
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 from .utils import apply_config_to_kwargs, find_config, load_config
 
@@ -360,8 +358,9 @@ def extract_draft_profiles(
         profile_urls = json.load(infile)
 
     with sync_playwright() as playwright:
-        scraper = DraftBuzzScraper(playwright=playwright,
-                                   profile_root_dir=Path(output_directory))
+        scraper = DraftBuzzScraper(
+            playwright=playwright, profile_root_dir=Path(output_directory)
+        )
 
         completed_profiles = []
         with open(f"{output_directory}/completed.json", "r") as infile:
@@ -387,9 +386,10 @@ def extract_draft_profiles(
                 time.sleep(uniform(3.5, 4.5))
 
                 try:
-                    player_data = scraper.scrape_from_url(url=prof_slug,
-                                                          position=pos)
-                    position_player_data[player_data.basic_info.full_name] = player_data.to_dict()
+                    player_data = scraper.scrape_from_url(url=prof_slug, position=pos)
+                    position_player_data[player_data.basic_info.full_name] = (
+                        player_data.to_dict()
+                    )
                     scraper.save_player_photo_to_disk()
 
                     completed_profiles.append(prof_slug)

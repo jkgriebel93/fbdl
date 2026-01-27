@@ -1,23 +1,5 @@
-#!/usr/bin/env python3
-"""
-NFL Draft Buzz Prospect Scraper to Word Document
-
-Extracts prospect information from nfldraftbuzz.com and creates a formatted Word document.
-Uses Playwright for browser automation to bypass Cloudflare protection.
-
-Usage:
-    python nfl_prospect_to_docx.py <url>
-    python nfl_prospect_to_docx.py https://www.nfldraftbuzz.com/Player/Dante-Moore-QB-UCLA
-    python nfl_prospect_to_docx.py <url> -o custom_output.docx
-
-Requirements:
-    pip install playwright python-docx lxml --break-system-packages
-    playwright install firefox
-"""
-
 import io
 import re
-import requests
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -25,6 +7,7 @@ from random import uniform
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
+import requests
 from bs4 import BeautifulSoup, Tag
 from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
@@ -36,9 +19,8 @@ from playwright.sync_api import Browser
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
-from playwright.sync_api import sync_playwright
 
-from fbcm.base import POSITION_TO_GROUP_MAP
+from fbcm.constants import POSITION_TO_GROUP_MAP
 from fbcm.models import (
     BasicInfo,
     Comparison,
@@ -63,8 +45,6 @@ from fbcm.models import (
     Stats,
     TackleStats,
 )
-
-POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
 
 
 class PageFetcher:
@@ -364,7 +344,6 @@ class ProspectParserSoup:
         if len(weak_summary_divs) > 1:
             summary = weak_summary_divs[1].get_text(strip=True)
 
-
         strengths = [
             line
             for line in strengths_div.get_text().splitlines()
@@ -380,7 +359,7 @@ class ProspectParserSoup:
             bio=intro_div.get_text(strip=True),
             strengths=strengths,
             weaknesses=weaknesses,
-            summary=None
+            summary=None,
         )
 
     def extract_image_url(self) -> str:

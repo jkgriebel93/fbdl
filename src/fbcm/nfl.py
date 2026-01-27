@@ -7,15 +7,19 @@ from typing import Any, Dict, List, Optional, Union
 from griddy.nfl import GriddyNFL
 from griddy.nfl.models import WeeklyGameDetail
 from yt_dlp import YoutubeDL
+
+# noinspection PyUnresolvedReferences
 from yt_dlp.extractor.nfl import NFLBaseIE
 
 from .base import (
+    BaseDownloader,
+    get_max_episode_number_in_dir,
+)
+from .constants import (
     CITY_TO_ABBR,
     DEFAULT_REPLAY_TYPES,
     MEDIA_BASE_DIR,
     TEAM_FULL_NAMES,
-    BaseDownloader,
-    get_max_episode_number_in_dir,
 )
 
 logger = logging.getLogger(__name__)
