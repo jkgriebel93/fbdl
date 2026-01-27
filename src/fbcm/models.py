@@ -190,6 +190,17 @@ class RatingsAndRankings(BaseModel):
     avg_overall_rank: float | None = None
     avg_position_rank: float | None = None
 
+    def get_recruiting_str(self) -> str:
+        outlet_rtgs = []
+        if self.espn:
+            outlet_rtgs.append(f"ESPN: {self.espn}")
+        if self.rtg_247:
+            outlet_rtgs.append(f"247: {self.rtg_247}")
+        if self.rivals:
+            outlet_rtgs.append(f"Rivals: {self.rivals}")
+
+        return "  •  ".join(outlet_rtgs)
+
 
 @dataclass
 class Comparison(BaseModel):
