@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional, TypeAlias
-
+from docx.shared import RGBColor
 
 @dataclass
 class BaseModel:
@@ -12,6 +12,18 @@ class BaseModel:
             for key, value in asdict(self).items()
             if key not in self.exclude_fields
         }
+
+
+@dataclass
+class ColorScheme(BaseModel):
+    primary: str
+    secondary: str
+    light: str
+
+    dark : str | None = None
+    medium: str | None = None
+    primary_rgb: RGBColor | None = None
+    light_rgb: RGBColor | None = None
 
 
 @dataclass
@@ -209,7 +221,7 @@ class BasicInfo(BaseModel):
     dob: str = ""
     hometown: str = ""
 
-    photo_url: str | None = None
+    photo_path: str | None = None
 
 
 @dataclass
@@ -228,66 +240,3 @@ class ProspectDataSoup(BaseModel):
     comparisons: List[Comparison] | None = None
     stats: Stats | None = None
     scouting_report: ScoutingReport | None = None
-
-
-@dataclass
-class ProspectData(BaseModel):
-    """Container for all prospect information."""
-
-    name: str = ""
-    position: str = ""
-    school: str = ""
-    jersey: str = ""
-    play_style: str = ""
-    draft_year: str = ""
-    last_updated: str = ""
-
-    # Basic info
-    height: str = ""
-    weight: str = ""
-    forty: str = ""
-    age: str = ""
-    dob: str = ""
-    hometown: str = ""
-    player_class: str = ""
-
-    # Ratings
-    overall_rating: str = ""
-    position_rank: str = ""
-    overall_rank: str = ""
-    draft_projection: str = ""
-    defense_rating: str = ""
-
-    # Stats
-    stats: Stats | None = None
-    college_games: str = ""
-    college_snaps: str = ""
-
-    # Skill ratings (percentiles)
-    skill_ratings: Dict[str, str] = field(default_factory=dict)
-
-    # Recruiting grades
-    espn_rating: str = ""
-    rating_247: str = ""
-    rivals_rating: str = ""
-
-    # Player comparisons
-    comparisons: List[tuple] = field(default_factory=list)
-
-    # Scouting content
-    bio: str = ""
-    strengths: List[str] = field(default_factory=list)
-    weaknesses: List[str] = field(default_factory=list)
-    summary: str = ""
-
-    # Other scouts' rankings
-    avg_overall_rank: str = ""
-    avg_position_rank: str = ""
-
-    # Profile image
-    image_data: Optional[bytes] = field(
-        default=None, metadata={"exclude_from_asdict": True}, repr=False
-    )
-    image_type: str = "jpeg"
-
-    exclude_fields = ["image_data"]

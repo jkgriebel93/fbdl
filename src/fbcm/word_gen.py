@@ -14,77 +14,61 @@ from docx.oxml.ns import nsdecls, qn
 from docx.shared import Cm, Inches, Pt, RGBColor, Twips
 from PIL import Image, ImageDraw, ImageFont
 
-# ─── CONFIGURATION ───────────────────────────────────────────────────────────
+from .constants import POSITION_STATS
+from .models import ColorScheme, ProspectDataSoup
 
 
-# ─── SCHOOL COLORS ───────────────────────────────────────────────────────────
+class SchoolColors:
+    def __init__(self, colors_file: str):
+        with open(colors_file, "r") as infile:
+            self.color_data = self._normalize_color_data(data=json.load(infile))
 
+    def _normalize_color_data(self, data: Dict) -> Dict:
+        normalized = {}
+        for division in ["FBS", "FCS"]:
+            if division not in data:
+                continue
+            for conference, schools in data[division].items():
+                for school, colors in schools.items():
+                    normalized[school.lower()] = colors
 
-def load_school_colors(colors_file: str) -> Dict:
-    """Load school colors from JSON file."""
-    with open(colors_file, "r") as f:
-        data = json.load(f)
+        return normalized
 
-    lookup = {}
-    for division in ["FBS", "FCS"]:
-        if division not in data:
-            continue
-        for conference, schools in data[division].items():
-            for school, colors in schools.items():
-                lookup[school.lower()] = colors
+    def get_school_colors(self, school: str) -> ColorScheme:
+        normalized = school.lower().strip()
+        colors = ColorScheme(**self.color_data[normalized])
+        colors.dark = self.darken_color(colors.primary, 0.3)
+        colors.medium = self.blend_colors(colors.light,
+                                          colors.primary,
+                                          0.20)
 
-    return lookup
+        colors.primary_rgb = self.hex_to_rgb(colors.primary)
+        colors.light_rgb = self.hex_to_rgb(colors.light)
+        return colors
 
+    def blend_colors(self, color1: str, color2: str, ratio: float = 0.5) -> str:
+        """Blend two hex colors."""
+        c1 = color1.lstrip("#")
+        c2 = color2.lstrip("#")
+        r1, g1, b1 = int(c1[0:2], 16), int(c1[2:4], 16), int(c1[4:6], 16)
+        r2, g2, b2 = int(c2[0:2], 16), int(c2[2:4], 16), int(c2[4:6], 16)
+        r = int(r1 + (r2 - r1) * ratio)
+        g = int(g1 + (g2 - g1) * ratio)
+        b = int(b1 + (b2 - b1) * ratio)
+        return f"{r:02x}{g:02x}{b:02x}"
 
-def get_school_colors(school: str, colors_db: Dict) -> Dict:
-    """Get colors for a school, with fallback."""
-    default = {"primary": "333333", "secondary": "666666", "light": "E8E8E8"}
+    def darken_color(self, hex_color: str, factor: float = 0.3) -> str:
+        """Darken a hex color."""
+        c = hex_color.lstrip("#")
+        r = int(int(c[0:2], 16) * (1 - factor))
+        g = int(int(c[2:4], 16) * (1 - factor))
+        b = int(int(c[4:6], 16) * (1 - factor))
+        return f"{r:02x}{g:02x}{b:02x}"
 
-    if not school:
-        return default
-
-    normalized = school.lower().strip()
-
-    # Direct lookup
-    if normalized in colors_db:
-        return colors_db[normalized]
-
-    # Partial match
-    for key, colors in colors_db.items():
-        if key in normalized or normalized in key:
-            return colors
-
-    return default
-
-
-def blend_colors(color1: str, color2: str, ratio: float = 0.5) -> str:
-    """Blend two hex colors."""
-    c1 = color1.lstrip("#")
-    c2 = color2.lstrip("#")
-    r1, g1, b1 = int(c1[0:2], 16), int(c1[2:4], 16), int(c1[4:6], 16)
-    r2, g2, b2 = int(c2[0:2], 16), int(c2[2:4], 16), int(c2[4:6], 16)
-    r = int(r1 + (r2 - r1) * ratio)
-    g = int(g1 + (g2 - g1) * ratio)
-    b = int(b1 + (b2 - b1) * ratio)
-    return f"{r:02x}{g:02x}{b:02x}"
-
-
-def darken_color(hex_color: str, factor: float = 0.3) -> str:
-    """Darken a hex color."""
-    c = hex_color.lstrip("#")
-    r = int(int(c[0:2], 16) * (1 - factor))
-    g = int(int(c[2:4], 16) * (1 - factor))
-    b = int(int(c[4:6], 16) * (1 - factor))
-    return f"{r:02x}{g:02x}{b:02x}"
-
-
-def hex_to_rgb(hex_color: str) -> RGBColor:
-    """Convert hex to RGBColor."""
-    c = hex_color.lstrip("#")
-    return RGBColor(int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16))
-
-
-# ─── RATING RING GENERATOR ───────────────────────────────────────────────────
+    def hex_to_rgb(self, hex_color: str) -> RGBColor:
+        """Convert hex to RGBColor."""
+        c = hex_color.lstrip("#")
+        return RGBColor(int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16))
 
 
 def create_rating_ring(
@@ -263,172 +247,203 @@ def skill_bar(pct: int) -> str:
     return "█" * filled + "░" * (10 - filled)
 
 
-# ─── DATA EXTRACTION ─────────────────────────────────────────────────────────
-
-
-@dataclass
-class ProspectData:
-    name: str
-    position: str
-    school: str
-    play_style: str
-    height: str
-    weight: str
-    forty: str
-    hometown: str
-    class_year: str
-    overall_rating: float
-    draft_buzz_overall: str
-    draft_buzz_position: str
-    draft_projection: str
-    consensus_overall: str
-    consensus_position: str
-    stats: Dict[str, Dict[str, Any]]
-    skills: Dict[str, int]
-    comparisons: List[Dict]
-    recruiting: Dict[str, str]
-    bio: str
-    strengths: List[str]
-    weaknesses: List[str]
-    summary: Optional[str]
-    photo_path: Optional[str]
-    colors: Dict[str, str]
-
-
-def extract_prospect_data(
-    name: str, data: Dict, position: str, colors_db: Dict, photos_dir: str
-) -> ProspectData:
-    """Extract and normalize prospect data from JSON."""
-    basic = data.get("basic_info", {})
-    ratings = data.get("ratings", {})
-    raw_stats = data.get("stats", {})
-    skills_raw = data.get("skills", {})
-    comparisons = data.get("comparisons", [])
-    report = data.get("scouting_report", {})
-
-    # Get school
-    school_display = basic.get("college", "").title()
-    school_lookup = basic.get("college", "").lower().strip()
-    colors = get_school_colors(school_lookup, colors_db)
-
-    # Photo path
-    photo_filename = f"{basic.get('first_name', '')} {basic.get('last_name', '')}.png"
-    photo_path = os.path.join(photos_dir, photo_filename)
-    if not os.path.exists(photo_path):
-        photo_path = None
-
-    # Extract stats
-    stats = {}
-    pos_upper = position.upper()
-
-    if raw_stats and pos_upper in POSITION_STATS:
-        pos_config = POSITION_STATS[pos_upper]
-
-        if pos_upper == "QB":
-            category = "Passing"
-            stats[category] = {}
-            for label in pos_config.get(category, []):
-                key = label.lower().replace("%", "_pct")
-                if key == "int":
-                    key = "ints"
-                if key == "rtg":
-                    key = "qb_rtg"
-                value = raw_stats.get(key, "—")
-                if isinstance(value, float):
-                    if key == "cmp_pct":
-                        value = f"{value:.1f}%"
-                    elif key == "qb_rtg":
-                        value = f"{value:.1f}"
-                    else:
-                        value = str(int(value)) if value == int(value) else str(value)
-                elif isinstance(value, int):
-                    value = f"{value:,}" if value >= 1000 else str(value)
-                stats[category][label] = value if value else "—"
-
-        elif pos_upper in ["RB", "WR", "TE"]:
-            for category, stat_labels in pos_config.items():
-                cat_key = category.lower()
-                cat_data = raw_stats.get(cat_key, {})
-                stats[category] = {}
-                for label in stat_labels:
-                    key = label.lower()
-                    value = cat_data.get(key, "—")
-                    if isinstance(value, float):
-                        value = (
-                            f"{value:.1f}" if value != int(value) else str(int(value))
-                        )
-                    elif isinstance(value, int):
-                        value = f"{value:,}" if value >= 1000 else str(value)
-                    stats[category][label] = value if value else "—"
-
-        elif pos_upper in ["DL", "EDGE", "LB", "DB"]:
-            category_map = {"Tackles": "tackle", "Interceptions": "interception"}
-            for category, stat_labels in pos_config.items():
-                cat_key = category_map.get(category, category.lower())
-                cat_data = raw_stats.get(cat_key, {})
-                stats[category] = {}
-                for label in stat_labels:
-                    key = label.lower()
-                    value = cat_data.get(key, "—")
-                    if isinstance(value, float):
-                        value = (
-                            f"{value:.1f}" if value != int(value) else str(int(value))
-                        )
-                    elif isinstance(value, int):
-                        value = str(value)
-                    stats[category][label] = value if value else "—"
-
-    def format_rank(val):
-        if val is None:
-            return "—"
-        if isinstance(val, float):
-            return f"#{val:.1f}" if val != int(val) else f"#{int(val)}"
-        return str(val) if str(val).startswith("#") else f"#{val}"
-
-    recruiting = {}
-    if ratings.get("rtg_247"):
-        recruiting["247"] = (
-            f"{ratings['rtg_247']}/100"
-            if isinstance(ratings["rtg_247"], (int, float))
-            else str(ratings["rtg_247"])
-        )
-    if ratings.get("rivals"):
-        recruiting["Rivals"] = str(ratings["rivals"])
-
-    return ProspectData(
-        name=basic.get("full_name", name).upper(),
-        position=position.upper(),
-        school=school_display,
-        play_style=basic.get("play_style", "").upper(),
-        height=basic.get("height", ""),
-        weight=basic.get("weight", ""),
-        forty=basic.get("forty", ""),
-        hometown=basic.get("hometown", "").title(),
-        class_year=basic.get("class_", "").title(),
-        overall_rating=ratings.get("overall_rating", 0) or 0,
-        draft_buzz_overall=format_rank(ratings.get("overall_rank", "")),
-        draft_buzz_position=format_rank(ratings.get("position_rank", "")).split()[0],
-        draft_projection=(
-            ratings.get("draft_projection", "—").upper()
-            if ratings.get("draft_projection")
-            else "—"
-        ),
-        consensus_overall=format_rank(ratings.get("avg_overall_rank")),
-        consensus_position=format_rank(ratings.get("avg_position_rank")),
-        stats=stats,
-        skills=skills_raw,
-        comparisons=comparisons or [],
-        recruiting=recruiting,
-        bio=report.get("bio", ""),
-        strengths=report.get("strengths", []),
-        weaknesses=report.get("weaknesses", []),
-        summary=report.get("summary"),
-        photo_path=photo_path,
-        colors=colors,
-    )
-
-
 # ─── DOCUMENT GENERATION ─────────────────────────────────────────────────────
+
+
+class WordDocGenerator:
+    def __init__(self,
+                 prospect: ProspectDataSoup,
+                 output_path: str,
+                 temp_dir: str,
+                 colors_path: str):
+        self.prospect = prospect
+        self.output_path = output_path
+        # TODO: Rename temp_dir to something more accurate, e.g. ring_dir
+        self.temp_dir = temp_dir
+        self.color_handler = SchoolColors(colors_file=colors_path)
+        self.colors = self.color_handler.get_school_colors(self.prospect.basic_info.college)
+
+        self.document = Document()
+
+    def _set_margins(self):
+        section = self.document.sections[0]
+        section.page_width = Inches(8.5)
+        section.page_height = Inches(11)
+        section.top_margin = Inches(0.5)
+        section.bottom_margin = Inches(0.5)
+        section.left_margin = Inches(1)
+        section.right_margin = Inches(0.75)
+
+    def _gen_rating_ring(self, size: int = 120):
+        ring_width = 12
+        img = Image.new("RGBA", (size, size), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(img)
+
+        padding = 4
+        center = size // 2
+        outer_radius = size // 2 - padding
+        inner_radius = outer_radius - ring_width
+        bbox = [padding, padding, size - padding, size - padding]
+
+        draw.arc(bbox,
+                 start=0,
+                 end=360,
+                 fill=self.colors.light_rgb,
+                 width=ring_width)
+
+        rating = self.prospect.ratings.overall_rating
+
+        if rating > 0:
+            start_angle = -90
+            sweep_angle = (rating / 100) * 360
+            end_angle = start_angle + sweep_angle
+            draw.arc(bbox,
+                     start_angle,
+                     end_angle,
+                     fill=self.colors.primary_rgb,
+                     width=ring_width)
+
+            cap_radius = ring_width // 2
+            start_x, start_y = center, padding + ring_width // 2
+            draw.ellipse(
+                [
+                    start_x - cap_radius,
+                    start_y - cap_radius,
+                    start_x + cap_radius,
+                    start_y + cap_radius,
+                ],
+                fill=self.colors.primary_rgb,
+            )
+
+            if rating < 100:
+                end_angle_rad = math.radians(end_angle)
+                arc_center_radius = outer_radius - ring_width // 2
+                end_x = center + arc_center_radius * math.cos(end_angle_rad)
+                end_y = center + arc_center_radius * math.sin(end_angle_rad)
+                draw.ellipse(
+                    [
+                        end_x - cap_radius,
+                        end_y - cap_radius,
+                        end_x + cap_radius,
+                        end_y + cap_radius,
+                    ],
+                    fill=self.colors.primary_rgb,
+                )
+
+        center_radius = inner_radius - 4
+        draw.ellipse(
+            [
+                center - center_radius,
+                center - center_radius,
+                center + center_radius,
+                center + center_radius,
+            ],
+            fill=self.colors.primary_rgb,
+        )
+
+        try:
+            # TODO: Parameterize the fontpath here
+            font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size // 4
+            )
+        except:
+            font = ImageFont.load_default()
+
+        text = str(int(rating)) if rating == int(rating) else f"{rating:.1f}"
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+
+        draw.text(
+            (center - text_width // 2, center - text_height // 2 - 2),
+            text,
+            fill=(255, 255, 255),
+            font=font,
+        )
+
+        img.save(self.temp_dir, "PNG")
+
+    def _gen_header_table(self):
+        # TODO: Split this into smaller methods
+        header_table = self.document.add_table(rows=1, cols=3)
+        header_table.autofit = False
+
+        photo_cell = header_table.cell(0, 0)
+        photo_cell.width = Inches(1.5)
+        remove_cell_borders(photo_cell)
+        photo_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+
+        photo_para = photo_cell.paragraphs[0]
+        photo_para.add_run().add_picture(self.prospect.basic_info.photo_path, width=Inches(1.3))
+
+        name_cell = header_table.cell(0, 1)
+        name_cell.width = Inches(4.0)
+        remove_cell_borders(name_cell)
+        name_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+
+        name_para = name_cell.paragraphs[0]
+        name_para.paragraph_format.space_after = Pt(0)
+        run = name_para.add_run(self.prospect.basic_info.full_name)
+        run.font.size = Pt(28)
+        run.font.bold = True
+        run.font.color.rgb = self.colors.primary_rgb
+
+        info_para = name_cell.add_paragraph()
+        info_para.paragraph_format.space_before = Pt(2)
+        info_para.paragraph_format.space_after = Pt(4)
+        run = info_para.add_run(
+            f"{self.prospect.basic_info.position}  •  "
+            f"{self.prospect.basic_info.college}  •  "
+            f"{self.prospect.basic_info.play_style}"
+        )
+        run.font.size = Pt(11)
+        run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+
+        measurables_para = name_cell.add_paragraph()
+        run = measurables_para.add_run(
+            f"{self.prospect.basic_info.height}  •  "
+            f"{self.prospect.basic_info.weight} lbs  •  "
+            f"{self.prospect.basic_info.forty}s  •  "
+            f"{self.prospect.basic_info.hometown}  •  "
+            f"{self.prospect.basic_info.class_}"
+        )
+        run.font.size = Pt(9)
+        run.font.color.rgb = RGBColor(0x77, 0x77, 0x77)
+
+        ring_cell = header_table.cell(0, 2)
+        ring_cell.width = Inches(1.25)
+        remove_cell_borders(ring_cell)
+        ring_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+
+        ring_para = ring_cell.paragraphs[0]
+        ring_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        ring_para.add_run().add_picture(self.temp_dir, width=Inches(0.95))
+
+        label_para = ring_cell.add_paragraph()
+        label_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        label_para.paragraph_format.space_before = Pt(2)
+        run = label_para.add_run("PROSPECT RATING")
+        run.font.size = Pt(6.5)
+        run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+
+
+    def _gen_rankings_bar(self):
+        pass
+
+    def _gen_stats_bar(self):
+        pass
+
+    def _gen_skills_and_comps(self):
+        pass
+
+    def _gen_bio(self):
+        pass
+
+    def _gen_strengths_weaknesses(self):
+        pass
+
+    def _gen_scouting_summary(self):
+        pass
 
 
 def generate_prospect_document(
@@ -436,27 +451,6 @@ def generate_prospect_document(
 ):
     """Generate a complete prospect profile document."""
     doc = Document()
-
-    section = doc.sections[0]
-    section.page_width = Inches(8.5)
-    section.page_height = Inches(11)
-    section.top_margin = Inches(0.5)
-    section.bottom_margin = Inches(0.5)
-    section.left_margin = Inches(1)
-    section.right_margin = Inches(0.75)
-
-    # School colors - strip any # prefix
-    primary = prospect.colors["primary"].lstrip("#")
-    light = prospect.colors["light"].lstrip("#")
-    dark = darken_color(primary, 0.3)
-    medium = blend_colors(light, primary, 0.20)
-
-    primary_rgb = hex_to_rgb(primary)
-    light_rgb = hex_to_rgb(light)
-
-    # Generate rating ring
-    ring_path = os.path.join(temp_dir, f"{prospect.name.replace(' ', '_')}_ring.png")
-    create_rating_ring(prospect.overall_rating, primary, light, output_path=ring_path)
 
     # ─── HEADER TABLE ────────────────────────────────────────────────────────
     header_table = doc.add_table(rows=1, cols=3)
