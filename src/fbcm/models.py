@@ -306,6 +306,33 @@ class ScoutingReport(BaseModel):
     summary: str | None = None
 
 
+# Mapping from position to the appropriate stats class
+POSITION_TO_STATS_CLASS = {
+    "QB": PassingStats,
+    "RB": OffenseSkillPlayerStats,
+    "WR": OffenseSkillPlayerStats,
+    "TE": OffenseSkillPlayerStats,
+    "OL": BaseStats,
+    "DL": DefenseStats,
+    "EDGE": DefenseStats,
+    "LB": DefenseStats,
+    "DB": DefenseStats,
+}
+
+# Mapping from position to the appropriate skills class
+POSITION_TO_SKILLS_CLASS = {
+    "QB": PassingSkills,
+    "RB": RunningBackSkills,
+    "WR": PassCatcherSkills,
+    "TE": PassCatcherSkills,
+    "OL": OffensiveLinemanSkills,
+    "DL": DefensiveLinemanSkills,
+    "EDGE": DefensiveLinemanSkills,
+    "LB": LinebackerSkills,
+    "DB": DefensiveBackSkills,
+}
+
+
 @dataclass
 class ProspectDataSoup(BaseModel):
     basic_info: BasicInfo | None = None
@@ -314,3 +341,43 @@ class ProspectDataSoup(BaseModel):
     comparisons: List[Comparison] | None = None
     stats: Stats | None = None
     scouting_report: ScoutingReport | None = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ProspectDataSoup":
+        """Create a ProspectDataSoup instance, using position to determine correct stats/skills types."""
+        if data is None:
+            return None
+
+        # First, extract basic_info to get the position
+        basic_info_data = data.get("basic_info")
+        basic_info = BasicInfo.from_dict(basic_info_data) if basic_info_data else None
+        position = basic_info.position.upper() if basic_info and basic_info.position else None
+
+        # Determine the correct stats and skills classes based on position
+        stats_class = POSITION_TO_STATS_CLASS.get(position, BaseStats)
+        skills_class = POSITION_TO_SKILLS_CLASS.get(position, PassingSkills)
+
+        # Build the instance with position-aware type conversion
+        kwargs = {"basic_info": basic_info}
+
+        # Handle ratings
+        if "ratings" in data and data["ratings"] is not None:
+            kwargs["ratings"] = RatingsAndRankings.from_dict(data["ratings"])
+
+        # Handle skills with position-specific class
+        if "skills" in data and data["skills"] is not None:
+            kwargs["skills"] = skills_class.from_dict(data["skills"])
+
+        # Handle comparisons
+        if "comparisons" in data and data["comparisons"] is not None:
+            kwargs["comparisons"] = [Comparison.from_dict(c) for c in data["comparisons"]]
+
+        # Handle stats with position-specific class
+        if "stats" in data and data["stats"] is not None:
+            kwargs["stats"] = stats_class.from_dict(data["stats"])
+
+        # Handle scouting_report
+        if "scouting_report" in data and data["scouting_report"] is not None:
+            kwargs["scouting_report"] = ScoutingReport.from_dict(data["scouting_report"])
+
+        return cls(**kwargs)

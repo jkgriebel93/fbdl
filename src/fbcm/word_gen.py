@@ -520,7 +520,7 @@ class WordDocGenerator:
 
                     # TODO: Use the object here, not the dict.
                     # Using to_dict for now to simply get the implementation working
-                    cat_stats = self.prospect.stats.to_dict()
+                    cat_stats = self.prospect.stats.to_dict() if self.prospect.stats else {}
                     print("ARMADILLO")
                     from pprint import pprint
                     pprint(cat_stats)
@@ -719,7 +719,7 @@ class WordDocGenerator:
         for strength in self.prospect.scouting_report.strengths:
             p = str_cell.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            p.paragraph_format.space_after = Pt(6)
+            p.paragraph_format.space_after = Pt(4)
             p.paragraph_format.left_indent = Inches(0.15)
 
             run = p.add_run("+ ")
@@ -745,7 +745,7 @@ class WordDocGenerator:
         for weakness in self.prospect.scouting_report.weaknesses:
             p = weak_cell.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            p.paragraph_format.space_after = Pt(6)
+            p.paragraph_format.space_after = Pt(4)
             p.paragraph_format.left_indent = Inches(0.15)
 
             run = p.add_run("– ")
