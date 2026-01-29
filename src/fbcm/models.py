@@ -351,7 +351,10 @@ class ProspectDataSoup(BaseModel):
         # First, extract basic_info to get the position
         basic_info_data = data.get("basic_info")
         basic_info = BasicInfo.from_dict(basic_info_data) if basic_info_data else None
-        position = basic_info.position.upper() if basic_info and basic_info.position else None
+
+        # Extract primary position from multi-position strings like "DL/EDGE"
+        raw_position = basic_info.position if basic_info and basic_info.position else ""
+        position = raw_position.split("/")[0].strip().upper() if raw_position else None
 
         # Determine the correct stats and skills classes based on position
         stats_class = POSITION_TO_STATS_CLASS.get(position, BaseStats)

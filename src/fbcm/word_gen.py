@@ -18,6 +18,13 @@ from .constants import POSITION_STATS
 from .models import ColorScheme, ProspectDataSoup
 
 
+def get_primary_position(position: str) -> str:
+    """Extract the primary position from multi-position strings like 'DL/EDGE'."""
+    if not position:
+        return ""
+    return position.split("/")[0].strip().upper()
+
+
 class SchoolColors:
     def __init__(self, colors_file: str):
         with open(colors_file, "r") as infile:
@@ -478,8 +485,48 @@ class WordDocGenerator:
             run.font.size = Pt(6.5)
             run.font.color.rgb = self.colors.light_rgb
 
+    def _get_stat_value(self, category: str, stat_label: str) -> str:
+        """Get a stat value from the appropriate nested stats object."""
+        if not self.prospect.stats:
+            return "—"
+
+        # Map category names to attribute names
+        category_to_attr = {
+            "Passing": None,  # PassingStats has flat structure
+            "Rushing": "rushing",
+            "Receiving": "receiving",
+            "Tackles": "tackle",
+            "Interceptions": "interception",
+        }
+
+        # Normalize the stat label for attribute lookup
+        stat_attr = stat_label.lower().replace("%", "_pct")
+        if stat_attr == "int":
+            stat_attr = "ints"
+        elif stat_attr == "tds":
+            stat_attr = "td"
+        elif stat_attr == "rtg":
+            stat_attr = "qb_rtg"
+
+        attr_name = category_to_attr.get(category)
+
+        if attr_name is None:
+            # Flat structure (e.g., PassingStats for QB)
+            value = getattr(self.prospect.stats, stat_attr, None)
+        else:
+            # Nested structure (e.g., OffenseSkillPlayerStats.rushing)
+            nested_stats = getattr(self.prospect.stats, attr_name, None)
+            if nested_stats is None:
+                return "—"
+            value = getattr(nested_stats, stat_attr, None)
+
+        if value is None:
+            return "—"
+        return str(value)
+
     def _gen_stats_bar(self):
-        pos_config = POSITION_STATS.get(self.prospect.basic_info.position, {})
+        primary_position = get_primary_position(self.prospect.basic_info.position)
+        pos_config = POSITION_STATS.get(primary_position, {})
         categories = list(pos_config.keys())
 
         if categories:
@@ -518,26 +565,18 @@ class WordDocGenerator:
                     run.font.bold = True
                     run.font.color.rgb = label_rgb
 
-                    # TODO: Use the object here, not the dict.
-                    # Using to_dict for now to simply get the implementation working
-                    cat_stats = self.prospect.stats.to_dict() if self.prospect.stats else {}
-                    print("ARMADILLO")
-                    from pprint import pprint
-                    pprint(cat_stats)
                     for j, stat_label in enumerate(stat_labels):
-                        print("BADGER", j, stat_label)
                         stat_cell = stats_table.cell(1, col_idx + j)
                         stat_cell.width = Inches(6.75 / total_stats)
                         remove_cell_borders(stat_cell)
                         set_cell_shading(stat_cell, bg_color)
-                        set_cell_margins(stat_cell, top=80, bottom=60, left=40, right=40)
+                        set_cell_margins(stat_cell, top=80, bottom=40, left=40, right=40)
                         stat_cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
                         p1 = stat_cell.paragraphs[0]
                         p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                        p1.paragraph_format.space_after = Pt(10)
-                        stat_value = str(cat_stats.get(stat_label, "—"))
-                        print("CHEETAH", stat_value)
+                        p1.paragraph_format.space_after = Pt(1)
+                        stat_value = self._get_stat_value(category, stat_label)
                         run = p1.add_run(stat_value)
                         run.font.size = Pt(14)
                         run.font.bold = True
@@ -546,17 +585,17 @@ class WordDocGenerator:
                         p2 = stat_cell.add_paragraph()
                         p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
                         p2.paragraph_format.space_before = Pt(0)
+                        p2.paragraph_format.space_after = Pt(1)
                         run = p2.add_run(stat_label)
-                        run.font.size = Pt(9)
+                        run.font.size = Pt(7)
                         run.font.color.rgb = label_rgb
 
                     col_idx += num_stats
 
             else:
-                # Single category
+                # Single category (e.g., QB with Passing)
                 category = categories[0]
                 stat_labels = pos_config[category]
-                cat_stats = self.prospect.stats
 
                 stats_table = self.document.add_table(rows=1, cols=len(stat_labels))
                 stats_table.autofit = False
@@ -572,7 +611,8 @@ class WordDocGenerator:
                     p1 = cell.paragraphs[0]
                     p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     p1.paragraph_format.space_after = Pt(1)
-                    run = p1.add_run(str(cat_stats.get(stat_label, "—")))
+                    stat_value = self._get_stat_value(category, stat_label)
+                    run = p1.add_run(stat_value)
                     run.font.size = Pt(14)
                     run.font.bold = True
                     run.font.color.rgb = self.colors.primary_rgb
@@ -618,7 +658,7 @@ class WordDocGenerator:
             p = skills_cell.add_paragraph()
             p.paragraph_format.space_after = Pt(2)
 
-            display_name = skill_name.replace("_", " ").title()
+            display_name = skill_name.replace("rating", "rtg").replace("targeted", "tgt").replace("_", " ").title()
             run = p.add_run(f"{display_name:<20} ")
             run.font.name = "Consolas"
             run.font.size = Pt(10)
