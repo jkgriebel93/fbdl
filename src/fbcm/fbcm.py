@@ -21,7 +21,7 @@ from .models import ProspectDataSoup
 from .draft_buzz import DraftBuzzScraper, ProspectProfileListExtractor, ProspectParserSoup
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 from .utils import apply_config_to_kwargs, find_config, load_config
-from .word_gen import WordDocGenerator
+from .docx.word_gen import WordDocGenerator
 
 
 @click.group()

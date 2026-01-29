@@ -14,8 +14,8 @@ from docx.oxml.ns import nsdecls, qn
 from docx.shared import Cm, Inches, Pt, RGBColor, Twips
 from PIL import Image, ImageDraw, ImageFont
 
-from .constants import POSITION_STATS
-from .models import ColorScheme, ProspectDataSoup
+from ..constants import POSITION_STATS
+from ..models import ColorScheme, ProspectDataSoup
 
 
 def get_primary_position(position: str) -> str:
@@ -252,9 +252,6 @@ def skill_bar(pct: int) -> str:
     """Generate ASCII skill bar."""
     filled = round(pct / 10)
     return "█" * filled + "░" * (10 - filled)
-
-
-# ─── DOCUMENT GENERATION ─────────────────────────────────────────────────────
 
 
 class WordDocGenerator:
@@ -847,104 +844,3 @@ class WordDocGenerator:
 
         if os.path.exists(self.ring_img_path):
             os.remove(self.ring_img_path)
-
-# ─── MAIN BATCH PROCESSOR ────────────────────────────────────────────────────
-
-
-# def batch_generate_profiles(
-#     json_dir: str,
-#     photos_dir: str,
-#     output_dir: str,
-#     colors_file: str,
-#     positions: List[str] = None,
-#     default_photo: str = None,
-# ):
-#     """Generate prospect profiles for all positions."""
-#     print("Loading school colors...")
-#     colors_db = load_school_colors(colors_file)
-#     print(f"  Loaded {len(colors_db)} schools")
-#
-#     os.makedirs(output_dir, exist_ok=True)
-#     temp_dir = os.path.join(output_dir, ".temp")
-#     os.makedirs(temp_dir, exist_ok=True)
-#
-#     all_positions = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
-#     if positions:
-#         all_positions = [p.upper() for p in positions]
-#
-#     total_generated = 0
-#
-#     for position in all_positions:
-#         json_file = os.path.join(json_dir, f"{position}.json")
-#
-#         if not os.path.exists(json_file):
-#             print(f"Skipping {position}: No JSON file found")
-#             continue
-#
-#         print(f"\nProcessing {position}...")
-#
-#         with open(json_file, "r") as f:
-#             players_data = json.load(f)
-#
-#         pos_output_dir = os.path.join(output_dir, position)
-#         os.makedirs(pos_output_dir, exist_ok=True)
-#
-#         for rank, (player_name, player_data) in enumerate(players_data.items(), 1):
-#             try:
-#                 prospect = extract_prospect_data(
-#                     player_name, player_data, position, colors_db, photos_dir
-#                 )
-#
-#                 safe_name = (
-#                     player_name.replace(" ", "_").replace(".", "").replace("'", "")
-#                 )
-#                 output_file = os.path.join(
-#                     pos_output_dir, f"{rank:02d}_{safe_name}.docx"
-#                 )
-#
-#                 generate_prospect_document(
-#                     prospect, output_file, temp_dir, default_photo
-#                 )
-#
-#                 print(
-#                     f"  [{rank:3d}] {player_name} ({prospect.school}) - #{prospect.colors['primary']}"
-#                 )
-#                 total_generated += 1
-#
-#             except Exception as e:
-#                 print(f"  ERROR: {player_name} - {str(e)}")
-#                 import traceback
-#
-#                 traceback.print_exc()
-#
-#     import shutil
-#
-#     if os.path.exists(temp_dir):
-#         shutil.rmtree(temp_dir)
-#
-#     print(f"\n{'=' * 50}")
-#     print(f"COMPLETE: Generated {total_generated} prospect profiles")
-#     print(f"Output directory: {output_dir}")
-
-
-# if __name__ == "__main__":
-#     import argparse
-#
-#     parser = argparse.ArgumentParser(description="Generate NFL Draft Prospect Profiles")
-#     parser.add_argument("--json-dir", required=True)
-#     parser.add_argument("--photos-dir", required=True)
-#     parser.add_argument("--output-dir", required=True)
-#     parser.add_argument("--colors-file", required=True)
-#     parser.add_argument("--positions", nargs="+")
-#     parser.add_argument("--default-photo")
-#
-#     args = parser.parse_args()
-#
-#     batch_generate_profiles(
-#         json_dir=args.json_dir,
-#         photos_dir=args.photos_dir,
-#         output_dir=args.output_dir,
-#         colors_file=args.colors_file,
-#         positions=args.positions,
-#         default_photo=args.default_photo,
-#     )

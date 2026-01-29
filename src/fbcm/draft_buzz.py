@@ -38,7 +38,7 @@ from fbcm.models import (
     Stats,
     TackleStats,
 )
-from .word_gen import WordDocGenerator
+from .docx.word_gen import WordDocGenerator
 
 class PageFetcher:
     """Handles fetching web pages using Playwright browser automation."""
