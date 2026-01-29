@@ -94,6 +94,16 @@ class PassingStats(BaseStats):
     sack: int | None = None
     qb_rtg: float | None = None
 
+    def get(self, fld: str, default: Any | None = None) -> Any:
+        fld = fld.lower().replace("%", "_pct")
+
+        if fld == "rtg":
+            fld = "qb_rtg"
+        elif fld == "int":
+            fld = "ints"
+
+        return getattr(self, fld)
+
 
 @dataclass
 class RushingStats(BaseStats):
@@ -281,6 +291,7 @@ class BasicInfo(BaseModel):
     age: str = ""
     dob: str = ""
     hometown: str = ""
+    photo_url: str | None = None
 
     @property
     def photo_path(self):

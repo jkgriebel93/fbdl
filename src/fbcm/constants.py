@@ -11,7 +11,7 @@ MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
 CONCURRENT_FRAGMENTS = os.getenv("CONCURRENT_FRAGMENTS", 1)
 THROTTLED_RATE_LIMIT = os.getenv("THROTTLED_RATE_LIMIT", 1000000)
 # TODO: Think harder about this name?
-PHOTO_BASE_DIR = os.getenv("PHOTO_BASE_DIR")
+PHOTO_BASE_DIR = os.getenv("PHOTO_BASE_DIR", "/mnt/e/FootballGames/automation/output_data/player_photos")
 
 # Franchise/Team information
 ABBREVIATION_MAP = {
@@ -137,7 +137,18 @@ POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
 
 
 POSITION_STATS = {
-    "QB": {"Passing": ["CMP", "ATT", "CMP%", "YDS", "TD", "INT", "SACK", "RTG"]},
+    "QB": {
+        "Passing": [
+            "CMP",
+            "ATT",
+            "CMP%",
+            "YDS",
+            "TD",
+            "INT",
+            "SACK",
+            "RTG"
+        ]
+    },
     "RB": {
         "Rushing": ["ATT", "YDS", "AVG", "TD"],
         "Receiving": ["REC", "YDS", "AVG", "TD"],

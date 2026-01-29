@@ -352,7 +352,7 @@ class ProspectParserSoup:
             bio=intro_div.get_text(strip=True),
             strengths=strengths,
             weaknesses=weaknesses,
-            summary=None,
+            summary=summary,
         )
 
     def extract_image_url(self) -> str:
@@ -377,7 +377,9 @@ class ProspectParserSoup:
                 print(f"Could not match position {self.position} to any known group.")
 
         if table_div is not None:
-            stats = self._extract_stats_object(div=table_div)[0]
+            extracted_stats = self._extract_stats_object(div=table_div)
+            if extracted_stats:
+                stats = extracted_stats[0]
 
         return stats
 
@@ -472,7 +474,11 @@ class ProspectParserSoup:
 
     def _parse_basic_info_table(self, tag: Tag) -> Dict:
         # Includes jersery #, sub_position, last_updated, forty_time
-        jersey_num = tag.find(text=re.compile(r"#\d+")).get_text(strip=True)
+        jersey_num_tag = tag.find(text=re.compile(r"#\d+"))
+        if jersey_num_tag:
+            jersey_num = jersey_num_tag.get_text(strip=True)
+        else:
+            jersey_num = ""
 
         sub_position_label = self._get_tag_with_title_containing(tag, "Sub-Position")
         sub_position_value = self._get_text_following_label(sub_position_label)
@@ -786,7 +792,7 @@ class ProspectParserSoup:
     def _extract_247(self, table: Tag) -> Optional[float]:
         rtg = None
         sports_247_rtg_row = self._get_tag_with_text(
-            search_space=table, tag_name="span", text="247"
+            search_space=table, tag_name="span", text="247 RATING"
         )
         if sports_247_rtg_row:
             rtg = float(
@@ -836,11 +842,12 @@ class DraftBuzzScraper:
         playwright: Playwright,
         profile_root_dir: Path = None,
         fetcher: PageFetcher = None,
+            headless: bool = True
     ):
         self.profile_root_dir = profile_root_dir
         self.base_url = "https://www.nfldraftbuzz.com"
         self.fetcher = fetcher or PageFetcher(
-            playwright=playwright, base_url=self.base_url
+            playwright=playwright, base_url=self.base_url, headless=headless
         )
         self.parser = None
         self.position_rankings_used = defaultdict(list)

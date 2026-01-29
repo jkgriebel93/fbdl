@@ -395,7 +395,7 @@ class WordDocGenerator:
         info_para.paragraph_format.space_after = Pt(4)
         run = info_para.add_run(
             f"{self.prospect.basic_info.position}  •  "
-            f"{self.prospect.basic_info.college}  •  "
+            f"{self.prospect.basic_info.college.title()}  •  "
             f"{self.prospect.basic_info.play_style}"
         )
         run.font.size = Pt(11)
@@ -406,8 +406,8 @@ class WordDocGenerator:
             f"{self.prospect.basic_info.height}  •  "
             f"{self.prospect.basic_info.weight} lbs  •  "
             f"{self.prospect.basic_info.forty}s  •  "
-            f"{self.prospect.basic_info.hometown}  •  "
-            f"{self.prospect.basic_info.class_}"
+            f"{self.prospect.basic_info.hometown.title()}  •  "
+            f"{self.prospect.basic_info.class_.title()}"
         )
         run.font.size = Pt(9)
         run.font.color.rgb = RGBColor(0x77, 0x77, 0x77)
@@ -447,7 +447,7 @@ class WordDocGenerator:
             cell.width = Inches(1.35)
             remove_cell_borders(cell)
             set_cell_shading(cell, bg_color)
-            set_cell_margins(cell, top=140, bottom=100, left=80, right=80)
+            set_cell_margins(cell, top=100, bottom=80, left=80, right=80)
             cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
             # Source label
@@ -473,6 +473,7 @@ class WordDocGenerator:
             p3 = cell.add_paragraph()
             p3.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p3.paragraph_format.space_before = Pt(0)
+            p3.paragraph_format.space_after = Pt(0)
             run = p3.add_run(label)
             run.font.size = Pt(6.5)
             run.font.color.rgb = self.colors.light_rgb
@@ -520,7 +521,11 @@ class WordDocGenerator:
                     # TODO: Use the object here, not the dict.
                     # Using to_dict for now to simply get the implementation working
                     cat_stats = self.prospect.stats.to_dict()
+                    print("ARMADILLO")
+                    from pprint import pprint
+                    pprint(cat_stats)
                     for j, stat_label in enumerate(stat_labels):
+                        print("BADGER", j, stat_label)
                         stat_cell = stats_table.cell(1, col_idx + j)
                         stat_cell.width = Inches(6.75 / total_stats)
                         remove_cell_borders(stat_cell)
@@ -530,8 +535,10 @@ class WordDocGenerator:
 
                         p1 = stat_cell.paragraphs[0]
                         p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                        p1.paragraph_format.space_after = Pt(2)
-                        run = p1.add_run(str(cat_stats.get(stat_label, "—")))
+                        p1.paragraph_format.space_after = Pt(10)
+                        stat_value = str(cat_stats.get(stat_label, "—"))
+                        print("CHEETAH", stat_value)
+                        run = p1.add_run(stat_value)
                         run.font.size = Pt(14)
                         run.font.bold = True
                         run.font.color.rgb = self.colors.primary_rgb
@@ -540,7 +547,7 @@ class WordDocGenerator:
                         p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
                         p2.paragraph_format.space_before = Pt(0)
                         run = p2.add_run(stat_label)
-                        run.font.size = Pt(7)
+                        run.font.size = Pt(9)
                         run.font.color.rgb = label_rgb
 
                     col_idx += num_stats
@@ -549,7 +556,7 @@ class WordDocGenerator:
                 # Single category
                 category = categories[0]
                 stat_labels = pos_config[category]
-                cat_stats = self.prospect.stats.to_dict()
+                cat_stats = self.prospect.stats
 
                 stats_table = self.document.add_table(rows=1, cols=len(stat_labels))
                 stats_table.autofit = False
@@ -559,12 +566,12 @@ class WordDocGenerator:
                     cell.width = Inches(6.75 / len(stat_labels))
                     remove_cell_borders(cell)
                     set_cell_shading(cell, self.colors.light)
-                    set_cell_margins(cell, top=100, bottom=70, left=40, right=40)
+                    set_cell_margins(cell, top=100, bottom=40, left=40, right=40)
                     cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
                     p1 = cell.paragraphs[0]
                     p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    p1.paragraph_format.space_after = Pt(3)
+                    p1.paragraph_format.space_after = Pt(1)
                     run = p1.add_run(str(cat_stats.get(stat_label, "—")))
                     run.font.size = Pt(14)
                     run.font.bold = True
@@ -573,6 +580,7 @@ class WordDocGenerator:
                     p2 = cell.add_paragraph()
                     p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     p2.paragraph_format.space_before = Pt(0)
+                    p2.paragraph_format.space_after = Pt(1)
                     run = p2.add_run(stat_label)
                     run.font.size = Pt(7)
                     run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
@@ -598,7 +606,7 @@ class WordDocGenerator:
         skills_header = skills_cell.paragraphs[0]
         skills_header.paragraph_format.space_after = Pt(4)
         run = skills_header.add_run("SKILL RATINGS")
-        run.font.size = Pt(9)
+        run.font.size = Pt(12)
         run.font.bold = True
         run.font.color.rgb = self.colors.primary_rgb
 
@@ -613,17 +621,17 @@ class WordDocGenerator:
             display_name = skill_name.replace("_", " ").title()
             run = p.add_run(f"{display_name:<20} ")
             run.font.name = "Consolas"
-            run.font.size = Pt(8)
+            run.font.size = Pt(10)
             run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
 
             run = p.add_run(skill_bar(skill_pct))
             run.font.name = "Consolas"
-            run.font.size = Pt(8)
+            run.font.size = Pt(10)
             run.font.color.rgb = self.colors.primary_rgb
 
             run = p.add_run(f" {skill_pct}%")
             run.font.name = "Consolas"
-            run.font.size = Pt(8)
+            run.font.size = Pt(10)
             run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
 
         comp_cell = skills_table.cell(0, 1)
@@ -633,9 +641,12 @@ class WordDocGenerator:
         comp_header = comp_cell.paragraphs[0]
         comp_header.paragraph_format.space_after = Pt(4)
         run = comp_header.add_run("PLAYER COMPARISONS")
-        run.font.size = Pt(9)
+        run.font.size = Pt(12)
         run.font.bold = True
         run.font.color.rgb = self.colors.primary_rgb
+
+        if self.prospect.comparisons is None:
+            self.prospect.comparisons = []
 
         for comp in self.prospect.comparisons:
             p = comp_cell.add_paragraph()
@@ -646,11 +657,11 @@ class WordDocGenerator:
             run.font.bold = True
 
             run = p.add_run(f"({comp.school}) ")
-            run.font.size = Pt(9)
+            run.font.size = Pt(10)
             run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
 
             run = p.add_run(f"{comp.similarity}%")
-            run.font.size = Pt(9)
+            run.font.size = Pt(10)
             run.font.bold = True
             run.font.color.rgb = self.colors.primary_rgb
 
@@ -659,24 +670,24 @@ class WordDocGenerator:
             p.paragraph_format.space_before = Pt(6)
             p.paragraph_format.space_after = Pt(2)
             run = p.add_run("RECRUITING")
-            run.font.size = Pt(9)
+            run.font.size = Pt(12)
             run.font.bold = True
             run.font.color.rgb = self.colors.primary_rgb
 
             p = comp_cell.add_paragraph()
 
             run = p.add_run(self.prospect.ratings.get_recruiting_str())
-            run.font.size = Pt(9)
+            run.font.size = Pt(10)
             run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
 
-        self.document.add_paragraph().paragraph_format.space_after = Pt(8)
+        self.document.add_paragraph().paragraph_format.space_after = Pt(4)
 
     def _gen_bio(self):
         if self.prospect.scouting_report.bio:
             header = self.document.add_paragraph()
             header.paragraph_format.space_after = Pt(4)
             run = header.add_run("BACKGROUND")
-            run.font.size = Pt(11)
+            run.font.size = Pt(14)
             run.font.bold = True
             run.font.color.rgb = self.colors.primary_rgb
 
@@ -684,10 +695,11 @@ class WordDocGenerator:
 
             p = self.document.add_paragraph()
             p.paragraph_format.space_after = Pt(6)
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
             run = p.add_run(bio_text)
-            run.font.size = Pt(9)
+            run.font.size = Pt(11)
             run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
-        self.document.add_paragraph().paragraph_format.space_after = Pt(4)
+        # self.document.add_paragraph().paragraph_format.space_after = Pt(4)
 
     def _gen_strengths_weaknesses(self):
         sw_table = self.document.add_table(rows=1, cols=2)
@@ -698,24 +710,25 @@ class WordDocGenerator:
         remove_cell_borders(str_cell)
 
         str_header = str_cell.paragraphs[0]
-        str_header.paragraph_format.space_after = Pt(4)
+        str_header.paragraph_format.space_after = Pt(6)
         run = str_header.add_run("STRENGTHS")
-        run.font.size = Pt(11)
+        run.font.size = Pt(14)
         run.font.bold = True
         run.font.color.rgb = RGBColor(0x1D, 0x6A, 0x4D)
 
         for strength in self.prospect.scouting_report.strengths:
             p = str_cell.add_paragraph()
-            p.paragraph_format.space_after = Pt(3)
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p.paragraph_format.space_after = Pt(6)
             p.paragraph_format.left_indent = Inches(0.15)
 
             run = p.add_run("+ ")
             run.font.bold = True
-            run.font.size = Pt(9)
+            run.font.size = Pt(11)
             run.font.color.rgb = RGBColor(0x1D, 0x6A, 0x4D)
 
             run = p.add_run(strength)
-            run.font.size = Pt(8)
+            run.font.size = Pt(11)
             run.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
 
         weak_cell = sw_table.cell(0, 1)
@@ -723,24 +736,25 @@ class WordDocGenerator:
         remove_cell_borders(weak_cell)
 
         weak_header = weak_cell.paragraphs[0]
-        weak_header.paragraph_format.space_after = Pt(4)
+        weak_header.paragraph_format.space_after = Pt(6)
         run = weak_header.add_run("WEAKNESSES")
-        run.font.size = Pt(11)
+        run.font.size = Pt(14)
         run.font.bold = True
         run.font.color.rgb = RGBColor(0xA6, 0x5D, 0x21)
 
         for weakness in self.prospect.scouting_report.weaknesses:
             p = weak_cell.add_paragraph()
-            p.paragraph_format.space_after = Pt(3)
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p.paragraph_format.space_after = Pt(6)
             p.paragraph_format.left_indent = Inches(0.15)
 
             run = p.add_run("– ")
             run.font.bold = True
-            run.font.size = Pt(9)
+            run.font.size = Pt(11)
             run.font.color.rgb = RGBColor(0xA6, 0x5D, 0x21)
 
             run = p.add_run(weakness)
-            run.font.size = Pt(8)
+            run.font.size = Pt(11)
             run.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
 
     def _gen_scouting_summary(self):
@@ -759,20 +773,21 @@ class WordDocGenerator:
             header = cell.paragraphs[0]
             header.paragraph_format.space_after = Pt(4)
             run = header.add_run("SCOUTING SUMMARY")
-            run.font.size = Pt(11)
+            run.font.size = Pt(14)
             run.font.bold = True
             run.font.color.rgb = self.colors.primary_rgb
 
             p = cell.add_paragraph()
-            run = p.add_run(self.prospect.scouting_report.summary)
-            run.font.size = Pt(9)
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            run = p.add_run(self.prospect.scouting_report.summary.replace("Scouting Report: Summary", ""))
+            run.font.size = Pt(11)
             run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
 
     def generate_complete_document(self):
         self._gen_header_table()
 
         spacer = self.document.add_paragraph()
-        spacer.paragraph_format.space_after = Pt(8)
+        # spacer.paragraph_format.space_after = Pt(2)
 
         self._gen_rankings_bar()
         self._gen_stats_bar()
@@ -780,8 +795,6 @@ class WordDocGenerator:
         self.document.add_paragraph().paragraph_format.space_after = Pt(10)
 
         self._gen_skills_and_comps()
-
-        self.document.add_paragraph().paragraph_format.space_after = Pt(8)
 
         self._gen_bio()
         self.document.add_paragraph().paragraph_format.space_after = Pt(4)
