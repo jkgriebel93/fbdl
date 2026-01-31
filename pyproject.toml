@@ -1,6 +1,6 @@
 [project]
 name="fbcm"
-version="0.1.0"
+version="0.2.0"
 description="Command line tools for downloading and archiving (American) football content"
 authors = [
     {name = "John Griebel", email = "john@thistlegrow.com"}

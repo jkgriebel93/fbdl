@@ -12,16 +12,16 @@ from playwright._impl._errors import TargetClosedError, TimeoutError
 from playwright.sync_api import sync_playwright
 
 from .base import (
-    DEFAULT_REPLAY_TYPES,
-    OUTPUT_FORMATS,
-    TEAM_FULL_NAMES,
     BaseDownloader,
     FileOperationsUtil,
     MetaDataCreator,
 )
-from .draft_buzz import POSITIONS, DraftBuzzScraper, ProspectProfileListExtractor
+from .constants import DEFAULT_REPLAY_TYPES, OUTPUT_FORMATS, POSITIONS, TEAM_FULL_NAMES
+from .models import ProspectDataSoup
+from .draft_buzz import DraftBuzzScraper, ProspectProfileListExtractor, ProspectParserSoup
 from .nfl import NFLShowDownloader, NFLWeeklyDownloader
 from .utils import apply_config_to_kwargs, find_config, load_config
+from .docx.word_gen import WordDocGenerator
 
 
 @click.group()
@@ -310,17 +310,6 @@ def nfl_games(
     help="Directory the downloaded games should be saved to.",
 )
 @click.option(
-    "--output-format",
-    default="json",
-    type=click.Choice(OUTPUT_FORMATS.keys(), case_sensitive=False),
-    help="Format to generate the draft profile(s) in.",
-)
-@click.option(
-    "--player-slug",
-    type=str,
-    help="The slug used by nfldraftbuzz.com for the Player's profile.",
-)
-@click.option(
     "--position",
     type=str,
     multiple=True,
@@ -332,23 +321,12 @@ def nfl_games(
     help="A text file containing multiple player slugs "
     "(one per line) to extract profiles for.",
 )
-@click.option(
-    "--generate-inline",
-    default=None,
-    is_flag=True,
-    flag_value=True,
-    help="When this flag is passed, the application will generate reports for each "
-    "player as there are fetched, instead of at the end of the process.",
-)
 @click.pass_context
 def extract_draft_profiles(
     ctx,
     output_directory: str,
-    output_format: str,
-    player_slug: str,
     position: str,
     input_file: str,
-    generate_inline: bool,
 ):
     selected_positions = list(position)
     if not selected_positions:
@@ -360,11 +338,12 @@ def extract_draft_profiles(
         profile_urls = json.load(infile)
 
     with sync_playwright() as playwright:
-        scraper = DraftBuzzScraper(playwright=playwright,
-                                   profile_root_dir=Path(output_directory))
+        scraper = DraftBuzzScraper(
+            playwright=playwright, profile_root_dir=Path(output_directory)
+        )
 
         completed_profiles = []
-        with open(f"{output_directory}/completed.json", "r") as infile:
+        with open(f"input_files/completed.json", "r") as infile:
             completed_profiles = json.load(infile)
 
         click.echo(f"Loaded {len(completed_profiles)} completed profiles.")
@@ -387,26 +366,76 @@ def extract_draft_profiles(
                 time.sleep(uniform(3.5, 4.5))
 
                 try:
-                    player_data = scraper.scrape_from_url(url=prof_slug,
-                                                          position=pos)
-                    position_player_data[player_data.basic_info.full_name] = player_data.to_dict()
+                    player_data = scraper.scrape_from_url(url=prof_slug, position=pos)
+                    position_player_data[player_data.basic_info.full_name] = (
+                        player_data.to_dict()
+                    )
                     scraper.save_player_photo_to_disk()
 
                     completed_profiles.append(prof_slug)
 
-                except Exception as e:
-                    print(e)
-                    break
-            rn = datetime.now()
-            suffix = f"{rn.hour}_{rn.minute}_{rn.second}"
-            fname = f"{pos}_{suffix}.json"
-            with open(f"{output_directory}/{fname}", "w") as outfile:
-                json.dump(position_player_data, outfile, indent=4)
-
-            with open(f"{output_directory}/completed.json", "w") as outfile:
-                json.dump(completed_profiles, outfile, indent=4)
+                except TimeoutError as e:
+                    dump_currently_completed(position=pos,
+                                             data=position_player_data,
+                                             completed_list=completed_profiles)
+                    raise e
+            dump_currently_completed(position=pos,
+                                     data=position_player_data,
+                                     completed_list=completed_profiles)
 
             time.sleep(random.uniform(10, 15))
+
+
+@cli.command()
+@click.option(
+    "--output-directory",
+    envvar="DESTINATION_DIR",
+    type=click.Path(exists=True),
+    help="Directory the downloaded games should be saved to.",
+)
+@click.option(
+    "--position",
+    type=str,
+    multiple=True,
+    help="Extract draft profiles for the specified position",
+)
+@click.pass_context
+def gen_prospect_word_docs(
+    ctx,
+    output_directory: str,
+    position: str,
+):
+    selected_positions = list(position)
+    if not selected_positions:
+        click.echo("No positions selected. Defaulting to all.")
+        selected_positions = POSITIONS
+    click.echo(f"Position: {selected_positions}")
+
+    wdg = WordDocGenerator(output_path=output_directory,
+                           ring_image_base_dir=output_directory,
+                           colors_path="input_files/school_colors.json")
+
+    click.echo(f"Provided output directory: {output_directory}")
+    for position in selected_positions:
+        click.echo(f"Generating docs for {position} position.")
+        input_file = f"output_data/{position}.json"
+
+        with open(input_file, "r") as infile:
+            position_data = json.load(infile)
+
+        click.echo(f"Processing {len(position_data)} profiles.")
+
+        cur_count = 1
+        for prospect_name, data in position_data.items():
+            click.echo(f"Generating profile for {prospect_name}, #{cur_count} of {len(position_data)}")
+
+            prospect = ProspectDataSoup.from_dict(data=data)
+            wdg.add_prospect(prospect=prospect)
+
+            wdg.generate_complete_document()
+            cur_count += 1
+    wdg.generate_complete_document(filename=f"2026_All_Prospects_COMPLETE.docx")
+
 
 
 @cli.command()
@@ -431,21 +460,33 @@ def update_draft_prospect_urls(ctx):
         json.dump(profile_lists, outfile, indent=4)
 
 
+def dump_currently_completed(position, data, completed_list):
+    rn = datetime.now()
+    suffix = f"{rn.hour}_{rn.minute}_{rn.second}"
+    fname = f"{position}_redo_{suffix}.json"
+
+    with open(f"output_data/{fname}", "w") as outfile:
+        json.dump(data, outfile, indent=4)
+
+    with open("input_files/completed.json", "w") as outfile:
+        json.dump(completed_list, outfile, indent=4)
+
+
 @cli.command()
 @click.pass_context
 def draft_sandbox(ctx):
     click.echo("Draft profile sandbox...")
-    mendoza_slug = "/Player/Fernando-Mendoza-QB-California"
 
-    data = None
-    with sync_playwright() as playwright:
-        scraper = DraftBuzzScraper(playwright=playwright)
-        click.echo("Scraper initialized...Attempting Mendoza")
-        data = scraper.scrape_from_url(url=mendoza_slug, position="QB")
+    with open("output_data/QB.json", "r") as infile:
+        qb_data = json.load(infile)
 
-    click.echo("Data fetched:")
-    with open("mendoza.json", "w") as outfile:
-        json.dump(data.to_dict(), outfile, indent=4)
+    fm_data = qb_data["Fernando Mendoza"]
+    mendoza_obj = ProspectDataSoup.from_dict(fm_data)
+    wdg = WordDocGenerator(prospect=mendoza_obj,
+                           output_path="output_data",
+                           ring_image_base_dir="output_data",
+                           colors_path="input_files/school_colors.json")
+    wdg.generate_complete_document()
 
 
 @cli.command()

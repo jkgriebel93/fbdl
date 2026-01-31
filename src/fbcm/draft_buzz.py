@@ -1,23 +1,5 @@
-#!/usr/bin/env python3
-"""
-NFL Draft Buzz Prospect Scraper to Word Document
-
-Extracts prospect information from nfldraftbuzz.com and creates a formatted Word document.
-Uses Playwright for browser automation to bypass Cloudflare protection.
-
-Usage:
-    python nfl_prospect_to_docx.py <url>
-    python nfl_prospect_to_docx.py https://www.nfldraftbuzz.com/Player/Dante-Moore-QB-UCLA
-    python nfl_prospect_to_docx.py <url> -o custom_output.docx
-
-Requirements:
-    pip install playwright python-docx lxml --break-system-packages
-    playwright install firefox
-"""
-
 import io
 import re
-import requests
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -25,20 +7,14 @@ from random import uniform
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
+import requests
 from bs4 import BeautifulSoup, Tag
-from docx import Document
-from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
-from docx.shared import Inches, Pt, RGBColor
 from playwright.sync_api import Browser
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
-from playwright.sync_api import sync_playwright
 
-from fbcm.base import POSITION_TO_GROUP_MAP
+from fbcm.constants import POSITION_TO_GROUP_MAP
 from fbcm.models import (
     BasicInfo,
     Comparison,
@@ -52,7 +28,6 @@ from fbcm.models import (
     PassCatcherSkills,
     PassingSkills,
     PassingStats,
-    ProspectData,
     ProspectDataSoup,
     RatingsAndRankings,
     ReceivingStats,
@@ -63,9 +38,7 @@ from fbcm.models import (
     Stats,
     TackleStats,
 )
-
-POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "EDGE", "LB", "DB"]
-
+from .docx.word_gen import WordDocGenerator
 
 class PageFetcher:
     """Handles fetching web pages using Playwright browser automation."""
@@ -364,7 +337,6 @@ class ProspectParserSoup:
         if len(weak_summary_divs) > 1:
             summary = weak_summary_divs[1].get_text(strip=True)
 
-
         strengths = [
             line
             for line in strengths_div.get_text().splitlines()
@@ -380,7 +352,7 @@ class ProspectParserSoup:
             bio=intro_div.get_text(strip=True),
             strengths=strengths,
             weaknesses=weaknesses,
-            summary=None
+            summary=summary,
         )
 
     def extract_image_url(self) -> str:
@@ -405,7 +377,9 @@ class ProspectParserSoup:
                 print(f"Could not match position {self.position} to any known group.")
 
         if table_div is not None:
-            stats = self._extract_stats_object(div=table_div)[0]
+            extracted_stats = self._extract_stats_object(div=table_div)
+            if extracted_stats:
+                stats = extracted_stats[0]
 
         return stats
 
@@ -500,7 +474,11 @@ class ProspectParserSoup:
 
     def _parse_basic_info_table(self, tag: Tag) -> Dict:
         # Includes jersery #, sub_position, last_updated, forty_time
-        jersey_num = tag.find(text=re.compile(r"#\d+")).get_text(strip=True)
+        jersey_num_tag = tag.find(text=re.compile(r"#\d+"))
+        if jersey_num_tag:
+            jersey_num = jersey_num_tag.get_text(strip=True)
+        else:
+            jersey_num = ""
 
         sub_position_label = self._get_tag_with_title_containing(tag, "Sub-Position")
         sub_position_value = self._get_text_following_label(sub_position_label)
@@ -814,7 +792,7 @@ class ProspectParserSoup:
     def _extract_247(self, table: Tag) -> Optional[float]:
         rtg = None
         sports_247_rtg_row = self._get_tag_with_text(
-            search_space=table, tag_name="span", text="247"
+            search_space=table, tag_name="span", text="247 RATING"
         )
         if sports_247_rtg_row:
             rtg = float(
@@ -856,352 +834,6 @@ class ProspectParserSoup:
         }
 
 
-class WordDocumentGenerator:
-    """Generates Word documents from prospect data."""
-
-    HEADER_COLOR = "003366"
-    STATS_HEADER_COLOR = "006633"
-    SKILLS_HEADER_COLOR = "663399"
-    COMPARISONS_HEADER_COLOR = "CC6600"
-
-    def __init__(self):
-        self.doc = None
-
-    def generate(self, data: ProspectData, output_path: str) -> None:
-        """Create a formatted Word document from prospect data."""
-        self.doc = Document()
-        self._setup_styles()
-
-        self._add_title(data)
-        self._add_player_image(data)
-        self._add_player_information(data)
-        self._add_ratings(data)
-        self._add_statistics(data)
-        self._add_skill_ratings(data)
-        self._add_recruiting_grades(data)
-        self._add_comparisons(data)
-        self._add_bio(data)
-        self._add_strengths(data)
-        self._add_weaknesses(data)
-        self._add_summary(data)
-        self._add_consensus_rankings(data)
-        self._add_footer(data)
-
-        self.doc.save(output_path)
-        print(f"Document saved to: {output_path}")
-
-    def _setup_styles(self) -> None:
-        """Set up document styles."""
-        style = self.doc.styles["Normal"]
-        style.font.name = "Calibri"
-        style.font.size = Pt(11)
-
-    def _add_title(self, data: ProspectData) -> None:
-        """Add title and subtitle to document."""
-        title = self.doc.add_heading(level=0)
-        title_run = title.add_run(f"{data.name.upper()}")
-        title_run.font.size = Pt(28)
-        title_run.font.bold = True
-        title_run.font.color.rgb = RGBColor(0, 51, 102)
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        subtitle = self.doc.add_paragraph()
-        subtitle_run = subtitle.add_run(f"{data.position} | {data.school}")
-        subtitle_run.font.size = Pt(16)
-        subtitle_run.font.color.rgb = RGBColor(102, 102, 102)
-        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        self.doc.add_paragraph("─" * 60).alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    def _add_player_image(self, data: ProspectData) -> None:
-        """Add player image if available."""
-        if not data.image_data:
-            return
-
-        try:
-            image_para = self.doc.add_paragraph()
-            image_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = image_para.add_run()
-            image_stream = io.BytesIO(data.image_data)
-            run.add_picture(image_stream, width=Inches(4))
-
-            caption = self.doc.add_paragraph()
-            caption_run = caption.add_run(f"{data.name} - {data.school}")
-            caption_run.font.size = Pt(10)
-            caption_run.font.italic = True
-            caption_run.font.color.rgb = RGBColor(102, 102, 102)
-            caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-            self.doc.add_paragraph()
-        except Exception as e:
-            print(f"Warning: Could not add image to document: {e}")
-
-    def _add_player_information(self, data: ProspectData) -> None:
-        """Add player information table."""
-        self.doc.add_heading("PLAYER INFORMATION", level=1)
-
-        info_items = [
-            ("Jersey", f"#{data.jersey}" if data.jersey else "N/A"),
-            ("Play Style", data.play_style or "N/A"),
-            ("Height", data.height or "N/A"),
-            ("Weight", data.weight or "N/A"),
-            ("40-Yard Dash", data.forty or "N/A"),
-            ("Age", data.age or "N/A"),
-            ("DOB", data.dob or "N/A"),
-            ("Hometown", data.hometown or "N/A"),
-            ("Class", data.player_class or "N/A"),
-            ("Draft Year", data.draft_year or "N/A"),
-            ("College Games", data.college_games or "N/A"),
-            ("College Snaps", data.college_snaps or "N/A"),
-        ]
-
-        info_table = self.doc.add_table(rows=0, cols=4)
-        info_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-        for i in range(0, len(info_items), 2):
-            row = info_table.add_row()
-            row.cells[0].text = info_items[i][0] + ":"
-            row.cells[0].paragraphs[0].runs[0].bold = True
-            row.cells[1].text = info_items[i][1]
-            if i + 1 < len(info_items):
-                row.cells[2].text = info_items[i + 1][0] + ":"
-                row.cells[2].paragraphs[0].runs[0].bold = True
-                row.cells[3].text = info_items[i + 1][1]
-
-        self.doc.add_paragraph()
-
-    def _add_ratings(self, data: ProspectData) -> None:
-        """Add ratings and rankings table."""
-        self.doc.add_heading("RATINGS & RANKINGS", level=1)
-
-        ratings_table = self.doc.add_table(rows=2, cols=4)
-        ratings_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-        headers = [
-            "Overall Rating",
-            "Position Rank",
-            "Overall Rank",
-            "Draft Projection",
-        ]
-        values = [
-            f"{data.overall_rating}/100" if data.overall_rating else "N/A",
-            f"#{data.position_rank} ({data.position})" if data.position_rank else "N/A",
-            f"#{data.overall_rank}" if data.overall_rank else "N/A",
-            data.draft_projection or "N/A",
-        ]
-
-        for i, header in enumerate(headers):
-            cell = ratings_table.rows[0].cells[i]
-            cell.text = header
-            cell.paragraphs[0].runs[0].bold = True
-            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-            self._set_cell_shading(cell, self.HEADER_COLOR)
-            cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
-
-        for i, value in enumerate(values):
-            cell = ratings_table.rows[1].cells[i]
-            cell.text = value
-            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-            self._set_cell_shading(cell, "E6F2FF")
-
-        self.doc.add_paragraph()
-
-    def _add_statistics(self, data: ProspectData) -> None:
-        """Add statistics table (for QBs)."""
-        if data.position != "QB" or not data.stats:
-            return
-
-        self.doc.add_heading("STATISTICS", level=1)
-
-        stats_table = self.doc.add_table(rows=2, cols=6)
-        stats_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-        stat_headers = ["QB Rating", "Yards", "Comp %", "TDs", "INTs", "Rush Avg"]
-        stat_values = [
-            data.qb_rating or "N/A",
-            data.yards or "N/A",
-            f"{data.comp_pct}%" if data.comp_pct else "N/A",
-            data.tds or "N/A",
-            data.ints or "N/A",
-            data.rush_avg or "N/A",
-        ]
-
-        for i, header in enumerate(stat_headers):
-            cell = stats_table.rows[0].cells[i]
-            cell.text = header
-            cell.paragraphs[0].runs[0].bold = True
-            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-            self._set_cell_shading(cell, self.STATS_HEADER_COLOR)
-            cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
-
-        for i, value in enumerate(stat_values):
-            cell = stats_table.rows[1].cells[i]
-            cell.text = value
-            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-            self._set_cell_shading(cell, "E6FFE6")
-
-        self.doc.add_paragraph()
-
-    def _add_skill_ratings(self, data: ProspectData) -> None:
-        """Add skill ratings table."""
-        if not data.skill_ratings:
-            return
-
-        self.doc.add_heading("SKILL RATINGS", level=1)
-
-        skills_table = self.doc.add_table(rows=len(data.skill_ratings) + 1, cols=2)
-        skills_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-        skills_table.rows[0].cells[0].text = "Skill"
-        skills_table.rows[0].cells[1].text = "Percentile"
-        for cell in skills_table.rows[0].cells:
-            cell.paragraphs[0].runs[0].bold = True
-            self._set_cell_shading(cell, self.SKILLS_HEADER_COLOR)
-            cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
-
-        for i, (skill, rating) in enumerate(data.skill_ratings.items(), 1):
-            skills_table.rows[i].cells[0].text = skill
-            skills_table.rows[i].cells[1].text = f"{rating}%"
-            skills_table.rows[i].cells[1].paragraphs[
-                0
-            ].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        self.doc.add_paragraph()
-
-    def _add_recruiting_grades(self, data: ProspectData) -> None:
-        """Add recruiting grades section."""
-        if not any([data.espn_rating, data.rating_247, data.rivals_rating]):
-            return
-
-        self.doc.add_heading("RECRUITING GRADES", level=1)
-
-        grades_para = self.doc.add_paragraph()
-        if data.espn_rating:
-            grades_para.add_run("ESPN: ").bold = True
-            grades_para.add_run(f"{data.espn_rating}   ")
-        if data.rating_247:
-            grades_para.add_run("247 Sports: ").bold = True
-            grades_para.add_run(f"{data.rating_247}   ")
-        if data.rivals_rating:
-            grades_para.add_run("Rivals: ").bold = True
-            grades_para.add_run(data.rivals_rating)
-
-        self.doc.add_paragraph()
-
-    def _add_comparisons(self, data: ProspectData) -> None:
-        """Add player comparisons table."""
-        if not data.comparisons:
-            return
-
-        self.doc.add_heading("PLAYER COMPARISONS", level=1)
-
-        comp_table = self.doc.add_table(rows=len(data.comparisons) + 1, cols=3)
-        comp_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-        comp_headers = ["Player", "School", "Similarity"]
-        for i, header in enumerate(comp_headers):
-            cell = comp_table.rows[0].cells[i]
-            cell.text = header
-            cell.paragraphs[0].runs[0].bold = True
-            self._set_cell_shading(cell, self.COMPARISONS_HEADER_COLOR)
-            cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
-
-        for i, (name, school, similarity) in enumerate(data.comparisons, 1):
-            comp_table.rows[i].cells[0].text = name
-            comp_table.rows[i].cells[1].text = school
-            comp_table.rows[i].cells[2].text = f"{similarity}%"
-            comp_table.rows[i].cells[2].paragraphs[
-                0
-            ].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        self.doc.add_paragraph()
-
-    def _add_bio(self, data: ProspectData) -> None:
-        """Add biography section."""
-        if not data.bio:
-            return
-
-        self.doc.add_heading("BACKGROUND", level=1)
-        self._add_text_paragraphs(data.bio)
-        self.doc.add_paragraph()
-
-    def _add_strengths(self, data: ProspectData) -> None:
-        """Add strengths section."""
-        if not data.strengths:
-            return
-
-        self.doc.add_heading("SCOUTING REPORT: STRENGTHS", level=1)
-        for strength in data.strengths:
-            p = self.doc.add_paragraph(style="List Bullet")
-            p.add_run(strength)
-        self.doc.add_paragraph()
-
-    def _add_weaknesses(self, data: ProspectData) -> None:
-        """Add weaknesses section."""
-        if not data.weaknesses:
-            return
-
-        self.doc.add_heading("SCOUTING REPORT: WEAKNESSES", level=1)
-        for weakness in data.weaknesses:
-            p = self.doc.add_paragraph(style="List Bullet")
-            p.add_run(weakness)
-        self.doc.add_paragraph()
-
-    def _add_summary(self, data: ProspectData) -> None:
-        """Add scouting summary section."""
-        if not data.summary:
-            return
-
-        self.doc.add_heading("SCOUTING SUMMARY", level=1)
-        self._add_text_paragraphs(data.summary)
-        self.doc.add_paragraph()
-
-    def _add_consensus_rankings(self, data: ProspectData) -> None:
-        """Add consensus rankings section."""
-        if not data.avg_overall_rank and not data.avg_position_rank:
-            return
-
-        self.doc.add_heading("CONSENSUS RANKINGS", level=1)
-
-        consensus_para = self.doc.add_paragraph()
-        if data.avg_overall_rank:
-            consensus_para.add_run("Average Overall Rank: ").bold = True
-            consensus_para.add_run(f"#{data.avg_overall_rank}   ")
-        if data.avg_position_rank:
-            consensus_para.add_run("Average Position Rank: ").bold = True
-            consensus_para.add_run(f"#{data.avg_position_rank}")
-
-    def _add_footer(self, data: ProspectData) -> None:
-        """Add document footer."""
-        self.doc.add_paragraph()
-        footer = self.doc.add_paragraph("─" * 60)
-        footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        source_para = self.doc.add_paragraph()
-        source_para.add_run("Source: NFLDraftBuzz.com").italic = True
-        source_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        if data.last_updated:
-            updated_para = self.doc.add_paragraph()
-            updated_para.add_run(f"Last Updated: {data.last_updated}").italic = True
-            updated_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    def _add_text_paragraphs(self, text: str) -> None:
-        """Add text split into paragraphs."""
-        paragraphs = text.split("\n\n")
-        for para_text in paragraphs:
-            if para_text.strip():
-                p = self.doc.add_paragraph(para_text.strip())
-                p.paragraph_format.space_after = Pt(12)
-
-    @staticmethod
-    def _set_cell_shading(cell, color: str) -> None:
-        """Set background color for a table cell."""
-        shading = OxmlElement("w:shd")
-        shading.set(qn("w:fill"), color)
-        cell._tc.get_or_add_tcPr().append(shading)
-
-
 class DraftBuzzScraper:
     """Main orchestrator for scraping NFL Draft Buzz prospect pages."""
 
@@ -1210,15 +842,14 @@ class DraftBuzzScraper:
         playwright: Playwright,
         profile_root_dir: Path = None,
         fetcher: PageFetcher = None,
-        doc_generator: WordDocumentGenerator = None,
+            headless: bool = True
     ):
         self.profile_root_dir = profile_root_dir
         self.base_url = "https://www.nfldraftbuzz.com"
         self.fetcher = fetcher or PageFetcher(
-            playwright=playwright, base_url=self.base_url
+            playwright=playwright, base_url=self.base_url, headless=headless
         )
         self.parser = None
-        self.doc_generator = doc_generator or WordDocumentGenerator()
         self.position_rankings_used = defaultdict(list)
 
         self.current_prospect_data: ProspectDataSoup | None = None
@@ -1257,46 +888,17 @@ class DraftBuzzScraper:
         output_path.write_bytes(response.content)
         print(f"Wrote image to disk at {output_path}")
 
-    def generate_document(self, data: ProspectData, output_path: str) -> None:
-        """Generate a Word document from prospect data."""
-        print(f"Creating document for: {data.name}")
-        print(f"Filename: {output_path}")
-        self.doc_generator.generate(data, output_path)
-
-    def _get_prospect_position_rank(self, prospect_data: ProspectData):
-        current_rank = int(prospect_data.position_rank)
-        rank_is_valid = False
-        while not rank_is_valid:
-            if current_rank not in self.position_rankings_used[prospect_data.position]:
-                rank_is_valid = True
-                self.position_rankings_used[prospect_data.position].append(current_rank)
-            else:
-                print(
-                    f"Attempting to use rank that has already been assigned: {current_rank}"
-                )
-                print("Searching for new one")
-                current_rank += 1
-
-        return str(current_rank)
-
-    def generate_output_path(self, data: ProspectData) -> str:
-        """Generate default output path from prospect name."""
-        safe_name = re.sub(r"[^\w\s-]", "", data.name).replace(" ", "_")
-        rank = self._get_prospect_position_rank(prospect_data=data)
-        padded_pos_rank = rank.zfill(2)
-        return f"{padded_pos_rank}_{safe_name}_Scouting_Report.docx"
-
-    def print_summary(self, data: ProspectData) -> None:
+    def print_summary(self, data: ProspectDataSoup) -> None:
         """Print summary of extracted data."""
         print("\nExtracted data summary:")
-        print(f"  Name: {data.name}")
-        print(f"  Position: {data.position}")
-        print(f"  School: {data.school}")
-        print(f"  Rating: {data.overall_rating}/100")
-        print(f"  Draft Projection: {data.draft_projection}")
-        print(f"  Strengths: {len(data.strengths)} items")
-        print(f"  Weaknesses: {len(data.weaknesses)} items")
-        print(f"  Image: {'Yes' if data.image_data else 'No'}")
+        print(f"  Name: {data.basic_info.full_name}")
+        print(f"  Position: {data.basic_info.position}")
+        print(f"  School: {data.basic_info.college}")
+        print(f"  Rating: {data.ratings.overall_rating}/100")
+        print(f"  Draft Projection: {data.ratings.draft_projection}")
+        print(f"  Strengths: {len(data.scouting_report.strengths)} items")
+        print(f"  Weaknesses: {len(data.scouting_report.weaknesses)} items")
+        print(f"  Image: {'Yes' if data.basic_info.photo_path.exists() else 'No'}")
 
 
 class ProspectProfileListExtractor:

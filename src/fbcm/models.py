@@ -1,6 +1,9 @@
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, TypeAlias
+from dataclasses import asdict, dataclass, field, fields
+from pathlib import Path
+from typing import Any, Dict, List, Optional, TypeAlias, get_args, get_origin, Union
+from docx.shared import RGBColor
 
+from .constants import PHOTO_BASE_DIR
 
 @dataclass
 class BaseModel:
@@ -12,6 +15,65 @@ class BaseModel:
             for key, value in asdict(self).items()
             if key not in self.exclude_fields
         }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "BaseModel":
+        """Create an instance from a dictionary, handling nested dataclasses."""
+        if data is None:
+            return None
+
+        field_info = {f.name: f.type for f in fields(cls)}
+        kwargs = {}
+
+        for key, value in data.items():
+            if key not in field_info:
+                continue
+
+            if value is None:
+                kwargs[key] = None
+                continue
+
+            field_type = field_info[key]
+            kwargs[key] = cls._convert_value(value, field_type)
+
+        return cls(**kwargs)
+
+    @classmethod
+    def _convert_value(cls, value: Any, field_type: Any) -> Any:
+        """Convert a value to the appropriate type, handling unions and nested types."""
+        origin = get_origin(field_type)
+
+        # Handle Union types (e.g., SomeType | None)
+        if origin is Union:
+            args = get_args(field_type)
+            # Find the non-None type in the union
+            for arg in args:
+                if arg is type(None):
+                    continue
+                return cls._convert_value(value, arg)
+
+        # Handle List types
+        if origin is list:
+            item_type = get_args(field_type)[0]
+            return [cls._convert_value(item, item_type) for item in value]
+
+        # Handle nested dataclasses that have from_dict
+        if isinstance(value, dict) and hasattr(field_type, "from_dict"):
+            return field_type.from_dict(value)
+
+        return value
+
+
+@dataclass
+class ColorScheme(BaseModel):
+    primary: str
+    secondary: str
+    light: str
+
+    dark : str | None = None
+    medium: str | None = None
+    primary_rgb: RGBColor | None = None
+    light_rgb: RGBColor | None = None
 
 
 @dataclass
@@ -31,6 +93,16 @@ class PassingStats(BaseStats):
     ints: int | None = None
     sack: int | None = None
     qb_rtg: float | None = None
+
+    def get(self, fld: str, default: Any | None = None) -> Any:
+        fld = fld.lower().replace("%", "_pct")
+
+        if fld == "rtg":
+            fld = "qb_rtg"
+        elif fld == "int":
+            fld = "ints"
+
+        return getattr(self, fld)
 
 
 @dataclass
@@ -178,6 +250,17 @@ class RatingsAndRankings(BaseModel):
     avg_overall_rank: float | None = None
     avg_position_rank: float | None = None
 
+    def get_recruiting_str(self) -> str:
+        outlet_rtgs = []
+        if self.espn:
+            outlet_rtgs.append(f"ESPN: {self.espn}")
+        if self.rtg_247:
+            outlet_rtgs.append(f"247: {self.rtg_247}")
+        if self.rivals:
+            outlet_rtgs.append(f"Rivals: {self.rivals}")
+
+        return "  •  ".join(outlet_rtgs)
+
 
 @dataclass
 class Comparison(BaseModel):
@@ -208,8 +291,11 @@ class BasicInfo(BaseModel):
     age: str = ""
     dob: str = ""
     hometown: str = ""
-
     photo_url: str | None = None
+
+    @property
+    def photo_path(self):
+        return Path(PHOTO_BASE_DIR, f"{self.full_name}.png")
 
 
 @dataclass
@@ -218,6 +304,33 @@ class ScoutingReport(BaseModel):
     strengths: List[str] = field(default_factory=list)
     weaknesses: List[str] = field(default_factory=list)
     summary: str | None = None
+
+
+# Mapping from position to the appropriate stats class
+POSITION_TO_STATS_CLASS = {
+    "QB": PassingStats,
+    "RB": OffenseSkillPlayerStats,
+    "WR": OffenseSkillPlayerStats,
+    "TE": OffenseSkillPlayerStats,
+    "OL": BaseStats,
+    "DL": DefenseStats,
+    "EDGE": DefenseStats,
+    "LB": DefenseStats,
+    "DB": DefenseStats,
+}
+
+# Mapping from position to the appropriate skills class
+POSITION_TO_SKILLS_CLASS = {
+    "QB": PassingSkills,
+    "RB": RunningBackSkills,
+    "WR": PassCatcherSkills,
+    "TE": PassCatcherSkills,
+    "OL": OffensiveLinemanSkills,
+    "DL": DefensiveLinemanSkills,
+    "EDGE": DefensiveLinemanSkills,
+    "LB": LinebackerSkills,
+    "DB": DefensiveBackSkills,
+}
 
 
 @dataclass
@@ -229,65 +342,45 @@ class ProspectDataSoup(BaseModel):
     stats: Stats | None = None
     scouting_report: ScoutingReport | None = None
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ProspectDataSoup":
+        """Create a ProspectDataSoup instance, using position to determine correct stats/skills types."""
+        if data is None:
+            return None
 
-@dataclass
-class ProspectData(BaseModel):
-    """Container for all prospect information."""
+        # First, extract basic_info to get the position
+        basic_info_data = data.get("basic_info")
+        basic_info = BasicInfo.from_dict(basic_info_data) if basic_info_data else None
 
-    name: str = ""
-    position: str = ""
-    school: str = ""
-    jersey: str = ""
-    play_style: str = ""
-    draft_year: str = ""
-    last_updated: str = ""
+        # Extract primary position from multi-position strings like "DL/EDGE"
+        raw_position = basic_info.position if basic_info and basic_info.position else ""
+        position = raw_position.split("/")[0].strip().upper() if raw_position else None
 
-    # Basic info
-    height: str = ""
-    weight: str = ""
-    forty: str = ""
-    age: str = ""
-    dob: str = ""
-    hometown: str = ""
-    player_class: str = ""
+        # Determine the correct stats and skills classes based on position
+        stats_class = POSITION_TO_STATS_CLASS.get(position, BaseStats)
+        skills_class = POSITION_TO_SKILLS_CLASS.get(position, PassingSkills)
 
-    # Ratings
-    overall_rating: str = ""
-    position_rank: str = ""
-    overall_rank: str = ""
-    draft_projection: str = ""
-    defense_rating: str = ""
+        # Build the instance with position-aware type conversion
+        kwargs = {"basic_info": basic_info}
 
-    # Stats
-    stats: Stats | None = None
-    college_games: str = ""
-    college_snaps: str = ""
+        # Handle ratings
+        if "ratings" in data and data["ratings"] is not None:
+            kwargs["ratings"] = RatingsAndRankings.from_dict(data["ratings"])
 
-    # Skill ratings (percentiles)
-    skill_ratings: Dict[str, str] = field(default_factory=dict)
+        # Handle skills with position-specific class
+        if "skills" in data and data["skills"] is not None:
+            kwargs["skills"] = skills_class.from_dict(data["skills"])
 
-    # Recruiting grades
-    espn_rating: str = ""
-    rating_247: str = ""
-    rivals_rating: str = ""
+        # Handle comparisons
+        if "comparisons" in data and data["comparisons"] is not None:
+            kwargs["comparisons"] = [Comparison.from_dict(c) for c in data["comparisons"]]
 
-    # Player comparisons
-    comparisons: List[tuple] = field(default_factory=list)
+        # Handle stats with position-specific class
+        if "stats" in data and data["stats"] is not None:
+            kwargs["stats"] = stats_class.from_dict(data["stats"])
 
-    # Scouting content
-    bio: str = ""
-    strengths: List[str] = field(default_factory=list)
-    weaknesses: List[str] = field(default_factory=list)
-    summary: str = ""
+        # Handle scouting_report
+        if "scouting_report" in data and data["scouting_report"] is not None:
+            kwargs["scouting_report"] = ScoutingReport.from_dict(data["scouting_report"])
 
-    # Other scouts' rankings
-    avg_overall_rank: str = ""
-    avg_position_rank: str = ""
-
-    # Profile image
-    image_data: Optional[bytes] = field(
-        default=None, metadata={"exclude_from_asdict": True}, repr=False
-    )
-    image_type: str = "jpeg"
-
-    exclude_fields = ["image_data"]
+        return cls(**kwargs)

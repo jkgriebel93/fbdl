@@ -8,172 +8,7 @@ import ffmpeg
 from mutagen.mp4 import MP4
 from yt_dlp import YoutubeDL
 
-abbreviation_map = {
-    "PIT": "Pittsburgh",
-    "CLE": "Cleveland",
-    "CIN": "Cincinnati",
-    "BAL": "Baltimore",
-    "IND": "Indianapolis",
-    "HOU": "Houston",
-    "JAX": "Jacksonville",
-    "TEN": "Tennessee",
-    "NWE": "New England",
-    "NYJ": "New York (A)",
-    "MIA": "Miami",
-    "BUF": "Buffalo",
-    "KAN": "Kansas City",
-    "KC": "Kansas City",
-    "OAK": "Oakland",
-    "LV": "Las Vegas",
-    "LVR": "Las Vegas",
-    "DEN": "Denver",
-    "SD": "San Diego",
-    "SDG": "San Diego",
-    "LAC": "Los Angeles (A)",
-    "GNB": "Green Bay",
-    "GB": "Green Bay",
-    "MIN": "Minnesota",
-    "DET": "Detroit",
-    "CHI": "Chicago",
-    "TAM": "Tampa Bay",
-    "TB": "Tampa Bay",
-    "CAR": "Carolina",
-    "ATL": "Atlanta",
-    "NO": "New Orleans",
-    "NOR": "New Orleans",
-    "NYG": "New York (N)",
-    "WAS": "Washington",
-    "DAL": "Dallas",
-    "PHI": "Philadelphia",
-    "ARI": "Arizona",
-    "ARZ": "Arizona",
-    "LAR": "Los Angeles (N)",
-    "STL": "St. Louis",
-    "SEA": "Seattle",
-    "SF": "San Francisco",
-    "SFO": "San Francisco",
-    "RAM": "Los Angeles (N)",
-    "RAI": "Los Angeles Raiders",
-    "PHO": "Phoenix",
-    # CFL
-    "MON": "Montreal",
-    "MTL": "Montreal",
-    "HAM": "Hamilton",
-    "CGY": "Calgary",
-    "TOR": "Toronto",
-    "SSK": "Saskatchewan",
-    "BC": "British Columbia",
-    "OTT": "Ottawa",
-    "WPG": "Winnipeg",
-    "EDM": "Edmonton",
-    # UFL
-    "DC": "Washington DC",
-    "ARL": "Arlington",
-    "SA": "San Antonio",
-    "BHM": "Birmingham",
-    "BHAM": "Birminghame",
-    "MICH": "Michigan",
-    "MEM": "Memphis",
-}
-CITY_TO_ABBR = {city: abbr for abbr, city in abbreviation_map.items()}
-CITY_TO_ABBR["Los Angeles (A)"] = "LAC"
-CITY_TO_ABBR["Los Angeles (N)"] = "LAR"
-CITY_TO_ABBR["New York (A)"] = "NYJ"
-CITY_TO_ABBR["New York (N)"] = "NYG"
-
-TEAM_FULL_NAMES = {
-    "NYJ": "New York Jets",
-    "NWE": "New England Patriots",
-    "MIA": "Miami Dolphins",
-    "BUF": "Buffalo Bills",
-    "PIT": "Pittsburgh Steelers",
-    "CLE": "Cleveland Browns",
-    "BAL": "Baltimore Ravens",
-    "CIN": "Cincinnati Bengals",
-    "JAX": "Jacksonville Jaguars",
-    "IND": "Indianapolis Colts",
-    "HOU": "Houston Texans",
-    "TEN": "Tennessee Titans",
-    "LAC": "Los Angeles Chargers",
-    "KC": "Kansas City Chiefs",
-    "KAN": "Kansas City Chiefs",
-    "LVR": "Las Vegas Raiders",
-    "DEN": "Denver Broncos",
-    "DAL": "Dallas Cowboys",
-    "NYG": "New York Giants",
-    "PHI": "Philadelphia Eagles",
-    "WAS": "Washington Commanders",
-    "GB": "Green Bay Packers",
-    "GNB": "Green Bay Packers",
-    "CHI": "Chicago Bears",
-    "MIN": "Minnesota Vikings",
-    "DET": "Detroit Lions",
-    "TB": "Tampa Bay Buccaneers",
-    "TAM": "Tampa Bay Buccaneers",
-    "CAR": "Carolina Panthers",
-    "ATL": "Atlanta Falcons",
-    "NO": "New Orleans Saints",
-    "NOR": "New Orleans Saints",
-    "ARI": "Arizona Cardinals",
-    "ARZ": "Arizona Cardinals",
-    "SEA": "Seattle Seahawks",
-    "SF": "San Francisco 49ers",
-    "SFO": "San Francisco 49ers",
-    "LAR": "Los Angeles Rams",
-    "RAM": "Los Angeles Rams",
-}
-
-CONCURRENT_FRAGMENTS = os.getenv("CONCURRENT_FRAGMENTS", 1)
-DEFAULT_REPLAY_TYPES = {
-    "full_game": "Full Game",
-    "all_22": "All-22",
-    "condensed_game": "Condensed Game",
-    "full_game_alternative": "Full Game - Alternative Broadcasts",
-}
-OUTPUT_FORMATS = {
-    "json": "JSON",
-    "yaml": "YAML",
-    "csv": "CSV",
-    "docx": "Microsoft Word",
-}
-MEDIA_BASE_DIR = os.getenv("MEDIA_BASE_DIR")
-THROTTLED_RATE_LIMIT = os.getenv("THROTTLED_RATE_LIMIT", 1000000)
-
-POSITION_TO_GROUP_MAP = {
-    "QB": "QB",
-    "HB": "RB",
-    "FB": "RB",
-    "RB": "RB",
-    "WR": "WR",
-    "TE": "TE",
-    "OT": "OL",
-    "LT": "OL",
-    "RT": "OL",
-    "OG": "OL",
-    "LG": "OL",
-    "RG": "OL",
-    "C": "OL",
-    "DL": "DL",
-    "DT": "DL",
-    "NT": "DL",
-    "NG": "DL",
-    "EDGE": "EDGE",
-    "LE": "EDGE",
-    "RE": "EDGE",
-    "DE": "EDGE",
-    "LB": "LB",
-    "LOLB": "LB",
-    "ROLB": "LB",
-    "OLB": "LB",
-    "MLB": "LB",
-    "ILB": "LB",
-    "CB": "DB",
-    "LCB": "CB",
-    "RCB": "CB",
-    "S": "DB",
-    "FS": "DB",
-    "SS": "DB",
-}
+from .constants import ABBREVIATION_MAP, CONCURRENT_FRAGMENTS, THROTTLED_RATE_LIMIT
 
 
 def convert_nfl_playoff_name_to_int(year: int, week_name: str) -> int:
@@ -579,8 +414,8 @@ class FileOperationsUtil:
         year = name_parts[0]
         self._log_var("Year", year)
 
-        away_city = abbreviation_map[name_parts[2]]
-        home_city = abbreviation_map[name_parts[4]]
+        away_city = ABBREVIATION_MAP[name_parts[2]]
+        home_city = ABBREVIATION_MAP[name_parts[4]]
         at_vs = "vs" if "SB" in name_parts[1] else "at"
 
         self._log_var("@ or vs", at_vs)
@@ -764,13 +599,13 @@ class MetaDataCreator:
         team_one_abbr = parts[2]
         team_two_abbr = parts[4]
 
-        team_one_city = abbreviation_map.get(team_one_abbr)
+        team_one_city = ABBREVIATION_MAP.get(team_one_abbr)
         if team_one_city is None:
             raise ValueError(
                 f"Could not find team {team_one_abbr} in abbreviation map."
             )
 
-        team_two_city = abbreviation_map.get(team_two_abbr)
+        team_two_city = ABBREVIATION_MAP.get(team_two_abbr)
         if team_two_city is None:
             raise ValueError(
                 f"Could not find team {team_two_city} in abbreviation map."
