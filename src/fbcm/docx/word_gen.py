@@ -256,18 +256,35 @@ def skill_bar(pct: int) -> str:
 
 class WordDocGenerator:
     def __init__(self,
-                 prospect: ProspectDataSoup,
                  output_path: str,
                  ring_image_base_dir: str,
-                 colors_path: str):
-        self.prospect = prospect
+                 colors_path: str,
+                 prospect: ProspectDataSoup = None):
         self.output_path = output_path
         self.ring_img_base_dir = ring_image_base_dir
         self.ring_img_path = None
+        self._ring_img_paths: List[str] = []
         self.color_handler = SchoolColors(colors_file=colors_path)
-        self.colors = self.color_handler.get_school_colors(self.prospect.basic_info.college)
-
+        self._prospect_count = 0
+        self._last_prospect_name: Optional[str] = None
         self.document = Document()
+
+        if prospect:
+            self.add_prospect(prospect)
+
+    def add_prospect(self, prospect: ProspectDataSoup):
+        """Add a prospect profile to the document. The profile is rendered immediately."""
+        if self._prospect_count > 0:
+            self.document.add_page_break()
+        self._set_prospect_context(prospect)
+        self._gen_prospect_profile()
+        self._prospect_count += 1
+        self._last_prospect_name = prospect.basic_info.full_name
+
+    def _set_prospect_context(self, prospect: ProspectDataSoup):
+        """Set the active prospect and derive school colors for section generation."""
+        self.prospect = prospect
+        self.colors = self.color_handler.get_school_colors(prospect.basic_info.college)
 
     def _set_margins(self):
         section = self.document.sections[0]
@@ -367,6 +384,7 @@ class WordDocGenerator:
 
         self.ring_img_path = f"{self.ring_img_base_dir}_{self.prospect.basic_info.full_name}_ring.png"
         img.save(self.ring_img_path, "PNG")
+        self._ring_img_paths.append(self.ring_img_path)
         return self.ring_img_path
 
     def _gen_header_table(self):
@@ -820,11 +838,11 @@ class WordDocGenerator:
             run.font.size = Pt(11)
             run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
 
-    def generate_complete_document(self):
+    def _gen_prospect_profile(self):
+        """Generate all sections for the current active prospect."""
         self._gen_header_table()
 
-        spacer = self.document.add_paragraph()
-        # spacer.paragraph_format.space_after = Pt(2)
+        self.document.add_paragraph()
 
         self._gen_rankings_bar()
         self._gen_stats_bar()
@@ -839,8 +857,20 @@ class WordDocGenerator:
         self._gen_strengths_weaknesses()
         self._gen_scouting_summary()
 
-        full_doc_path = f"{self.output_path}/{self.prospect.basic_info.full_name}.docx"
-        self.document.save(full_doc_path)
+    def _cleanup_ring_images(self):
+        """Remove all temporary ring image files."""
+        for path in self._ring_img_paths:
+            if path and os.path.exists(path):
+                os.remove(path)
+        self._ring_img_paths.clear()
 
-        if os.path.exists(self.ring_img_path):
-            os.remove(self.ring_img_path)
+    def generate_complete_document(self, filename: str = None):
+        if filename:
+            full_doc_path = f"{self.output_path}/{filename}"
+        elif self._prospect_count == 1:
+            full_doc_path = f"{self.output_path}/{self._last_prospect_name}.docx"
+        else:
+            full_doc_path = f"{self.output_path}/prospects.docx"
+
+        self.document.save(full_doc_path)
+        self._cleanup_ring_images()

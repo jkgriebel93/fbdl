@@ -411,9 +411,12 @@ def gen_prospect_word_docs(
         selected_positions = POSITIONS
     click.echo(f"Position: {selected_positions}")
 
+    wdg = WordDocGenerator(output_path=output_directory,
+                           ring_image_base_dir=output_directory,
+                           colors_path="input_files/school_colors.json")
+
     click.echo(f"Provided output directory: {output_directory}")
     for position in selected_positions:
-        pos_output_dir = f"{output_directory}/{position}"
         click.echo(f"Generating docs for {position} position.")
         input_file = f"output_data/{position}.json"
 
@@ -427,12 +430,12 @@ def gen_prospect_word_docs(
             click.echo(f"Generating profile for {prospect_name}, #{cur_count} of {len(position_data)}")
 
             prospect = ProspectDataSoup.from_dict(data=data)
-            wdg = WordDocGenerator(prospect=prospect,
-                                   output_path=pos_output_dir,
-                                   ring_image_base_dir=pos_output_dir,
-                                   colors_path="input_files/school_colors.json")
+            wdg.add_prospect(prospect=prospect)
+
             wdg.generate_complete_document()
             cur_count += 1
+    wdg.generate_complete_document(filename=f"2026_All_Prospects_COMPLETE.docx")
+
 
 
 @cli.command()
